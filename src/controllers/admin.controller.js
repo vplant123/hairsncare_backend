@@ -1060,7 +1060,8 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
         ),
       );
   } catch (error) {
-    throw new ApiError(400, "Failed to assign appointment", error.message);
+    console.error("Error assigning appointment:", error.message);
+    throw new ApiError(400, error.message, error.message);
   }
 });
 

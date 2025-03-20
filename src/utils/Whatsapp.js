@@ -1,8 +1,8 @@
 const axios = require("axios");
 
 const WhatsappTextTemplate = async (input) => {
-    let {attr,phone,name,campName,media} = input;
-    console.log("====whatsappInput",input )
+  let { attr, phone, name, campName, media } = input;
+  console.log("====whatsappInput", input)
   try {
     let d1 = {
       apiKey:
@@ -11,26 +11,25 @@ const WhatsappTextTemplate = async (input) => {
       destination: `+91${phone}`,
       userName: name,
     };
-    if(attr) d1.templateParams = attr
-    if(media) d1.media =media
+    if (attr) d1.templateParams = attr
+    if (media) d1.media = media
 
     const data = JSON.stringify(d1);
 
     let config = {
-        method: "post",
-        url: "https://backend.aisensy.com/campaign/t1/api/v2",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        data: data,
-      };
-      
+      method: "post",
+      url: "https://backend.aisensy.com/campaign/t1/api/v2",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: data,
+    };
+
     let response = await axios(config);
-    console.log("sjofr",response?.data);
     return response?.data;
 
   } catch (error) {
-    console.log("err---",error,error?.response);
+    console.log("err---", error?.response?.data);
     return false;
   }
 };

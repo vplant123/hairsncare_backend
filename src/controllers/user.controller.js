@@ -20,10 +20,19 @@ const patientRegister = asyncHandler(async (req, res) => {
 
     try {
         let logedInUser = await UserService.registerService(req.body);
-        return res.status(200).json(new ApiResponse(200,{logedInUser}, "User register succesffully"))
+        return res.status(200).json(new ApiResponse(200, { logedInUser }, "User register succesffully"))
 
 
-    } catch (error) {
+    }
+    catch (error) {
+        if (error.code == 11000) {
+            if (error.keyValue.email) {
+                return res.status(400).json(new ApiResponse(400, error, "Email already exists"))
+            }
+            if (error.keyValue.mobile) {
+                return res.status(400).json(new ApiResponse(400, error, "Mobile number already exists"))
+            }
+        }
         console.error('Error during signup:', error);
         throw new ApiError(400, "something went wrong", error.message)
 
@@ -47,11 +56,11 @@ const sendotp = asyncHandler(async (req, res) => {
 
         existingUser = await User.findOne({ mobile: req.body.mobile });
         let user;
-        if(existingUser){
+        if (existingUser) {
             existingUser.otp = otpGenerated;
-            existingUser.status= false;
-            existingUser.otpCreatedAt= new Date();
-            existingUser.email= temporaryEmail;
+            existingUser.status = false;
+            existingUser.otpCreatedAt = new Date();
+            existingUser.email = temporaryEmail;
             await existingUser.save();
         }
         else user = await User.create({
@@ -90,15 +99,15 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
         const { mobile } = req.body
         console.log("mobile", mobile)
         const user = await User.findOne({ mobile: mobile });
-        if(user){
-            if(user.role == "doctor" || user.role == "admin"){
-                return res.status(201).json(new ApiResponse(201,user, "please enter password"))
+        if (user) {
+            if (user.role == "doctor" || user.role == "admin") {
+                return res.status(201).json(new ApiResponse(201, user, "please enter password"))
             }
-            if(user?.isDeleted){
-                return res.status(400).json(new ApiResponse(400,user, "User not exist"))
+            if (user?.isDeleted) {
+                return res.status(400).json(new ApiResponse(400, user, "User not exist"))
             }
         }
-        else{
+        else {
             return res.status(400).json(new ApiResponse(400, "please Sign up fisrt"))
 
         }
@@ -123,7 +132,7 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
             });
             await newUser.save();
         }
-        return res.status(200).json(new ApiResponse(200,user, "Otp send successfully"))
+        return res.status(200).json(new ApiResponse(200, user, "Otp send successfully"))
 
 
     } catch (error) {
@@ -169,12 +178,14 @@ const verifyOtpAndLogin = asyncHandler(async (req, res) => {
         const accessToken = await CommonHelper.generateAccessToken(user._id);
         const refreshToken = await CommonHelper.generateRefreshToken(user._id);
 
-        return res.status(200).json(new ApiResponse(200, {logedInUser : {
-            accessToken,
-            refreshToken,
-            user,
-            role: user.role
-        }},"Login successful"));
+        return res.status(200).json(new ApiResponse(200, {
+            logedInUser: {
+                accessToken,
+                refreshToken,
+                user,
+                role: user.role
+            }
+        }, "Login successful"));
     } catch (error) {
         throw new ApiError(error.status || 400, error.message);
     }
@@ -317,7 +328,7 @@ const updatePassword = asyncHandler(async (req, res) => {
 const addReview = asyncHandler(async (req, res) => {
     try {
         let x = await UserService.addReview(req, req.body)
-        if(!x){
+        if (!x) {
             return res.status(400).json(new ApiResponse(400, "Already reviewed"));
         }
         return res.status(200).json(new ApiResponse(200, "review Addedd successfully"))
@@ -330,7 +341,7 @@ const addReview = asyncHandler(async (req, res) => {
 const getReview = asyncHandler(async (req, res) => {
     try {
         let reviews = await UserService.getReview(req, req.params)
-        return res.status(200).json(new ApiResponse(200, reviews,"review Addedd successfully"))
+        return res.status(200).json(new ApiResponse(200, reviews, "review Addedd successfully"))
     } catch (error) {
         throw new ApiError(400, "something error", error.message)
 
@@ -358,13 +369,13 @@ const contactUs = asyncHandler(async (req, res) => {
 
 const addAddress = asyncHandler(async (req, res) => {
     try {
-        const { userId, name, phone,fullAdress,pin,state,city,email } = req.body
+        const { userId, name, phone, fullAdress, pin, state, city, email } = req.body
 
-        if(!userId || !fullAdress || !pin){
+        if (!userId || !fullAdress || !pin) {
             return res.status(400).json(new ApiResponse(400, "Details required"));
         }
         let add = await userAddresses.create(req.body)
-        return res.status(200).json(new ApiResponse(200, add,"Address add successfully"))
+        return res.status(200).json(new ApiResponse(200, add, "Address add successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -376,11 +387,11 @@ const addAddress = asyncHandler(async (req, res) => {
 const getAddress = asyncHandler(async (req, res) => {
     try {
         const { userId } = req.body
-        if(!userId){
+        if (!userId) {
             return res.status(400).json(new ApiResponse(400, "Details required"));
         }
-        let address = await userAddresses.find({userId})
-        return res.status(200).json(new ApiResponse(200,address,"Address fetch successfully"))
+        let address = await userAddresses.find({ userId })
+        return res.status(200).json(new ApiResponse(200, address, "Address fetch successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -391,21 +402,21 @@ const getAddress = asyncHandler(async (req, res) => {
 
 const editAddress = asyncHandler(async (req, res) => {
     try {
-        const { id,name,phone,fullAdress,pin,city,state,email } = req.body
-        if(!id){
+        const { id, name, phone, fullAdress, pin, city, state, email } = req.body
+        if (!id) {
             return res.status(400).json(new ApiResponse(400, "Details required"));
         }
-        let address = await userAddresses.findOne({_id : id})
-        if(name) address.name = name;
-        if(phone) address.phone = phone;
-        if(fullAdress) address.fullAdress = fullAdress;
-        if(pin) address.pin = pin;
-        if(city) address.city = city;
-        if(state) address.state = state;
-        if(email) address.email = email;
+        let address = await userAddresses.findOne({ _id: id })
+        if (name) address.name = name;
+        if (phone) address.phone = phone;
+        if (fullAdress) address.fullAdress = fullAdress;
+        if (pin) address.pin = pin;
+        if (city) address.city = city;
+        if (state) address.state = state;
+        if (email) address.email = email;
         await address.save()
 
-        return res.status(200).json(new ApiResponse(200,address,"Address edit successfully"))
+        return res.status(200).json(new ApiResponse(200, address, "Address edit successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -417,11 +428,11 @@ const editAddress = asyncHandler(async (req, res) => {
 const deleteAddress = asyncHandler(async (req, res) => {
     try {
         const { id } = req.body
-        if(!id){
+        if (!id) {
             return res.status(400).json(new ApiResponse(400, "Details required"));
         }
-        let address = await userAddresses.findOneAndDelete({_id : id})
-        return res.status(200).json(new ApiResponse(200,address,"Address delete successfully"))
+        let address = await userAddresses.findOneAndDelete({ _id: id })
+        return res.status(200).json(new ApiResponse(200, address, "Address delete successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -437,9 +448,9 @@ const getOrders = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: "User not found or user ID is missing" });
         }
 
-        let orders = await orderModel.find({userId : user._id,isDeleted : false,orderType : "product Buy",deliveryStatus : {$in : ["processing", "shipped","delivered","canceled"]}}).populate("addressId").sort({ createdAt: -1 })
+        let orders = await orderModel.find({ userId: user._id, isDeleted: false, orderType: "product Buy", deliveryStatus: { $in: ["processing", "shipped", "delivered", "canceled"] } }).populate("addressId").sort({ createdAt: -1 })
 
-        return res.status(200).json(new ApiResponse(200,orders,"orders fetch successfully"))
+        return res.status(200).json(new ApiResponse(200, orders, "orders fetch successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -451,35 +462,35 @@ const getOrders = asyncHandler(async (req, res) => {
 const applyCoupon = asyncHandler(async (req, res) => {
     try {
         const { user } = req;
-        const {code,type,orderId,hairTestId} = req.body;
+        const { code, type, orderId, hairTestId } = req.body;
         if (!user || !user._id) {
             return res.status(404).json({ message: "User not found or user ID is missing" });
         }
-        if (!code ) {
+        if (!code) {
             return res.status(404).json({ message: "please enter code" });
         }
-        let coupon = await CouponsModel.findOne({code : code})
+        let coupon = await CouponsModel.findOne({ code: code })
         if (!coupon) {
             console.log("coupon not found")
             return res.status(404).json({ message: "coupon not found" });
         }
-        if(type != coupon?.type && coupon?.type != "3") {
+        if (type != coupon?.type && coupon?.type != "3") {
             console.log("type different")
             return res.status(404).json({ message: "coupon not found" });
         }
-        if(new Date() > coupon?.validity){
+        if (new Date() > coupon?.validity) {
             console.log("validity over")
             return res.status(404).json({ message: "coupon not found" });
         }
-        let couponM = await CouponsMappingModel.findOne({userId : user._id,coupon : coupon?._id,status : 2,type : type})
-        if(couponM){
+        let couponM = await CouponsMappingModel.findOne({ userId: user._id, coupon: coupon?._id, status: 2, type: type })
+        if (couponM) {
             return res.status(404).json({ message: "coupon already used" });
         }
 
-        let couponMexist = await CouponsMappingModel.findOne({userId : user._id,coupon : coupon?._id,status : 1,type : type})
+        let couponMexist = await CouponsMappingModel.findOne({ userId: user._id, coupon: coupon?._id, status: 1, type: type })
         if (!couponMexist) {
-          let input = { userId: user._id, coupon: coupon?._id, status: 1,type : 2 };
-          let createMap = await CouponsMappingModel.create(input);
+            let input = { userId: user._id, coupon: coupon?._id, status: 1, type: 2 };
+            let createMap = await CouponsMappingModel.create(input);
         }
 
         // if(orderId){
@@ -488,7 +499,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
         // if(hairTestId){
         //     await HairTest.updateOne({_id : hairTestId},{coupon : coupon?._id})
         // }
-        return res.status(200).json(new ApiResponse(200,coupon,"coupon applied successfully"))
+        return res.status(200).json(new ApiResponse(200, coupon, "coupon applied successfully"))
 
     } catch (error) {
         throw new ApiError(400, "Something went wrong", error.message)
@@ -499,25 +510,25 @@ const applyCoupon = asyncHandler(async (req, res) => {
 
 
 module.exports = {
-  patientRegister,
-  sendOtpForLogin,
-  verifyOtpAndLogin,
-  contactUs,
-  resendOtpMobile,
-  verify,
-  addReview,
-  loginUser,
-  changeCurrentPassword,
-  forgetPassword,
-  updatePassword,
-  sendotp,
-  addAddress,
-  getAddress,
-  editAddress,
-  deleteAddress,
-  getReview,
-  getOrders,
-  applyCoupon
+    patientRegister,
+    sendOtpForLogin,
+    verifyOtpAndLogin,
+    contactUs,
+    resendOtpMobile,
+    verify,
+    addReview,
+    loginUser,
+    changeCurrentPassword,
+    forgetPassword,
+    updatePassword,
+    sendotp,
+    addAddress,
+    getAddress,
+    editAddress,
+    deleteAddress,
+    getReview,
+    getOrders,
+    applyCoupon
 };
 
 

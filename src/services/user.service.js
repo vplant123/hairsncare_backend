@@ -32,6 +32,7 @@ class UserService {
     //     throw new ApiError(409, "This email is already in use.");
     // }
     const user = await User.findOne({ mobile: data.mobile, isVerified: true });
+
     if (!user) {
       return res
         .status(200)
@@ -414,6 +415,32 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
 \n\nBest regards,\nHairsncares.com
 `,
       );
+
+      // Send to admin 
+      await sendEmail(
+        "info@vplanthairclinics.com",
+        "New Appointment for Hairsncares - Contact Us",
+        `New Appointment Request\n\n
+            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
+      );
+      await sendEmail(
+        "info@vplanthairclinics.com",
+        "New Appointment for Hairsncares - Contact Us",
+        `New Appointment Request\n\n
+            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
+      );
+
+
+      await WhatsappTextTemplate({
+        attr: [user?.fullname || "user"],
+        name: user?.fullname,
+        phone: "9004405160",
+        campName: "Utility_Thankyou_Message_after_completing_hair_test",
+        // media: {
+        //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767356/hair-assessment/xplb1jpopazurg1xcpml.jpg",
+        //   filename: "file",
+        // },
+      });
 
       await WhatsappTextTemplate({
         attr: [user?.fullname || "user"],
