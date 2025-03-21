@@ -18,7 +18,7 @@ class ZohoServies {
       };
 
       let result = await axios(config);
-      console.log("kkkkkkk",result?.data?.access_token)
+      console.log("kkkkkkk", result?.data?.access_token)
       if (result?.status == 200) {
         await tokenModel.updateOne(
           { _id: new mongoose.Types.ObjectId("6710c68bdd11d7c2675cdd17") },
@@ -45,22 +45,21 @@ class ZohoServies {
           "Content-Type": "application/json",
           Authorization: `Zoho-oauthtoken ${access_token?.zohoToken}`,
         },
-        data : JSON.stringify(reqData)
+        data: JSON.stringify(reqData)
       };
       try {
         let result = await axios(config);
-        console.log("resppppppp", result);
         // if (result?.status == 200) {
-          return result?.data;
+        return result?.data;
         // }
       } catch (error) {
         console.log("====>>>create-order", error, error?.response?.data);
         if (error && error?.response?.status == 401) {
           let newToken = await this.generateToken();
           if (!newToken) return false;
-          console.log("kjkkkkk",newToken)
+          console.log("kjkkkkk", newToken)
           config.headers["Authorization"] = `Zoho-oauthtoken ${newToken}`;
-          console.log("kkkklllll",config)
+          console.log("kkkklllll", config)
           let result = await axios(config);
           return result?.data;
         }
@@ -71,5 +70,41 @@ class ZohoServies {
       return false;
     }
   };
+  async getProductByName(productName) {
+    let access_token = await tokenModel.findOne({
+      _id: new mongoose.Types.ObjectId("6710c68bdd11d7c2675cdd17"),
+    });
+    const productUrl = `https://www.zohoapis.com/crm/v2/Products/search?criteria=(Product_Name:equals:${encodeURIComponent(productName)})`;
+
+    try {
+      const productResponse = await axios.get(productUrl, {
+        headers: {
+          'Authorization': `Zoho-oauthtoken ${access_token?.zohoToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (productResponse.data.data && productResponse.data.data.length > 0) {
+        const productId = productResponse.data.data[0].id;
+        console.log(`Product found. ID: ${productId}`);
+        return productId;
+      } else {
+        console.log('No product found with the given name.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching product:', error.response ? error.response.data : error.message);
+      if (error && error?.response?.status == 401) {
+        let newToken = await this.generateToken();
+        if (!newToken) return false;
+        console.log("kjkkkkk", newToken)
+        config.headers["Authorization"] = `Zoho-oauthtoken ${newToken}`;
+        console.log("kkkklllll", config)
+        let result = await axios(config);
+        return result?.data;
+      }
+      return null;
+    }
+  }
 }
 module.exports = new ZohoServies();

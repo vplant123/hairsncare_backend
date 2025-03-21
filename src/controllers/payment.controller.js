@@ -24,6 +24,7 @@ const instance = new Razorpay({
   key_secret: "jrLluVVj1fpEiMNwR7QyBUDZ",
 });
 
+
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
@@ -78,6 +79,10 @@ const placeOrder = asyncHandler(async (req, res) => {
           tax: item?.item?.gst,
           hsn: item?.item?.hsn,
         });
+        // if (item?.item?.zohoProductId)
+        if (item?.item?.zohoProductId) {
+
+        }
         Product_Details.push({
           product: {
             id: item?.item?.zohoProductId,

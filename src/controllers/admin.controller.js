@@ -184,7 +184,75 @@ const getDoctor = asyncHandler(async (req, res) => {
   }
 });
 
+const addZohoProductIdIfNotExist = async () => {
+  try {
+    const products = await Product.find();
+
+    for (const productCreate of products) {
+      if (productCreate.zohoProductId) {
+        continue;
+      };
+
+
+
+      let productData = {
+        data: [
+          {
+            //   "Product_Category": "Software",
+            //   "Qty_in_Demand": 1237.89,
+            Description: productCreate?.description,
+            //   "Commission_Rate": 1237.67,
+            Product_Name: productCreate?.name,
+            //   "Quantity_In_Stock": 12792,
+            //   "Sales_Start_Date": "2018-01-25",
+            Tax: ["Sales Tax"],
+            //   "Support_Start_Date": "2018-01-25",
+            Product_Active: true,
+            //   "Usage_Unit": "Caton",
+            Product_Code: productCreate?._id,
+            //   "Qty_Ordered": 1237.89,
+            //   "Manufacturer": "LexPon Inc.",
+            //   "Qty_in_Stock": 1237.89,
+            //   "Support_Expiry_Date": "2018-01-25",
+            //   "Sales_End_Date": "2018-01-25",
+            Unit_Price:
+              parseFloat(productCreate?.price) -
+              parseFloat(productCreate?.discount || 0),
+            Taxable: true,
+            //   "Reorder_Level": 1237.89
+          },
+        ],
+      };
+
+      const zohoProductId = await zohoService.getProductByName(productCreate?.name)
+
+      if (zohoProductId) {
+        await Product.updateOne(
+          { _id: productCreate?._id },
+          { zohoProductId: zohoProductId },
+        )
+        continue;
+      };
+
+      let record = await zohoService.createRecord({
+        module: "Products",
+        reqData: productData,
+      });
+      let u = await Product.updateOne(
+        { _id: productCreate?._id },
+        { zohoProductId: record?.data?.[0]?.details?.id?.toString() },
+      );
+
+    }
+
+  } catch (error) {
+    console.log(error)
+
+  }
+}
+
 const getProduct = asyncHandler(async (req, res) => {
+
   try {
     let { lessPrice, morePrice, review, type, search, filter, display } =
       req.query;
@@ -201,7 +269,8 @@ const getProduct = asyncHandler(async (req, res) => {
     }
     if (display) where["productDisplay"] = true;
 
-    console.log("jsrojt", where);
+    await addZohoProductIdIfNotExist();
+
     let sort = false;
     if (type != "0") {
       if (type == 1) {
@@ -245,7 +314,6 @@ const getProduct = asyncHandler(async (req, res) => {
       products = await Product.find(where).sort({ createdAt: -1 }).lean();
     }
 
-    console.log("mskemrofsj", products);
 
     let result = [];
     for (let index = 0; index < products.length; index++) {
