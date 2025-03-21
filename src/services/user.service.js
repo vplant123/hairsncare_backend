@@ -419,13 +419,13 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
       // Send to admin 
       await sendEmail(
         "info@vplanthairclinics.com",
-        "New Appointment for Hairsncares - Contact Us",
+        "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
             Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
       );
       await sendEmail(
-        "info@vplanthairclinics.com",
-        "New Appointment for Hairsncares - Contact Us",
+        "info@hairsncares.com",
+        "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
             Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
       );
