@@ -709,6 +709,7 @@ const updateProductDetails = asyncHandler(async (req, res) => {
       product.width = width;
     }
     if (metaSlug) product.metaSlug = metaSlug;
+    if (slug) product.metaSlug = slug
     if (metaTitle) product.metaTitle = metaTitle;
     if (metaDesc) product.metaDesc = metaDesc;
     if (metaCanonical) product.metaCanonical = metaCanonical;
