@@ -637,6 +637,7 @@ const updateProductDetails = asyncHandler(async (req, res) => {
     metaDesc,
     metaSlug,
     metaCanonical,
+    slug
   } = req.body;
 
   try {
