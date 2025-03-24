@@ -184,7 +184,7 @@ const getDoctor = asyncHandler(async (req, res) => {
   }
 });
 
-const addZohoProductIdIfNotExist = async () => {
+export const addZohoProductIdIfNotExist = async () => {
   try {
     const products = await Product.find();
 
@@ -269,7 +269,7 @@ const getProduct = asyncHandler(async (req, res) => {
     }
     if (display) where["productDisplay"] = true;
 
-    await addZohoProductIdIfNotExist();
+    // await addZohoProductIdIfNotExist();
 
     let sort = false;
     if (type != "0") {

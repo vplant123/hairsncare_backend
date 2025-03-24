@@ -23,21 +23,21 @@ const productSchema = new mongoose.Schema({
 
 
 
-  category : { type: String },
-  subCategory : { type: String },
+  category: { type: String },
+  subCategory: { type: String },
   gst: { type: Number },
-  expiryDate:{ type: Date },
+  expiryDate: { type: Date },
   batchNo: { type: String },
-  mfgName : { type: String },
-  weight : { type: String },
-  height : { type: String },
-  width : { type: String },
-  hsn : { type: String },
-  filter : [{ type: String }],
+  mfgName: { type: String },
+  weight: { type: String },
+  height: { type: String },
+  width: { type: String },
+  hsn: { type: String },
+  filter: [{ type: String }],
   highlights: { type: String },
   shortDes: { type: String },
   benefitsMain: { type: String },
-  productDisplay:{type : Boolean},
+  productDisplay: { type: Boolean },
   benefits: [
     {
       title: {
@@ -70,22 +70,22 @@ const productSchema = new mongoose.Schema({
       },
     },
   ],
-  review : {
+  review: {
     type: String,
-    default : "0"
+    default: "0"
   },
-  metaTitle : {
+  metaTitle: {
     type: String,
   },
-metaDesc:{
-  type: String,
-},
-metaSlug:{
-  type: String,
-},
-metaCanonical:{
-  type: String,
-},
+  metaDesc: {
+    type: String,
+  },
+  metaSlug: {
+    type: String,
+  },
+  metaCanonical: {
+    type: String,
+  },
 }, { timestamps: true });
 
 

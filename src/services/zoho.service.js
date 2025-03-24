@@ -49,6 +49,7 @@ class ZohoServies {
       };
       try {
         let result = await axios(config);
+        console.log("===>Zoho+++>Order", JSON.stringify(result?.data))
         // if (result?.status == 200) {
         return result?.data;
         // }

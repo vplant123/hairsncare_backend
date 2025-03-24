@@ -8,7 +8,7 @@ const { uploadImageToCloudinary } = require("../utils/upload.utils.js");
 const Appointment = require("../models/Appointment.model.js");
 const { sendEmail } = require('../utils/nodemailer.util.js');
 const Plan = require("../models/plan.model");
-const {  WhatsappTextTemplate } = require('../utils/Whatsapp.js');
+const { WhatsappTextTemplate } = require('../utils/Whatsapp.js');
 const Prescription = require('../models/prescription.model.js');
 
 // Controller to create a new hair test entry for the logged-in user
@@ -159,25 +159,25 @@ const getHairTestDetail = asyncHandler(async (req, res) => {
     try {
         const { user } = req
         const userIdString = user._id.toString();
-        console.log("jjjjjj",user)
-        const hairTest = await HairTest.findOne({ userId: userIdString,status : "pending" })
+        console.log("jjjjjj", user)
+        const hairTest = await HairTest.findOne({ userId: userIdString, status: "pending" })
         // const hairTest = await HairTest.find()
 
         if (!hairTest) {
-            const hairTestAll = await HairTest.find({ userId: userIdString,status : "completed" }).sort({createdAt : -1});
+            const hairTestAll = await HairTest.find({ userId: userIdString, status: "completed" }).sort({ createdAt: -1 });
             let hairTestComp = null;
-            if(hairTestAll?.length < 1) return res.status(404).json({ message: 'Hair test details not found for the user' });
+            if (hairTestAll?.length < 1) return res.status(404).json({ message: 'Hair test details not found for the user' });
             for (let index = 0; index < 1; index++) {
                 const element = hairTestAll[index];
                 let app = await Appointment.findOne({ hairTestId: element._id })
-                let prescription = await Prescription.findOne({ appointmentId: app._id?.toString() })  
-                console.log("naehuiohde",prescription,app,app._id?.toString())
-                if(!prescription){
+                let prescription = await Prescription.findOne({ appointmentId: app._id?.toString() })
+                console.log("naehuiohde", prescription, app, app._id?.toString())
+                if (!prescription) {
                     hairTestComp = element;
-                }         
+                }
             }
-            console.log("koekrokjfer",hairTestComp)
-            if(hairTestComp){
+            console.log("koekrokjfer", hairTestComp)
+            if (hairTestComp) {
                 return res.status(200).json({ hairTestComp });
             }
             else return res.status(404).json({ message: 'Hair test details not found for the user' });
@@ -206,52 +206,61 @@ const uploadImage = asyncHandler(async (req, res) => {
     }
 });
 
-const   createHairTestForUserStepWise = asyncHandler(async (req, res) => {
+const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
     try {
 
-        let {id,data} = req.body;
+        let { id, data } = req.body;
         let newHairTest;
-        if(!id){
+        if (!data?.userId) {
+            return res.status(400).json({ message: 'User id is required' });
+        }
+        // for user id hair test is present
+        const hairTest = await HairTest.findOne({ userId: data?.userId })
+        if (hairTest) {
+            id = hairTest._id
+        }
+
+        if (!id) {
             newHairTest = await HairTest.create(data);
             const appointment = new Appointment({
                 userId: data?.userId,
                 // orderId: order._id,
-                appointmentDate:  '',
+                appointmentDate: '',
                 timeSlot: 'noon',
                 status: 'pending',
                 // planId: data.planId,
                 // amount: selectedPlan.price,
                 paymentStatus: "pending",
-                hairTestId : newHairTest?._id
+                hairTestId: newHairTest?._id
             });
-                    console.log("app", appointment)
-        
-        await appointment.save();
-        }
-       else {
-        newHairTest = await HairTest.findOne({_id : id,userId : data?.userId});
-        console.log("snjdnifs",newHairTest?.data)
-        let newData = {
-            ...newHairTest?.data,
-            ...data
-        }
-        console.log("klkkkkkk",newData)
-        await HairTest.updateOne({_id : id},newData);
-       }
-    //    console.log("newHairsefewewTest",data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage)
-    if(data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage){
-        const user = await User.findOne({ _id: data?.userId })
-        let p1 =  await Plan.findOne({name : "Local Plan"})
-        let p2 =  await Plan.findOne({name : "Premium Plan"})
+            console.log("app", appointment)
 
-        await sendEmail(
-          user?.email,
-          "Your Hair Test Results Are Being Analyzed",
-          `Dear ${user?.fullname},\n\nWe are pleased to inform you that your hair test has been successfully completed.\n
+            await appointment.save();
+        }
+        else {
+            newHairTest = await HairTest.findOne({ _id: id, userId: data?.userId });
+            console.log("snjdnifs", newHairTest?.data)
+            let newData = {
+                ...newHairTest?.data,
+                ...data
+            }
+            console.log("klkkkkkk", newData)
+            await HairTest.updateOne({ _id: id }, newData);
+        }
+        //    console.log("newHairsefewewTest",data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage)
+        if (data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage) {
+            const user = await User.findOne({ _id: data?.userId })
+            let p1 = await Plan.findOne({ name: "Local Plan" })
+            let p2 = await Plan.findOne({ name: "Premium Plan" })
+
+            await sendEmail(
+                user?.email,
+                "Your Hair Test Results Are Being Analyzed",
+                `Dear ${user?.fullname},\n\nWe are pleased to inform you that your hair test has been successfully completed.\n
 Book Your Online Video Consultation Slot -  Pay Rs. ${p2?.price}/-\nOr\nBook Your Online Consultation Slot - Pay Rs.  ${p1?.price}/-\nThank you for choosing Hairsncares.com for your hair health needs.\n\nBest regards,\nHairsncares.com
 `
-        );
-       }
+            );
+        }
 
         return res.status(201).json({
             success: true,
@@ -268,4 +277,4 @@ Book Your Online Video Consultation Slot -  Pay Rs. ${p2?.price}/-\nOr\nBook You
 
 
 
-module.exports = { createHairTestForUser, getHairTest, updateHairTestStep, uploadImage, getHairTestDetail,createHairTestForUserStepWise};
+module.exports = { createHairTestForUser, getHairTest, updateHairTestStep, uploadImage, getHairTestDetail, createHairTestForUserStepWise };

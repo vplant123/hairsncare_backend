@@ -57,46 +57,48 @@ class UserService {
     // await sendEmail(data.email, 'Welcome to HairsnCares.com!',
     //     `You are Successfully logged In.`)
 
-    let productData = {
-      data: [
-        {
-          Last_Name: user?.fullname?.split(" ")?.[1] || user?.fullname,
-          First_Name: user?.fullname,
-          Email: user?.email,
-          Phone: user?.mobile,
-          // "Company": element?.email
-        },
-      ],
-    };
-    try {
-      let record = await zohoService.createRecord({
-        module: "Contacts",
-        reqData: productData,
-      });
-      let u = await User.updateOne(
-        { _id: user?._id },
-        { zohoUserId: record?.data?.[0]?.details?.id?.toString() },
-      );
-      console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
-    } catch (error) {
-      console.log("knmsnjdi", error);
-    }
-    await sendEmail(
-      data.email,
-      "Welcome to HairsnCares.com!",
-      `Hi ${data?.fullname},\n\nWelcome to HairsnCares.com! Your account is now ready.\n\nTo log in, please use the OTP sent to your registered mobile number or email.\n\nBest Regards,\nThe HairsnCares Team
+    if (!user.zohoUserId) {
+      let productData = {
+        data: [
+          {
+            Last_Name: user?.fullname?.split(" ")?.[1] || user?.fullname,
+            First_Name: user?.fullname,
+            Email: user?.email,
+            Phone: user?.mobile,
+            // "Company": element?.email
+          },
+        ],
+      };
+      try {
+        let record = await zohoService.createRecord({
+          module: "Contacts",
+          reqData: productData,
+        });
+        let u = await User.updateOne(
+          { _id: user?._id },
+          { zohoUserId: record?.data?.[0]?.details?.id?.toString() },
+        );
+        console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
+      } catch (error) {
+        console.log("knmsnjdi", error);
+      }
+      await sendEmail(
+        data.email,
+        "Welcome to HairsnCares.com!",
+        `Hi ${data?.fullname},\n\nWelcome to HairsnCares.com! Your account is now ready.\n\nTo log in, please use the OTP sent to your registered mobile number or email.\n\nBest Regards,\nThe HairsnCares Team
 `,
-    );
-    await WhatsappTextTemplate({
-      attr: null,
-      name: user?.fullname,
-      phone: user?.mobile?.toString(),
-      campName: "take_hair_test1",
-      media: {
-        url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767282/hair-assessment/yxuwxkxqko0uwyr2m7rw.jpg",
-        filename: "file",
-      },
-    });
+      );
+      await WhatsappTextTemplate({
+        attr: null,
+        name: user?.fullname,
+        phone: user?.mobile?.toString(),
+        campName: "take_hair_test1",
+        media: {
+          url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767282/hair-assessment/yxuwxkxqko0uwyr2m7rw.jpg",
+          filename: "file",
+        },
+      });
+    }
 
     return { accessToken, refreshToken, role: user?.role, user };
   };
