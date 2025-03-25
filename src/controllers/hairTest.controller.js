@@ -11,65 +11,6 @@ const Plan = require("../models/plan.model");
 const { WhatsappTextTemplate } = require('../utils/Whatsapp.js');
 const Prescription = require('../models/prescription.model.js');
 
-// Controller to create a new hair test entry for the logged-in user
-// const createHairTestForUser = asyncHandler(async (req, res) => {
-//     try {
-//         //Fetching user token User_id
-//         const { user } = req
-//         const loginUser = await User.findById(user._id);
-
-//         if (!loginUser) {
-//             throw new ApiError(404, "User not found");
-//         }
-
-//         const { personal, nutritional, lifestyle, stress, hairAndScalpAssessment } = req.body;
-//         const filter = { userId: user._id };
-//         const update = {
-//             // userId: user._id,
-
-//         };
-//         if (personal !== undefined) update['personal'] = personal;
-//         if (nutritional !== undefined) update['nutritional'] = nutritional;
-//         if (lifestyle !== undefined) update['lifestyle'] = lifestyle;
-//         if (stress !== undefined) update['stress'] = stress;
-//         if (hairAndScalpAssessment !== undefined) update['hairAndScalpAssessment'] = hairAndScalpAssessment;
-
-//         const options = {
-//             upsert: true
-//         };
-
-//         const createHairAssessment = await HairTest.updateOne(filter, update, options);
-
-//         return res.status(201).json(new ApiResponse(201, createHairAssessment, "Success"));
-//     } catch (error) {
-//         console.log("error======", error);
-//         throw new ApiError(500, "Internal server error");
-//     }
-// });
-// const createHairTestForUser = asyncHandler(async (req, res) => {
-//     try {
-//         // Create a new hair test document with the data from the request body
-//         const newHairTest = await HairTest.create(req.body);
-
-//         // Log the request body and the created document for debugging
-//         console.log("Request body:", req.body);
-//         console.log("New hair test document:", newHairTest);
-
-//         // Return a success response with the created document
-//         return res.status(201).json({
-//             success: true,
-//             data: newHairTest,
-//             message: "Successfully created"
-//         });
-//     } catch (error) {
-//         // Handle errors
-//         console.error("Error creating hair test:", error);
-//         return res.status(500).json({
-//             success: false,
-//             message: "Failed to create hair test"
-//         });
-//     }
-// });
 const createHairTestForUser = asyncHandler(async (req, res) => {
     try {
 
@@ -233,19 +174,39 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
                 paymentStatus: "pending",
                 hairTestId: newHairTest?._id
             });
-            console.log("app", appointment)
 
             await appointment.save();
         }
         else {
             newHairTest = await HairTest.findOne({ _id: id, userId: data?.userId });
-            console.log("snjdnifs", newHairTest?.data)
             let newData = {
                 ...newHairTest?.data,
                 ...data
             }
-            console.log("klkkkkkk", newData)
             await HairTest.updateOne({ _id: id }, newData);
+        }
+        if (data?.personal && data?.personal?.phoneNumber) {
+            const user = await User.findOne({ _id: data?.userId })
+            await WhatsappTextTemplate({
+                attr: null,
+                name: user?.fullname,
+                phone: user?.mobile?.toString(),
+                campName: "admin2_message_notification",
+            });
+
+            await sendEmail(
+                "info@vplanthairclinics.com",
+                "New Hair Test Alert! 💇",
+                `New Appointment Request\n\n
+                    Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
+            );
+            await sendEmail(
+                "info@hairsncares.com",
+                "New Hair Test Alert! 💇",
+                `New Appointment Request\n\n
+                    Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
+            );
+
         }
         //    console.log("newHairsefewewTest",data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage)
         if (data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage) {

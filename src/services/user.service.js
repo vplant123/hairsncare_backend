@@ -423,13 +423,13 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
         "info@vplanthairclinics.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
-            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
+            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
       );
       await sendEmail(
         "info@hairsncares.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
-            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""},\n Preferred method : ${data?.method} `,
+            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
       );
 
 
