@@ -1156,8 +1156,7 @@ const getOrders = asyncHandler(async (req, res) => {
 
 const getCoupons = asyncHandler(async (req, res) => {
   try {
-    console.log("smriw");
-    const data = await CouponsModel.find({ isActive: 1 }).sort({
+    const data = await CouponsModel.find(req.user.role === "admin" ? {} : { isActive: true }).sort({
       createdAt: -1,
     });
     return res
@@ -1171,12 +1170,13 @@ const getCoupons = asyncHandler(async (req, res) => {
 
 const editCoupon = asyncHandler(async (req, res) => {
   try {
-    let { code, id, validity, percent, type } = req.body;
+    let { code, id, validity, percent, type, isActive } = req.body;
+    console.log("lmekrmo", req.body);
     if (!id) {
       if (!code || !validity || !percent) {
         return res.status(400).json(new ApiResponse(400, "Details required"));
       }
-      let input = { code, validity, percent, type };
+      let input = { code, validity, percent, type, isActive };
       let add = await CouponsModel.create(input);
       return res
         .status(200)
@@ -1187,6 +1187,7 @@ const editCoupon = asyncHandler(async (req, res) => {
       if (validity) coupon.validity = validity;
       if (percent) coupon.percent = percent;
       if (type) coupon.type = type;
+      if (isActive !== undefined) coupon.isActive = isActive;
 
       await coupon.save();
       return res

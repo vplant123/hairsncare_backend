@@ -11,7 +11,7 @@ const blogSchema = new mongoose.Schema({
     authorName: {
         type: String
     },
-    authorDesignation :{
+    authorDesignation: {
         type: String
     },
     authorImg: {
@@ -30,27 +30,27 @@ const blogSchema = new mongoose.Schema({
         type: String,
         // required: true
     }],
-    blogData:[{
-        link : {
+    blogData: [{
+        link: {
             type: String,
         },
-        desc : {
+        desc: {
             type: String
         },
     }],
-    seoMetaTitle:[{
+    seoMetaTitle: [{
         type: String,
     }],
-    seoMetaDesc:{
+    seoMetaDesc: {
         type: String,
     },
-    metaCanonical:{
+    metaCanonical: {
         type: String,
     },
-    category : {
+    category: {
         type: String,
     },
-    isActive : {
+    isActive: {
         type: Boolean,
     },
 
