@@ -36,7 +36,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       config = config[0];
     }
 
-    const { deliveryCharge = 200, deliveryAmt = 2000 } = config
+    const { deliveryCharge = 200.00, deliveryAmt = 2000 } = config
 
     console.log(config)
 
@@ -200,7 +200,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_City: add?.city,
             // "Purchase_Order": "Purchase_Order",
             Billing_State: add?.state,
-            "Adjustment": total > deliveryAmt ? 0 : deliveryCharge,
+            "Adjustment": total > deliveryAmt ? 0 : deliveryCharge * 1.0,
             // "$line_tax": [
             //     {
             //         "percentage": 12.5,
