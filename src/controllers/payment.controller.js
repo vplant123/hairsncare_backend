@@ -29,6 +29,17 @@ const placeOrder = asyncHandler(async (req, res) => {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
     const { user } = req;
 
+    let config = await Config.find({});
+
+
+    if (config?.length > 0) {
+      config = config[0];
+    }
+
+    const { deliveryCharge = 200, deliveryAmt = 2000 } = config
+
+    console.log(config)
+
     if (!user || !user._id || products?.length < 1) {
       return res
         .status(404)
@@ -68,6 +79,8 @@ const placeOrder = asyncHandler(async (req, res) => {
         (parseFloat(orderC?.percent || 0) * parseFloat(amount)) / 100;
       let order_items = [],
         Product_Details = [];
+
+      let total = 0;
       products?.map((item) => {
         order_items.push({
           name: item?.item?.name,
@@ -81,7 +94,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         // if (item?.item?.zohoProductId)
         if (item?.item?.zohoProductId) {
         }
-        console.log("Price", item?.item?.price, "Discount", item?.item?.discount);
+        total += (item?.item?.price - item?.item?.discount)
         Product_Details.push({
           product: {
             id: item?.item?.zohoProductId,
@@ -90,6 +103,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           // Discount: item?.item?.discount,
           product_description: item?.item?.description,
           "Unit Price": item?.item?.price - item?.item?.discount,
+          "list_price": item?.item?.price - item?.item?.discount,
           line_tax: [
             {
               percentage: item?.item?.gst || 0,
@@ -144,7 +158,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           { shipRocket_order_Id: createOrderShipRocket?.order_id },
         );
       }
-
+      console.log(Product_Details);
       let zohoOrder = {
         data: [
           {
@@ -186,7 +200,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_City: add?.city,
             // "Purchase_Order": "Purchase_Order",
             Billing_State: add?.state,
-            "Adjustment": 200,
+            "Adjustment": total > deliveryAmt ? 0 : deliveryCharge,
             // "$line_tax": [
             //     {
             //         "percentage": 12.5,
