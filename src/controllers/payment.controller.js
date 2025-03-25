@@ -24,7 +24,6 @@ const instance = new Razorpay({
   key_secret: "jrLluVVj1fpEiMNwR7QyBUDZ",
 });
 
-
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
@@ -81,16 +80,16 @@ const placeOrder = asyncHandler(async (req, res) => {
         });
         // if (item?.item?.zohoProductId)
         if (item?.item?.zohoProductId) {
-
         }
+        console.log("Price", item?.item?.price, "Discount", item?.item?.discount);
         Product_Details.push({
           product: {
             id: item?.item?.zohoProductId,
           },
           quantity: item?.quantity,
-          Discount: item?.item?.discount,
+          // Discount: item?.item?.discount,
           product_description: item?.item?.description,
-          "Unit Price": item?.item?.price,
+          "Unit Price": item?.item?.price - item?.item?.discount,
           line_tax: [
             {
               percentage: item?.item?.gst || 0,
@@ -106,7 +105,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         // "channel_id": "",
         // "comment": "Reseller: M/s Goku",
         billing_customer_name: user?.fullname,
-        billing_last_name: user?.fullname?.split(" ")?.[1] || "singh",
+        billing_last_name: user?.fullname?.split(" ")?.[1] || "",
         billing_address: add?.fullAdress,
         // "billing_address_2": "Near Hokage House",
         billing_city: add?.city,
@@ -187,6 +186,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_City: add?.city,
             // "Purchase_Order": "Purchase_Order",
             Billing_State: add?.state,
+            "Adjustment": 200,
             // "$line_tax": [
             //     {
             //         "percentage": 12.5,
@@ -256,8 +256,8 @@ const placeOrder = asyncHandler(async (req, res) => {
       await payment.save();
     }
 
-    const orderUser = await User.findOne({ _id: user._id });
-    const add = await userAddresses.findOne({ _id: order?.addressId });
+    // const orderUser = await User.findOne({ _id: user._id });
+    // const add = await userAddresses.findOne({ _id: order?.addressId });
     await WhatsappTextTemplate({
       attr: null,
       name: "Pharmacist",
