@@ -6,7 +6,7 @@ const LokiTransport = require('winston-loki');
 const lokiTransport = new LokiTransport({
     host: "https://loki.ghorai.duckdns.org", // Default Loki server URL
     labels: {
-        app: 'node-express-app-local',
+        app: 'node-express-app',
         environment: process.env.NODE_ENV || 'development'
     },
     json: true,
