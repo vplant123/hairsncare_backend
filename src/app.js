@@ -12,6 +12,7 @@ const cartRoutes = require("./routes/cart.routes.js");
 const utilityRoutes = require("./routes/utility.routes.js");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
+require("./lokiLogger.js")
 
 const app = express();
 app.use(bodyParser.json({ limit: "50mb" }));
