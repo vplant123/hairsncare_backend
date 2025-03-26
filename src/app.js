@@ -31,7 +31,7 @@ app.use(
   }),
 );
 
-app.use(morgan('dev', {
+app.use(morgan('common', {
   stream: {
     write: (message) => console.log(message.trim())
   }
