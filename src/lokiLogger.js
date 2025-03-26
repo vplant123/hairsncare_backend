@@ -6,7 +6,7 @@ const LokiTransport = require('winston-loki');
 const lokiTransport = new LokiTransport({
     host: "https://loki.ghorai.duckdns.org", // Default Loki server URL
     labels: {
-        app: 'node-express-app',
+        app: 'node-express-app-local',
         environment: process.env.NODE_ENV || 'development'
     },
     json: true,
@@ -41,6 +41,13 @@ const logger = createLogger({
 const originalConsoleLog = console.log;
 console.log = (...args) => {
     logger.info(args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg) : arg
+    ).join(' '));
+    originalConsoleLog(...args);
+};
+
+console.error = (...args) => {
+    logger.error(args.map(arg =>
         typeof arg === 'object' ? JSON.stringify(arg) : arg
     ).join(' '));
     originalConsoleLog(...args);
