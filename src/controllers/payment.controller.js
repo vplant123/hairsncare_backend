@@ -469,7 +469,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
       // "channel_id": "",
       // "comment": "Reseller: M/s Goku",
       billing_customer_name: user?.fullname,
-      billing_last_name: user?.fullname?.split(" ")?.[1] || "singh",
+      billing_last_name: user?.fullname?.split(" ")?.[1] || "",
       billing_address: add?.fullAdress,
       // "billing_address_2": "Near Hokage House",
       billing_city: add?.city,

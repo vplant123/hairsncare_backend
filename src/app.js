@@ -31,7 +31,11 @@ app.use(
   }),
 );
 
-morgan("tiny");
+app.use(morgan('dev', {
+  stream: {
+    write: (message) => console.log(message.trim())
+  }
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

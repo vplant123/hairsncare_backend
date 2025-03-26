@@ -8,7 +8,6 @@ dotenv.config({
   path: path.resolve(__dirname, ".env"),
 });
 
-console.log(process.env);
 PORT = process.env.PORT || 3000
 
 connectDB()
