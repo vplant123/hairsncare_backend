@@ -76,9 +76,10 @@ const placeOrder = asyncHandler(async (req, res) => {
       let add = await userAddresses.findOne({ _id: order?.addressId });
       let orderC = await CouponsModel.findOne({ _id: couponId });
       let totalD =
-        (parseFloat(orderC?.percent || 0) * parseFloat(amount)) / 100;
+        (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
       let order_items = [],
         Product_Details = [];
+
 
       let total = 0;
       products?.map((item) => {
@@ -112,6 +113,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           ],
         });
       });
+      totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
       let shipRocketOrder = {
         order_id: order._id,
         order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -283,6 +285,13 @@ const placeOrder = asyncHandler(async (req, res) => {
       // },
     });
 
+    // empty cart
+    const cart = await Cart.findOne({ userId: user._id });
+    if (cart) {
+      cart.items = [];
+      await cart.save();
+    }
+
     return res
       .status(200)
       .json(new ApiResponse(200, order._id, "Order created successfully"));
@@ -378,6 +387,15 @@ const deleteAllPayments = async () => {
 
 const updatePaymentOrder = asyncHandler(async (req, res) => {
   try {
+    let config = await Config.find({});
+
+
+    if (config?.length > 0) {
+      config = config[0];
+    }
+
+    const { deliveryCharge = 200.00, deliveryAmt = 2000 } = config
+
     const { user } = req;
     // console.log("userrrrr", user)
     if (!user || !user._id) {
@@ -433,9 +451,10 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     let orderC = await CouponsModel.findOne({ _id: order?.coupon });
     let totalD = 0;
     if (order?.coupon)
-      totalD = (parseFloat(orderC?.percent || 0) * parseFloat(amount)) / 100;
+      totalD = (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
     let order_items = [],
       Product_Details = [];
+    let total = 0;
     order?.products?.map((item) => {
       order_items.push({
         name: item?.item?.name,
@@ -446,14 +465,16 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
         tax: item?.item?.gst,
         hsn: item?.item?.hsn,
       });
+      total += (item?.item?.price - item?.item?.discount)
       Product_Details.push({
         product: {
           id: item?.item?.zohoProductId,
         },
         quantity: item?.quantity,
-        Discount: item?.item?.discount,
+        // Discount: item?.item?.discount,
         product_description: item?.item?.description,
-        "Unit Price": item?.item?.price,
+        "Unit Price": item?.item?.price - item?.item?.discount,
+        "list_price": item?.item?.price - item?.item?.discount,
         line_tax: [
           {
             percentage: item?.item?.gst || 0,
@@ -462,6 +483,8 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
         ],
       });
     });
+    totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
+    console.log(total, orderC?.percent)
     let shipRocketOrder = {
       order_id: order._id,
       order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -551,6 +574,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
           Billing_City: add?.city,
           // "Purchase_Order": "Purchase_Order",
           Billing_State: add?.state,
+          "Adjustment": total > deliveryAmt ? 0 : deliveryCharge * 1.0,
           // "$line_tax": [
           //     {
           //         "percentage": 12.5,
@@ -670,7 +694,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
         let totalD = 0;
         if (orderC)
           totalD =
-            (parseFloat(orderC?.percent || 0) * parseFloat(amount)) / 100;
+            (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
         let input = {
           name: orderUser?.fullname,
           mobile: orderUser?.mobile,
@@ -699,7 +723,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
         if (add?.email) {
           let email = await sendEmailTemplate(
             add?.email,
-            "Order Plaeced Successfully",
+            "Order Delivered Successfully",
             emailHtml,
           );
           console.log("kfoker", email);

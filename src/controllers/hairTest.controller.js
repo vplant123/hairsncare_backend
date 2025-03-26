@@ -190,7 +190,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
             await WhatsappTextTemplate({
                 attr: null,
                 name: user?.fullname,
-                phone: user?.mobile?.toString(),
+                phone: "9004405160",
                 campName: "admin2_message_notification",
             });
 
@@ -222,6 +222,7 @@ Book Your Online Video Consultation Slot -  Pay Rs. ${p2?.price}/-\nOr\nBook You
 `
             );
         }
+
 
         return res.status(201).json({
             success: true,
