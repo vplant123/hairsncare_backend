@@ -19,9 +19,9 @@ const invoiceSchema = new mongoose.Schema(
     items: [
       {
         item: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Product",
-            required: true,
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
         },
         quantity: {
           type: String,
@@ -49,16 +49,17 @@ const invoiceSchema = new mongoose.Schema(
         },
       },
     ],
-    total : { type: Number },
-    paid : { type: Boolean },
-    paidAmt : { type: Number },
-    dues : { type: Number },
-    isActive : { type: Boolean,default : true },
-    invoiceNo : { type: Number },
-    orderId : { type: String },
-    orderDate : { type: Date },
-    couponDiscount : { type: Number },
-    paymentMode : { type: String },   //cash,//online
+    total: { type: Number },
+    paid: { type: Boolean },
+    paidAmt: { type: Number },
+    dues: { type: Number },
+    isActive: { type: Boolean, default: true },
+    invoiceNo: { type: Number },
+    orderId: { type: String },
+    orderDate: { type: Date },
+    couponDiscount: { type: Number },
+    paymentMode: { type: String },   //cash,//online
+    deliveryCharges: { type: Number },
   },
   { timestamps: true }
 );

@@ -23,20 +23,20 @@ const productSchema = new mongoose.Schema({
 
 
 
-  category : { type: String },
-  subCategory : { type: String },
+  category: { type: String },
+  subCategory: { type: String },
   gst: { type: Number },
-  expiryDate:{ type: Date },
+  expiryDate: { type: Date },
   batchNo: { type: String },
-  mfgName : { type: String },
-  hsn : { type: String },
-  weight : { type: String },
-  height : { type: String },
-  width : { type: String },
+  mfgName: { type: String },
+  hsn: { type: String },
+  weight: { type: String },
+  height: { type: String },
+  width: { type: String },
   highlights: { type: String },
   shortDes: { type: String },
   benefitsMain: { type: String },
-  productDisplay:{type : Boolean},
+  productDisplay: { type: Boolean },
   benefits: [
     {
       title: {
@@ -69,81 +69,84 @@ const productSchema = new mongoose.Schema({
       },
     },
   ],
-  review : {
+  review: {
     type: String,
-    default : "0"
+    default: "0"
   },
 });
-  
+
 const orderSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', required: true
-    },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', required: true
+  },
 
-    amount: {
+  amount: {
+    type: Number,
+    required: true
+  },
+  addressId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'userAddresses'
+  },
+  plainId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Plan'
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  products: [
+    {
+      item: productSchema,
+      quantity: {
         type: Number,
-        required: true
+        default: 1
+      },
     },
-    addressId : {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'userAddresses'
-    },
-    plainId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Plan'
-    },
-    isDeleted: {
-        type: Boolean,
-        default: false
-    },
-    products: [
-        {
-          item: productSchema,
-          quantity: {
-            type: Number,
-            default : 1
-          },
-        },
-      ],
-    currency: {
-        type: String,
+  ],
+  currency: {
+    type: String,
 
-    },
-    coupon: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Coupons'
-    },
-    status: {
-        type: String,
-        enum: ['pending', 'paid', 'failed'],
-        default: 'pending'
-    },
-    orderType: {
-        type: String,
-        enum: ["Appointment", "product Buy"],
-        required: true
-    },
-    deliveryStatus: {
-        type: String,
-        enum: ['pending', "processing", "shipped","delivered","canceled" ],   //processing+pending  == cash on deilvery
-        default: 'pending'                                                     //pay online = pending + pending
-    },
-    mode: {
-        type: String,
-        enum: ["cash", "online"],
-        default: 'online'                             
-    },
-    shipRocket_order_Id : {
-      type: String,
-    },
-    zoho_order_Id : {
-      type: String,
-    },
-    invoiceId : {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Invoices",
-    },
+  },
+  coupon: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Coupons'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'paid', 'failed'],
+    default: 'pending'
+  },
+  orderType: {
+    type: String,
+    enum: ["Appointment", "product Buy"],
+    required: true
+  },
+  deliveryStatus: {
+    type: String,
+    enum: ['pending', "processing", "shipped", "delivered", "canceled"],   //processing+pending  == cash on deilvery
+    default: 'pending'                                                     //pay online = pending + pending
+  },
+  deliveryCharges: {
+    type: Number,
+  },
+  mode: {
+    type: String,
+    enum: ["cash", "online"],
+    default: 'online'
+  },
+  shipRocket_order_Id: {
+    type: String,
+  },
+  zoho_order_Id: {
+    type: String,
+  },
+  invoiceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Invoices",
+  },
 
 }, { timestamps: true });
 

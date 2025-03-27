@@ -114,6 +114,13 @@ const placeOrder = asyncHandler(async (req, res) => {
         });
       });
       totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
+      const deliveryChargeCalc = total > deliveryAmt ? 0 : deliveryCharge * 1.0
+      await Order.updateOne(
+        { _id: order._id },
+        {
+          deliveryCharges: deliveryChargeCalc
+        }
+      )
       let shipRocketOrder = {
         order_id: order._id,
         order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -143,11 +150,11 @@ const placeOrder = asyncHandler(async (req, res) => {
         // "shipping_phone": "",
         order_items: order_items,
         payment_method: "COD",
-        shipping_charges: 0,
+        shipping_charges: deliveryChargeCalc,
         giftwrap_charges: 0,
         transaction_charges: 0,
         total_discount: totalD,
-        sub_total: amount,
+        sub_total: total,
         length: 10,
         breadth: 15,
         height: 20,
@@ -202,7 +209,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_City: add?.city,
             // "Purchase_Order": "Purchase_Order",
             Billing_State: add?.state,
-            "Adjustment": total > deliveryAmt ? 0 : deliveryCharge * 1.0,
+            "Adjustment": deliveryChargeCalc,
             // "$line_tax": [
             //     {
             //         "percentage": 12.5,
@@ -484,7 +491,14 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
       });
     });
     totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
+    const deliveryChargeCalc = total > deliveryAmt ? 0 : deliveryCharge * 1.0
     console.log(total, orderC?.percent)
+    await Order.updateOne(
+      { _id: order._id },
+      {
+        deliveryCharges: deliveryChargeCalc
+      }
+    )
     let shipRocketOrder = {
       order_id: order._id,
       order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -514,11 +528,11 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
       // "shipping_phone": "",
       order_items: order_items,
       payment_method: "Prepaid",
-      shipping_charges: 0,
+      shipping_charges: deliveryChargeCalc,
       giftwrap_charges: 0,
       transaction_charges: 0,
       total_discount: totalD,
-      sub_total: order?.amount,
+      sub_total: total,
       length: 10,
       breadth: 15,
       height: 20,
@@ -574,7 +588,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
           Billing_City: add?.city,
           // "Purchase_Order": "Purchase_Order",
           Billing_State: add?.state,
-          "Adjustment": total > deliveryAmt ? 0 : deliveryCharge * 1.0,
+          "Adjustment": deliveryChargeCalc,
           // "$line_tax": [
           //     {
           //         "percentage": 12.5,
@@ -709,6 +723,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
           orderId: order?._id?.toString(),
           couponDiscount: totalD,
           paymentMode: order?.mode,
+          deliveryCharges: order?.deliveryCharges,
         };
         let squence = await Invoices.countDocuments();
         input["invoiceNo"] = squence + 1;
