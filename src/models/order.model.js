@@ -132,6 +132,12 @@ const orderSchema = new mongoose.Schema({
   deliveryCharges: {
     type: Number,
   },
+  totalDiscount: {
+    type: Number,
+  },
+  totalAmount: {
+    type: Number,
+  },
   mode: {
     type: String,
     enum: ["cash", "online"],

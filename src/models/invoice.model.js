@@ -60,6 +60,12 @@ const invoiceSchema = new mongoose.Schema(
     couponDiscount: { type: Number },
     paymentMode: { type: String },   //cash,//online
     deliveryCharges: { type: Number },
+    totalDiscount: {
+      type: Number,
+    },
+    totalAmount: {
+      type: Number,
+    },
   },
   { timestamps: true }
 );

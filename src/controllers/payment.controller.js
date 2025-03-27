@@ -118,7 +118,9 @@ const placeOrder = asyncHandler(async (req, res) => {
       await Order.updateOne(
         { _id: order._id },
         {
-          deliveryCharges: deliveryChargeCalc
+          deliveryCharges: deliveryChargeCalc,
+          totalDiscount: totalD,
+          totalAmount: total
         }
       )
       let shipRocketOrder = {
@@ -496,7 +498,9 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     await Order.updateOne(
       { _id: order._id },
       {
-        deliveryCharges: deliveryChargeCalc
+        deliveryCharges: deliveryChargeCalc,
+        totalDiscount: totalD,
+        totalAmount: total
       }
     )
     let shipRocketOrder = {
@@ -724,6 +728,8 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
           couponDiscount: totalD,
           paymentMode: order?.mode,
           deliveryCharges: order?.deliveryCharges,
+          totalDiscount: order?.totalDiscount,
+          totalAmount: order?.totalAmount,
         };
         let squence = await Invoices.countDocuments();
         input["invoiceNo"] = squence + 1;
