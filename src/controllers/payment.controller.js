@@ -114,7 +114,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         });
       });
       totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
-      const deliveryChargeCalc = total > deliveryAmt ? 0 : deliveryCharge * 1.0
+      const deliveryChargeCalc = (total - totalD) > deliveryAmt ? 0 : deliveryCharge * 1.0
       await Order.updateOne(
         { _id: order._id },
         {
@@ -493,7 +493,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
       });
     });
     totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
-    const deliveryChargeCalc = total > deliveryAmt ? 0 : deliveryCharge * 1.0
+    const deliveryChargeCalc = (total - totalD) > deliveryAmt ? 0 : deliveryCharge * 1.0
     console.log(total, orderC?.percent)
     await Order.updateOne(
       { _id: order._id },
