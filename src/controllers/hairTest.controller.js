@@ -187,20 +187,20 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
         }
         if (data?.personal && data?.personal?.phoneNumber) {
             const user = await User.findOne({ _id: data?.userId })
-            await WhatsappTextTemplate({
+            WhatsappTextTemplate({
                 attr: null,
                 name: user?.fullname,
                 phone: "9004405160",
                 campName: "admin2_message_notification",
             });
 
-            await sendEmail(
+            sendEmail(
                 "info@vplanthairclinics.com",
                 "New Hair Test Alert! 💇",
                 `New Appointment Request\n\n
                     Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
             );
-            await sendEmail(
+            sendEmail(
                 "info@hairsncares.com",
                 "New Hair Test Alert! 💇",
                 `New Appointment Request\n\n
