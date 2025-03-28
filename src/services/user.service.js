@@ -437,7 +437,7 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
         attr: [user?.fullname || "user"],
         name: user?.fullname,
         phone: "9004405160",
-        campName: "Utility_Thankyou_Message_after_completing_hair_test",
+        campName: "admin2_message_notification",
         // media: {
         //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767356/hair-assessment/xplb1jpopazurg1xcpml.jpg",
         //   filename: "file",
@@ -448,7 +448,7 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
         attr: null,
         name: user?.fullname,
         phone: user?.mobile?.toString(),
-        campName: "admin2_message_notification",
+        campName: "Utility_Thankyou_Message_after_completing_hair_test",
         // media: {
         //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767356/hair-assessment/xplb1jpopazurg1xcpml.jpg",
         //   filename: "file",
