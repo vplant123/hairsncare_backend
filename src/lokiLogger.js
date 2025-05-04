@@ -4,9 +4,9 @@ const LokiTransport = require('winston-loki');
 
 
 const lokiTransport = new LokiTransport({
-    host: "https://loki.ghorai.duckdns.org", // Default Loki server URL
+    host: "https://loki.dev.aritraghorai.in", // Default Loki server URL
     labels: {
-        app: 'node-express-app',
+        app: 'node-express-app-local',
         environment: process.env.NODE_ENV || 'development'
     },
     json: true,
@@ -26,7 +26,7 @@ const logger = createLogger({
         format.splat(),
         format.json()
     ),
-    defaultMeta: { service: 'node-express-service' },
+    defaultMeta: { service: 'hairandscare-backend-prod' },
     transports: [
         // Console transport for local development
         new transports.Console({
@@ -34,7 +34,7 @@ const logger = createLogger({
         }),
 
         // Loki transport for centralized logging
-        lokiTransport
+        // lokiTransport
     ]
 });
 

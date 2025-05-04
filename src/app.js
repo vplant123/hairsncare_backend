@@ -12,6 +12,8 @@ const cartRoutes = require("./routes/cart.routes.js");
 const utilityRoutes = require("./routes/utility.routes.js");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
+const Sentry = require("@sentry/node");
+Sentry.init({ dsn: "https://ac96ba4f46ff4c9ba218d7136f34e700@glitchtip.dev.aritraghorai.in/4" });
 require("./lokiLogger.js")
 
 const app = express();
