@@ -14,7 +14,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@sentry/node": "^9.15.0",
     "axios": "^1.6.8",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
@@ -32,7 +31,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.13",
-    "nodemon": "^3.1.0",
+    "nodemon": "^3.1.10",
     "otp-generator": "^4.0.1",
     "puppeteer": "^22.9.0",
     "razorpay": "^2.8.5",

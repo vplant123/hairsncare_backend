@@ -55,6 +55,7 @@ router.post("/getAddress",verifyJwt, getAddress)
 router.post("/editAddress", verifyJwt,editAddress)
 router.post("/deleteAddress", verifyJwt,deleteAddress)
 router.post("/get-orders", verifyJwt,getOrders)
+
 router.post("/bookAppointmentContactUs",bookAppointmentContactUs)
 
 router.post("/applyCoupon",verifyJwt,applyCoupon)

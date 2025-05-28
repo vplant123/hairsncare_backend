@@ -31,14 +31,13 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     let config = await Config.find({});
 
-
     if (config?.length > 0) {
       config = config[0];
     }
 
-    const { deliveryCharge = 200.00, deliveryAmt = 2000 } = config
+    const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config;
 
-    console.log(config)
+    console.log(config);
 
     if (!user || !user._id || products?.length < 1) {
       return res
@@ -80,7 +79,6 @@ const placeOrder = asyncHandler(async (req, res) => {
       let order_items = [],
         Product_Details = [];
 
-
       let total = 0;
       products?.map((item) => {
         order_items.push({
@@ -95,7 +93,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         // if (item?.item?.zohoProductId)
         if (item?.item?.zohoProductId) {
         }
-        total += (item?.item?.price - item?.item?.discount)
+        total += item?.item?.price - item?.item?.discount;
         Product_Details.push({
           product: {
             id: item?.item?.zohoProductId,
@@ -104,7 +102,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           // Discount: item?.item?.discount,
           product_description: item?.item?.description,
           "Unit Price": item?.item?.price - item?.item?.discount,
-          "list_price": item?.item?.price - item?.item?.discount,
+          list_price: item?.item?.price - item?.item?.discount,
           line_tax: [
             {
               percentage: item?.item?.gst || 0,
@@ -114,15 +112,16 @@ const placeOrder = asyncHandler(async (req, res) => {
         });
       });
       totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
-      const deliveryChargeCalc = (total - totalD) > deliveryAmt ? 0 : deliveryCharge * 1.0
+      const deliveryChargeCalc =
+        total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
       await Order.updateOne(
         { _id: order._id },
         {
           deliveryCharges: deliveryChargeCalc,
           totalDiscount: totalD,
-          totalAmount: total
+          totalAmount: total,
         }
-      )
+      );
       let shipRocketOrder = {
         order_id: order._id,
         order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -166,7 +165,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       if (createOrderShipRocket) {
         await Order.updateOne(
           { _id: order._id },
-          { shipRocket_order_Id: createOrderShipRocket?.order_id },
+          { shipRocket_order_Id: createOrderShipRocket?.order_id }
         );
       }
       console.log(Product_Details);
@@ -211,7 +210,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_City: add?.city,
             // "Purchase_Order": "Purchase_Order",
             Billing_State: add?.state,
-            "Adjustment": deliveryChargeCalc,
+            Adjustment: deliveryChargeCalc,
             // "$line_tax": [
             //     {
             //         "percentage": 12.5,
@@ -234,14 +233,14 @@ const placeOrder = asyncHandler(async (req, res) => {
       if (record) {
         await Order.updateOne(
           { _id: order._id },
-          { zoho_order_Id: record?.data?.[0]?.details?.id },
+          { zoho_order_Id: record?.data?.[0]?.details?.id }
         );
       }
       if (add?.email) {
         let email = await sendEmailTemplate(
           add?.email,
           "Order Plaeced Successfully",
-          htmls,
+          htmls
         );
         console.log("kfoker", email);
       }
@@ -300,6 +299,10 @@ const placeOrder = asyncHandler(async (req, res) => {
       cart.items = [];
       await cart.save();
     }
+
+    const userToUpdate = await User.findById(user._id);
+    userToUpdate.orders = (userToUpdate.orders || 0) + 1;
+    await userToUpdate.save();
 
     return res
       .status(200)
@@ -377,8 +380,8 @@ const generatePaymentLink = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           response.short_url,
-          "Payment link generated successfully",
-        ),
+          "Payment link generated successfully"
+        )
       );
   } catch (error) {
     throw new ApiError(400, "Failed to generate payment link", error.message);
@@ -398,12 +401,11 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
   try {
     let config = await Config.find({});
 
-
     if (config?.length > 0) {
       config = config[0];
     }
 
-    const { deliveryCharge = 200.00, deliveryAmt = 2000 } = config
+    const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config;
 
     const { user } = req;
     // console.log("userrrrr", user)
@@ -425,7 +427,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
 
     await Payment.findOneAndUpdate(
       { orderId: order._id },
-      { paymentStatus: "success" },
+      { paymentStatus: "success" }
     );
     order.deliveryStatus = "processing";
     order.status = "paid";
@@ -460,7 +462,8 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     let orderC = await CouponsModel.findOne({ _id: order?.coupon });
     let totalD = 0;
     if (order?.coupon)
-      totalD = (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
+      totalD =
+        (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
     let order_items = [],
       Product_Details = [];
     let total = 0;
@@ -474,7 +477,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
         tax: item?.item?.gst,
         hsn: item?.item?.hsn,
       });
-      total += (item?.item?.price - item?.item?.discount)
+      total += item?.item?.price - item?.item?.discount;
       Product_Details.push({
         product: {
           id: item?.item?.zohoProductId,
@@ -483,7 +486,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
         // Discount: item?.item?.discount,
         product_description: item?.item?.description,
         "Unit Price": item?.item?.price - item?.item?.discount,
-        "list_price": item?.item?.price - item?.item?.discount,
+        list_price: item?.item?.price - item?.item?.discount,
         line_tax: [
           {
             percentage: item?.item?.gst || 0,
@@ -493,16 +496,17 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
       });
     });
     totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
-    const deliveryChargeCalc = (total - totalD) > deliveryAmt ? 0 : deliveryCharge * 1.0
-    console.log(total, orderC?.percent)
+    const deliveryChargeCalc =
+      total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
+    console.log(total, orderC?.percent);
     await Order.updateOne(
       { _id: order._id },
       {
         deliveryCharges: deliveryChargeCalc,
         totalDiscount: totalD,
-        totalAmount: total
+        totalAmount: total,
       }
-    )
+    );
     let shipRocketOrder = {
       order_id: order._id,
       order_date: moment(new Date()).format("YYYY-MM-DD"),
@@ -547,7 +551,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     if (createOrderShipRocket) {
       await Order.updateOne(
         { _id: order._id },
-        { shipRocket_order_Id: createOrderShipRocket?.order_id },
+        { shipRocket_order_Id: createOrderShipRocket?.order_id }
       );
     }
 
@@ -592,7 +596,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
           Billing_City: add?.city,
           // "Purchase_Order": "Purchase_Order",
           Billing_State: add?.state,
-          "Adjustment": deliveryChargeCalc,
+          Adjustment: deliveryChargeCalc,
           // "$line_tax": [
           //     {
           //         "percentage": 12.5,
@@ -615,14 +619,14 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     if (record) {
       await Order.updateOne(
         { _id: order._id },
-        { zoho_order_Id: record?.data?.[0]?.details?.id },
+        { zoho_order_Id: record?.data?.[0]?.details?.id }
       );
     }
     if (add?.email) {
       let email = await sendEmailTemplate(
         add?.email,
         "Order Plaeced Successfully",
-        htmls,
+        htmls
       );
       console.log("kfoker", email);
       const user1 = await User.findOne({ _id: user._id });
@@ -651,7 +655,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, { paymentStatus: "success" }, "payment updated"),
+        new ApiResponse(200, { paymentStatus: "success" }, "payment updated")
       );
   } catch (error) {
     console.error("Error deleting payments:", error);
@@ -696,13 +700,13 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
           )?.toFixed(2),
           total: (
             parseFloat(item["quantity"] || 1) *
-            (parseFloat(item?.item?.price || 0) -
-              parseFloat(item?.item?.discount || 0)) +
+              (parseFloat(item?.item?.price || 0) -
+                parseFloat(item?.item?.discount || 0)) +
             (parseFloat(item?.quantity || 1) *
               (parseFloat(item?.item?.price || 0) -
                 parseFloat(item?.item?.discount || 0)) *
               parseFloat(item?.item?.gst || 0)) /
-            100
+              100
           )?.toFixed(2),
         };
       });
@@ -737,7 +741,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
         console.log("sdjkfo", order?._id, invoice?._id);
         let xx = await Order.updateOne(
           { _id: order?._id },
-          { invoiceId: invoice?._id },
+          { invoiceId: invoice?._id }
         );
         console.log("sdjkfo", order?._id, invoice?._id?.toString(), xx);
 
@@ -745,7 +749,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
           let email = await sendEmailTemplate(
             add?.email,
             "Order Delivered Successfully",
-            emailHtml,
+            emailHtml
           );
           console.log("kfoker", email);
         }
@@ -771,7 +775,7 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
         let email = await sendEmailTemplate(
           add?.email,
           "Order Paid Successfully",
-          emailHtml,
+          emailHtml
         );
         console.log("kfoker", email);
       }

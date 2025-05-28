@@ -20,6 +20,8 @@ const { ObjectId } = require("mongodb");
 const { default: mongoose } = require("mongoose");
 const zohoService = require("./zoho.service.js");
 
+const LoginModel = require("../models/loginHistory.model.js");
+
 const instance = new Razorpay({
   key_id: "rzp_test_8ZrSJwOa8vWxQu",
   key_secret: "IppjQRgEVWjB5cnPvoP1jMB8",
@@ -27,28 +29,26 @@ const instance = new Razorpay({
 
 class UserService {
   registerService = async (data) => {
+    console.log(data);
     // const existedUser = await User.findOne({ email: data.email });
     // if (existedUser) {
     //     throw new ApiError(409, "This email is already in use.");
     // }
     const user = await User.findOne({ mobile: data.mobile, isVerified: true });
-
-    if (!user) {
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            "User is not verified,first verify mobile number ",
-          ),
-        );
-    }
+    console.log(user);
+    // if (!user) {
+    //   throw new ApiError(
+    //     400,
+    //     "User is not verified, first verify mobile number"
+    //   );
+    // }
     const passwordHash = await CommonHelper.hashPassword(data.password);
     user.fullname = data.fullname;
     user.email = data.email;
     user.password = passwordHash;
     user.status = true;
     user.lastLogin = new Date();
+    user.registration_method = data.registration_method;
     await user.save();
 
     const accessToken = await CommonHelper.generateAccessToken(user._id);
@@ -76,7 +76,7 @@ class UserService {
         });
         let u = await User.updateOne(
           { _id: user?._id },
-          { zohoUserId: record?.data?.[0]?.details?.id?.toString() },
+          { zohoUserId: record?.data?.[0]?.details?.id?.toString() }
         );
         console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
       } catch (error) {
@@ -86,7 +86,7 @@ class UserService {
         data.email,
         "Welcome to HairsnCares.com!",
         `Hi ${data?.fullname},\n\nWelcome to HairsnCares.com! Your account is now ready.\n\nTo log in, please use the OTP sent to your registered mobile number or email.\n\nBest Regards,\nThe HairsnCares Team
-`,
+`
       );
       await WhatsappTextTemplate({
         attr: null,
@@ -102,27 +102,52 @@ class UserService {
 
     return { accessToken, refreshToken, role: user?.role, user };
   };
-  loginService = async (data) => {
+
+  loginService = async (data, req) => {
     const user = await User.findOne({ email: data.email });
 
     if (!user) {
+      // Optional: record failed login
+      await LoginModel.create({
+        ipAddress: req.ip || req.headers["x-forwarded-for"],
+        userAgent: req.headers["user-agent"],
+        status: "failed",
+        location: "Unknown",
+      });
+
       throw new ApiError(401, "User does not exist");
     }
+
     const isPasswordValid = await CommonHelper.isPasswordCorrect(
       data.password,
-      user.password,
+      user.password
     );
 
     if (!isPasswordValid) {
-      // return res.status(400).json({ "message": "Invalid credential" })
+      await LoginModel.create({
+        userId: user._id,
+        ipAddress: req.ip || req.headers["x-forwarded-for"],
+        userAgent: req.headers["user-agent"],
+        status: "failed",
+        location: "Unknown",
+      });
+
       throw new ApiError(400, "Invalid user credential");
     }
-    const role = user.role;
+
     const accessToken = await CommonHelper.generateAccessToken(user._id);
-    console.log(accessToken);
     const refreshToken = await CommonHelper.generateRefreshToken(user._id);
-    // await sendEmail(data.email, 'Welcome to HairsnCares.com!',
-    //     `You are Successfully logged In.`)
+
+    // ✅ Record successful login
+    await LoginModel.create({
+      userId: user._id,
+      ipAddress: req.ip || req.headers["x-forwarded-for"],
+      userAgent: req.headers["user-agent"],
+      status: "success",
+      location: "Unknown", // or use geo-ip if needed
+    });
+
+    const role = user.role;
     return { accessToken, refreshToken, role, user };
   };
 
@@ -142,7 +167,7 @@ class UserService {
       data.email,
       "OTP for password recovery",
       `put this otp on required field to reset password
-          ${otp}`,
+          ${otp}`
     );
   };
 
@@ -173,7 +198,7 @@ class UserService {
     }
     const isPasswordCorrect = await CommonHelper.isPasswordCorrect(
       data.oldPassword,
-      userToUpdate.password,
+      userToUpdate.password
     );
     if (!isPasswordCorrect) {
       throw new ApiError(401, "Invalid old password");
@@ -298,23 +323,23 @@ class UserService {
     // const payment = new Payment(paymentData);
     await Payment.findOneAndUpdate(
       { orderId: data.id },
-      { paymentStatus: "success" },
+      { paymentStatus: "success" }
     );
     const response = await Appointment.findOneAndUpdate(
       { orderId: data.id },
       { paymentStatus: "success", status: "booked" },
-      { new: true },
+      { new: true }
     );
 
     const hairTestUpdate = await HairTest.findOneAndUpdate(
       { _id: response?.hairTestId },
       { status: "completed" },
-      { new: true },
+      { new: true }
     );
     await Order.findOneAndUpdate(
       { _id: data.id },
       { status: "paid" },
-      { new: true },
+      { new: true }
     );
 
     if (response?.coupon) {
@@ -400,7 +425,7 @@ class UserService {
     if (record) {
       await Order.updateOne(
         { _id: data.id },
-        { zoho_order_Id: record?.data?.[0]?.details?.id },
+        { zoho_order_Id: record?.data?.[0]?.details?.id }
       );
     }
     console.log("mko", hairTestUpdate);
@@ -415,23 +440,26 @@ After a thorough study and evaluation, Doctor will generate your hair analysis r
 You can see that report in your MY REPORT section.
 Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsncares.com for your hair health needs.
 \n\nBest regards,\nHairsncares.com
-`,
+`
       );
 
-      // Send to admin 
+      // Send to admin
       await sendEmail(
         "info@vplanthairclinics.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
-            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
+            Name : ${user?.fullname || ""},\n Phone : ${
+          user?.mobile || ""
+        },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
       await sendEmail(
         "info@hairsncares.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
-            Name : ${user?.fullname || ""},\n Phone : ${user?.mobile || ""},\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`,
+            Name : ${user?.fullname || ""},\n Phone : ${
+          user?.mobile || ""
+        },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
-
 
       await WhatsappTextTemplate({
         attr: [user?.fullname || "user"],

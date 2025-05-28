@@ -1,27 +1,27 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const coupons = new mongoose.Schema({
+const coupons = new mongoose.Schema(
+  {
     code: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     percent: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: true,
     },
     validity: {
-        type: Date,
+      type: Date,
     },
-    isActive : {
-        type: Boolean,
-        default : true
+    isActive: {
+      type: Boolean,
+      default: true,
     },
-    type : {
-        type: Number,   //1-hair-test //2 - order 3 - both
+    type: {
+      type: String,
     },
+  },
+  { timestamps: true }
+);
 
-
-
-}, { timestamps: true });
-
-module.exports = mongoose.model('Coupons', coupons);
+module.exports = mongoose.model("Coupons", coupons);

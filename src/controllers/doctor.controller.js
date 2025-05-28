@@ -14,20 +14,69 @@ const Cart = require("../models/Cart.model");
 const { v4: uuidv4 } = require("uuid");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp");
 
+const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
+  try {
+    const { user } = req;
+    if (!user || !user._id) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Doctor ID is required"));
+    }
+
+    const doctorObjectId = new mongoose.Types.ObjectId(user._id);
+
+    // Fetch appointments with filters, populate user fullname and followups' hairTestId
+    let appointments = await Appointment.find({
+      doctorId: doctorObjectId,
+      isDeleted: false,
+      status: { $in: ["assigned", "completed", "pending"] },
+    })
+      .populate("userId", "fullname")
+      .sort({ createdAt: -1 });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          appointments,
+          "Assigned appointments retrieved successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error fetching assigned appointments:", error);
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(
+          500,
+          null,
+          "Failed to retrieve assigned appointments",
+          error.message
+        )
+      );
+  }
+});
+
 const getHairTestDetail = asyncHandler(async (req, res) => {
   try {
     const { userId, hairTestId } = req.query;
     let hairTest;
-    if (hairTestId) {
-      hairTest = await HairTest.find({ _id: hairTestId });
-      console.log("kokewo", hairTest);
-    } else
-      hairTest = await HairTest.find({
-        userId: userId,
-        status: { $ne: "completed" },
-      });
 
-    if (!hairTest) {
+    const projection = {
+      nutritional: 0,
+      lifeStyle: 0,
+      stress: 0,
+    };
+
+    if (hairTestId) {
+      hairTest = await HairTest.find({ _id: hairTestId }, projection);
+      console.log("hairTest by ID:", hairTest);
+    } else {
+      hairTest = await HairTest.find({ userId: userId }, projection);
+    }
+
+    if (!hairTest || hairTest.length === 0) {
       return res
         .status(404)
         .json(new ApiResponse(404, null, "Hair test not found"));
@@ -39,13 +88,14 @@ const getHairTestDetail = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           hairTest,
-          "Hair test details retrieved successfully",
-        ),
+          "Hair test details retrieved successfully"
+        )
       );
   } catch (error) {
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
+
 const acceptAppointment = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;
@@ -54,7 +104,7 @@ const acceptAppointment = asyncHandler(async (req, res) => {
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       { status: "accepted" },
-      { new: true },
+      { new: true }
     );
 
     if (!updatedAppointment) {
@@ -69,8 +119,8 @@ const acceptAppointment = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           updatedAppointment,
-          "Appointment accepted successfully",
-        ),
+          "Appointment accepted successfully"
+        )
       );
   } catch (error) {
     throw new ApiError(400, "Something went wrong", error.message);
@@ -84,7 +134,7 @@ const rejectAppointment = asyncHandler(async (req, res) => {
     const rejectAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       { status: "rejected" },
-      { new: true },
+      { new: true }
     );
 
     if (!rejectAppointment) {
@@ -98,56 +148,6 @@ const rejectAppointment = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, rejectAppointment, "Appointment rejected "));
   } catch (error) {
     throw new ApiError(400, "Something went wrong", error.message);
-  }
-});
-const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
-  try {
-    const { doctorId } = req.query;
-    if (!doctorId) {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, null, "Doctor ID is required"));
-    }
-
-    const appointments = await Appointment.find({
-      doctorId,
-      status: { $in: ["assigned", "completed"] },
-    })
-      .populate("userId", "fullname")
-      .populate("hairTestId")
-      .select(
-        "fullname appointmentDate timeSlot status orderId paymentStatus amount planId createdAt",
-      )
-      .sort({ createdAt: -1 });
-    console.log("appoint", appointments);
-
-    if (!appointments || appointments.length === 0) {
-      return res
-        .status(404)
-        .json(
-          new ApiResponse(
-            404,
-            null,
-            "No assigned appointments found for this doctor",
-          ),
-        );
-    }
-
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          appointments,
-          "Assigned appointments retrieved successfully",
-        ),
-      );
-  } catch (error) {
-    throw new ApiError(
-      400,
-      "Failed to retrieve assigned appointments",
-      error.message,
-    );
   }
 });
 
@@ -203,15 +203,22 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
         await newCart.save();
         cart = await Cart.findOne({ userId });
       }
-      const medicines = productArr[0]?.medicines
+      const medicines = productArr[0]?.medicines;
       if (medicines && medicines instanceof Object) {
         for (const medicine of Object.keys(medicines)) {
           let proudct = await Product.findOne({ name: medicine });
           if (!proudct) continue;
-          if (cart.items?.findIndex((e) => e?.item?._id == proudct?._id) != -1) {
-            cart.items[cart.items?.findIndex((e) => e?.item?._id == proudct?._id)].quantity += medicines[medicine]?.quantity ?? 1
+          if (
+            cart.items?.findIndex((e) => e?.item?._id == proudct?._id) != -1
+          ) {
+            cart.items[
+              cart.items?.findIndex((e) => e?.item?._id == proudct?._id)
+            ].quantity += medicines[medicine]?.quantity ?? 1;
           }
-          cart.items.push({ item: proudct, quantity: medicines[medicine]?.quantity ?? 1 });
+          cart.items.push({
+            item: proudct,
+            quantity: medicines[medicine]?.quantity ?? 1,
+          });
         }
       }
 
@@ -223,8 +230,6 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       // }
       await cart.save();
     }
-
-
 
     const appointment = await Appointment.findOne({
       userId,
@@ -263,6 +268,7 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Failed to create prescription" });
   }
 });
+
 const updatePrescription = asyncHandler(async (req, res) => {
   try {
     const { appointmentId, userId } = req.query;
@@ -287,7 +293,7 @@ const updatePrescription = asyncHandler(async (req, res) => {
 
     const prescription = await Prescription.findOneAndUpdate(
       { appointmentId },
-      { showToUser: true },
+      { showToUser: true }
     );
     const cart = await Cart.findOneAndUpdate({ userId }, { showToUser: true });
 
@@ -353,8 +359,8 @@ const getPrescription = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           prescription,
-          "Prescription detail fetched successfully",
-        ),
+          "Prescription detail fetched successfully"
+        )
       );
   } catch (error) {
     return res
@@ -362,8 +368,8 @@ const getPrescription = asyncHandler(async (req, res) => {
       .json(
         new ApiError(
           400,
-          "Something went wrong while getting prescription details",
-        ),
+          "Something went wrong while getting prescription details"
+        )
       );
   }
 });
@@ -394,11 +400,7 @@ const getAllPrescription = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(
-          200,
-          result,
-          "Prescription detail fetched successfully",
-        ),
+        new ApiResponse(200, result, "Prescription detail fetched successfully")
       );
   } catch (error) {
     return res
@@ -406,8 +408,8 @@ const getAllPrescription = asyncHandler(async (req, res) => {
       .json(
         new ApiError(
           400,
-          "Something went wrong while getting prescription details",
-        ),
+          "Something went wrong while getting prescription details"
+        )
       );
   }
 });
@@ -416,7 +418,9 @@ module.exports = {
   acceptAppointment,
   getHairTestDetail,
   rejectAppointment,
+
   getAssignedAppointmentsForDoctor,
+
   updateDoctorAccount,
   prescriptionDetailForm,
   updatePrescription,

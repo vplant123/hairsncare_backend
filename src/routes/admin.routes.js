@@ -1,74 +1,154 @@
 const express = require("express");
 // const userValidation = require("../validations/user.validation.js");
-const { createDoctor, assignDoctorToAppointment, getBookedAppointment, softDeleteTransaction, transactionData, updateProductDetails, deleteProductFromCategory, blockUnblock, addAdmin, searchUsers, updateAdminProfile, getallPatient, getProductsByCategory, getallDoctor, deleteUser, getTotalpatient, addProductToCategory, searchdoctor, getProduct,deleteproduct, getProductById,getPendingAppointments, getOrders, getallDoctorData, editDoctor, getDoctor, getCoupons, editCoupon, deleteCoupon, sendWhatsapp, getReviewAll, deleteReview, AllUserData, contactDetails, getAdmin, addInvoice, getInvoices, getInvoiceById, syncProduct, addBlog, allBlog, getBlog, getNews, addNews, addBlogCategory, allBlogCategory, getNewsFeed } = require("../controllers/admin.controller.js");
+const {
+  createDoctor,
+  assignDoctorToAppointment,
+  getBookedAppointment,
+  softDeleteTransaction,
+  transactionData,
+  updateProductDetails,
+  deleteProductFromCategory,
+  blockUnblock,
+  addAdmin,
+  searchUsers,
+  updateAdminProfile,
+  getallPatient,
+  getProductsByCategory,
+  getallDoctor,
+  deleteUser,
+  getTotalpatient,
+  addProductToCategory,
+  searchdoctor,
+  getProduct,
+  deleteproduct,
+  getProductById,
+  getPendingAppointments,
+  getOrders,
+  getallDoctorData,
+  editDoctor,
+  getDoctor,
+  getCoupons,
+  editCoupon,
+  deleteCoupon,
+  sendWhatsapp,
+  getReviewAll,
+  deleteReview,
+  AllUserData,
+  contactDetails,
+  getAdmin,
+  addInvoice,
+  getInvoices,
+  getInvoiceById,
+  syncProduct,
+  addBlog,
+  allBlog,
+  getBlog,
+  getNews,
+  addNews,
+  addBlogCategory,
+  allBlogCategory,
+  getNewsFeed,
+  //
+  deleteDoctor,
+  getMonthlyHairTestData,
+  createFollowUp,
+  getpatientData,
+  assignDoctorForPrescription,
+  createFollowupAppointment,
+  getFollowUps,
+  getOrderById,
+} = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
-
 const validate = require("../helpers/validate.js");
 const { addPlan } = require("../controllers/plan.controller.js");
 
-
-
 const router = express.Router();
 
-router.post("/addDoctor", validate(adminValidation.createDoctor), createDoctor)
-router.get("/allpatient", verifyJwt, getallPatient)
-router.post("/addAdmin", addAdmin)
-router.post("/getAdmin", getAdmin)
+router.post("/addDoctor", validate(adminValidation.createDoctor), createDoctor);
+router.get("/allpatient", verifyJwt, getallPatient);
+router.post("/addAdmin", addAdmin);
+router.post("/getAdmin", getAdmin);
 
-router.get("/get-Booked-appointment", getBookedAppointment)
-router.post("/assignAppointmentToDoctor", assignDoctorToAppointment)
+router.get("/get-Booked-appointment", getBookedAppointment);
+router.post("/assignAppointmentToDoctor", verifyJwt, assignDoctorToAppointment);
 
-router.get("/transaction-data", verifyJwt, transactionData)
-router.delete("/transaction-delete", softDeleteTransaction)
-router.put("/update-admin-profile", verifyJwt, updateAdminProfile)
-router.get("/alldoctor", verifyJwt, getallDoctor)
-router.get("/all-doctor-Data", getallDoctorData)
-router.post("/edit-doctor", editDoctor)
-router.post("/get-doctor/:id", getDoctor)
+router.get("/transaction-data", verifyJwt, transactionData);
+router.delete("/transaction-delete", softDeleteTransaction);
+router.put("/update-admin-profile", verifyJwt, updateAdminProfile);
 
-router.get("/allPendingAppointment", getPendingAppointments)
-router.delete("/deleteuser", verifyJwt, deleteUser)
-router.get("/totalpatient", verifyJwt, getTotalpatient)
-router.post("/addproduct", verifyJwt, addProductToCategory)
-router.get("/product/:id", getProductById)
-router.get("/product", getProduct)
+router.get("/alldoctor", verifyJwt, getallDoctor);
+router.get("/all-doctor-Data", getallDoctorData);
+router.post("/edit-doctor", editDoctor);
+router.post("/get-doctor/:id", getDoctor);
 
-router.delete("/deleteProductFromCategory", verifyJwt, deleteProductFromCategory)
-router.delete("/deleteproduct", verifyJwt, deleteproduct)
-router.put("/update-product", verifyJwt, updateProductDetails)
-router.get("/productBycategory", verifyJwt, getProductsByCategory)
-router.get("/search", verifyJwt, searchUsers)
-router.get("/search-doctor", verifyJwt, searchdoctor)
-router.put("/block", verifyJwt, blockUnblock)
-router.post("/addPlan", addPlan)
-router.get("/getOrders", getOrders)
+router.get("/allPendingAppointment", getPendingAppointments);
+router.delete("/deleteuser", verifyJwt, deleteUser);
+router.get("/totalpatient", verifyJwt, getTotalpatient);
 
-router.post("/getCoupons",verifyJwt,getCoupons)
-router.post("/editCoupon",verifyJwt,editCoupon)
-router.post("/deleteCoupon",verifyJwt,deleteCoupon)
-router.post("/sendWhatsapp",verifyJwt,sendWhatsapp)
+router.post("/addproduct", verifyJwt, addProductToCategory);
+router.get("/product/:id", getProductById);
+router.get("/product", getProduct);
+router.put("/update-product", verifyJwt, updateProductDetails);
+router.get("/productBycategory", verifyJwt, getProductsByCategory);
 
-router.post("/getReviewAll",verifyJwt,getReviewAll)
-router.post("/deleteReview/:id",deleteReview)
-router.post("/allUserData",verifyJwt,AllUserData)
-router.post("/contactDetails",verifyJwt,contactDetails)
+router.delete(
+  "/deleteProductFromCategory",
+  verifyJwt,
+  deleteProductFromCategory
+);
 
-router.post("/addInvoice",verifyJwt,addInvoice)
-router.post("/getInvoices",verifyJwt,getInvoices)
-router.post("/getInvoiceById",verifyJwt,getInvoiceById)
+router.delete("/deleteproduct", verifyJwt, deleteproduct);
 
-router.post("/syncProduct",syncProduct)
-router.post("/addBlog",addBlog)
-router.post("/getBlog",getBlog)
-router.post("/allBlog",allBlog)
-router.post("/getNews",getNews)
-router.post("/addNews",addNews)
-router.post("/addBlogCategory",addBlogCategory)
-router.post("/allBlogCategory",allBlogCategory)
-router.post("/getNewsFeed",getNewsFeed)
+router.get("/search", verifyJwt, searchUsers);
+router.get("/search-doctor", verifyJwt, searchdoctor);
+router.put("/block", verifyJwt, blockUnblock);
+router.post("/addPlan", addPlan);
 
+router.get("/getOrders", getOrders);
 
+router.get("/getCoupons", verifyJwt, getCoupons);
+router.post("/editCoupon", verifyJwt, editCoupon);
+router.post("/deleteCoupon", verifyJwt, deleteCoupon);
+router.post("/sendWhatsapp", verifyJwt, sendWhatsapp);
 
+router.post("/getReviewAll", verifyJwt, getReviewAll);
+router.post("/deleteReview/:id", deleteReview);
+router.post("/allUserData", verifyJwt, AllUserData);
 
-module.exports = router
+router.post("/contactDetails", verifyJwt, contactDetails);
+
+router.post("/addInvoice", verifyJwt, addInvoice);
+router.post("/getInvoices", verifyJwt, getInvoices);
+router.post("/getInvoiceById", verifyJwt, getInvoiceById);
+
+router.post("/syncProduct", syncProduct);
+router.post("/addBlog", addBlog);
+router.post("/getBlog", getBlog);
+router.post("/allBlog", allBlog);
+router.post("/getNews", getNews);
+router.post("/addNews", addNews);
+router.post("/addBlogCategory", addBlogCategory);
+router.post("/allBlogCategory", allBlogCategory);
+router.post("/getNewsFeed", getNewsFeed);
+
+//new Api's Fonix
+router.get("/reports/monthly-hairtest", verifyJwt, getMonthlyHairTestData);
+router.delete("/delete-doctor", verifyJwt, deleteDoctor);
+router.post("/followups", verifyJwt, createFollowUp);
+router.post("/get-patient-Data", verifyJwt, getpatientData);
+
+router.post(
+  "/assignDoctorForPrescription",
+  verifyJwt,
+  assignDoctorForPrescription
+);
+router.post(
+  "/create-Followup-Appointment",
+  verifyJwt,
+  createFollowupAppointment
+);
+router.post("/get-folllowUp-appointment", verifyJwt, getFollowUps);
+router.post("/order-details", verifyJwt, getOrderById);
+
+module.exports = router;

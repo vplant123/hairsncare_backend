@@ -32,8 +32,12 @@ const Config = require("../models/config.model.js");
 const BlogPageModel = require("../models/BlogPage.model.js");
 const xml2js = require("xml2js");
 
+const LoginModel = require("../models/loginHistory.model.js");
+const FollowUpModel = require("../models/followUpAppointments.model.js");
+
 const addAdmin = asyncHandler(async (req, res) => {
   try {
+    console.log(req.body);
     const adminregister = await AdminService.addAdmin(req.body);
     return res
       .status(200)
@@ -45,11 +49,12 @@ const addAdmin = asyncHandler(async (req, res) => {
 
 const createDoctor = asyncHandler(async (req, res) => {
   try {
+    console.log(req.body);
     const resultDoctor = await AdminService.createDoctor(req.body);
     return res
       .status(200)
       .json(
-        new ApiResponse(200, "Doctor created succesffully and send credential"),
+        new ApiResponse(200, "Doctor created succesffully and send credential")
       );
   } catch (error) {
     throw new ApiError(400, "Something error ", error.message);
@@ -100,7 +105,7 @@ const getallDoctor = asyncHandler(async (req, res) => {
       parseInt(page, 10),
       parseInt(limit, 10),
       sortField,
-      sortOrder,
+      sortOrder
     );
     return res
       .status(200)
@@ -184,6 +189,25 @@ const getDoctor = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteDoctor = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.body;
+    const result = await Doctors.findByIdAndDelete(id);
+
+    if (!result) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Doctor not found"));
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, "Doctor deleted successfully"));
+  } catch (error) {
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
 const addZohoProductIdIfNotExist = async () => {
   try {
     const products = await Product.find();
@@ -191,9 +215,7 @@ const addZohoProductIdIfNotExist = async () => {
     for (const productCreate of products) {
       if (productCreate.zohoProductId) {
         continue;
-      };
-
-
+      }
 
       let productData = {
         data: [
@@ -224,15 +246,17 @@ const addZohoProductIdIfNotExist = async () => {
         ],
       };
 
-      const zohoProductId = await zohoService.getProductByName(productCreate?.name)
+      const zohoProductId = await zohoService.getProductByName(
+        productCreate?.name
+      );
 
       if (zohoProductId) {
         await Product.updateOne(
           { _id: productCreate?._id },
-          { zohoProductId: zohoProductId },
-        )
+          { zohoProductId: zohoProductId }
+        );
         continue;
-      };
+      }
 
       let record = await zohoService.createRecord({
         module: "Products",
@@ -240,19 +264,15 @@ const addZohoProductIdIfNotExist = async () => {
       });
       let u = await Product.updateOne(
         { _id: productCreate?._id },
-        { zohoProductId: record?.data?.[0]?.details?.id?.toString() },
+        { zohoProductId: record?.data?.[0]?.details?.id?.toString() }
       );
-
     }
-
   } catch (error) {
-    console.log(error)
-
+    console.log(error);
   }
-}
+};
 
 const getProduct = asyncHandler(async (req, res) => {
-
   try {
     let { lessPrice, morePrice, review, type, search, filter, display } =
       req.query;
@@ -314,7 +334,6 @@ const getProduct = asyncHandler(async (req, res) => {
       products = await Product.find(where).sort({ createdAt: -1 }).lean();
     }
 
-
     let result = [];
     for (let index = 0; index < products.length; index++) {
       const element = products[index];
@@ -350,7 +369,7 @@ const getPendingAppointments = asyncHandler(async (req, res) => {
     .populate("userId", "fullname")
     .populate("hairTestId")
     .select(
-      "fullname _id appointmentDate timeSlot createdAt status orderId paymentStatus, amount",
+      "fullname _id appointmentDate timeSlot createdAt status orderId paymentStatus, amount"
     )
     .sort({ createdAt: -1 });
 
@@ -360,8 +379,8 @@ const getPendingAppointments = asyncHandler(async (req, res) => {
       new ApiResponse(
         201,
         pendingAppointments,
-        "pending Appointment fetch succesfully",
-      ),
+        "pending Appointment fetch succesfully"
+      )
     );
 });
 
@@ -407,7 +426,7 @@ const deleteUser = asyncHandler(async (req, res) => {
     throw new ApiError(
       400,
       "something error while deleting this user",
-      error.message,
+      error.message
     );
   }
 });
@@ -460,8 +479,8 @@ const getTotalpatient = asyncHandler(async (req, res) => {
 
 const addProductToCategory = asyncHandler(async (req, res) => {
   const {
-    productName,
-    productPrice,
+    name,
+    price,
     description,
     kit,
     src,
@@ -494,15 +513,15 @@ const addProductToCategory = asyncHandler(async (req, res) => {
   } = req.body;
 
   try {
-    let isProductExist = await Product.findOne({ name: productName });
+    let isProductExist = await Product.findOne({ name: name });
 
     if (isProductExist) {
       throw new ApiError(404, "product already exist");
     }
     let newProduct = {
-      name: productName,
-      price: productPrice,
-      description: description,
+      name,
+      price,
+      description,
       kit: kit || [],
       src: src || [],
       longDes: longDes || "",
@@ -555,8 +574,9 @@ const addProductToCategory = asyncHandler(async (req, res) => {
           //   "Support_Expiry_Date": "2018-01-25",
           //   "Sales_End_Date": "2018-01-25",
           Unit_Price:
-            parseFloat(productCreate?.price) -
-            parseFloat(productCreate?.discount || 0),
+            parseFloat(productCreate?.price || 0) -
+            parseFloat(productCreate?.price || 0) *
+              (parseFloat(productCreate?.discount || 0) / 100),
           Taxable: true,
           //   "Reorder_Level": 1237.89
         },
@@ -569,7 +589,7 @@ const addProductToCategory = asyncHandler(async (req, res) => {
       });
       let u = await Product.updateOne(
         { _id: element?._id },
-        { zohoProductId: record?.data?.[0]?.details?.id?.toString() },
+        { zohoProductId: record?.data?.[0]?.details?.id?.toString() }
       );
       console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
     } catch (error) {
@@ -592,7 +612,7 @@ const deleteProductFromCategory = asyncHandler(async (req, res) => {
     }
 
     const productIndex = category.products.findIndex(
-      (product) => product.name === productName,
+      (product) => product.name === productName
     );
 
     if (productIndex === -1) {
@@ -611,9 +631,10 @@ const deleteProductFromCategory = asyncHandler(async (req, res) => {
 
 const updateProductDetails = asyncHandler(async (req, res) => {
   const {
-    id,
+    _id,
     newName,
     newPrice,
+    gst,
     newDescription,
     kit,
     src,
@@ -637,11 +658,13 @@ const updateProductDetails = asyncHandler(async (req, res) => {
     metaDesc,
     metaSlug,
     metaCanonical,
-    slug
+    slug,
   } = req.body;
 
   try {
-    let product = await Product.findOne({ _id: id });
+    console.log(req.body);
+    let product = await Product.findById(_id);
+    console.log("product", product);
     if (!product) {
       throw new ApiError(404, "product not found");
     }
@@ -710,17 +733,18 @@ const updateProductDetails = asyncHandler(async (req, res) => {
       product.width = width;
     }
     if (metaSlug) product.metaSlug = metaSlug;
-    if (slug) product.metaSlug = slug
+    if (slug) product.metaSlug = slug;
     if (metaTitle) product.metaTitle = metaTitle;
     if (metaDesc) product.metaDesc = metaDesc;
     if (metaCanonical) product.metaCanonical = metaCanonical;
+    if (gst) product.gst = gst;
 
     await product.save();
 
     res
       .status(200)
       .json(
-        new ApiResponse(200, product, "Product details updated successfully."),
+        new ApiResponse(200, product, "Product details updated successfully.")
       );
   } catch (error) {
     console.error("Error updating product details:", error);
@@ -784,7 +808,7 @@ const searchUsers = asyncHandler(async (req, res, next) => {
     const result = await AdminService.searchUsers(
       searchQuery,
       parseInt(page, 10),
-      parseInt(limit, 10),
+      parseInt(limit, 10)
     );
 
     return res
@@ -802,7 +826,7 @@ const searchdoctor = asyncHandler(async (req, res, next) => {
     const result = await AdminService.searchDoctor(
       searchQuery,
       parseInt(page, 10),
-      parseInt(limit, 10),
+      parseInt(limit, 10)
     );
 
     return res
@@ -867,7 +891,7 @@ const transactionData = asyncHandler(async (req, res) => {
     res
       .status(200)
       .json(
-        new ApiResponse(200, response, "Transaction data fetched successfully"),
+        new ApiResponse(200, response, "Transaction data fetched successfully")
       );
   } catch (error) {
     console.error("Error fetching transaction data:", error);
@@ -1041,7 +1065,7 @@ const getBookedAppointment = asyncHandler(async (req, res) => {
       .populate("hairTestId")
       .populate("doctorId", "fullname")
       .select(
-        "fullname _id appointmentDate timeSlot createdAt status orderId paymentStatus, amount",
+        "fullname _id appointmentDate timeSlot createdAt status orderId paymentStatus, amount"
       )
       .sort({ createdAt: -1 })
       .lean();
@@ -1060,80 +1084,80 @@ const getBookedAppointment = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, result, "Booked Appointment get succesffully"),
+        new ApiResponse(200, result, "Booked Appointment get succesffully")
       );
   } catch (error) {
     throw new ApiError(400, "Unable to get Appointment", error.message);
   }
 });
 
-const assignDoctorToAppointment = asyncHandler(async (req, res) => {
-  try {
-    const { appointmentId, doctorId } = req.body;
+// const assignDoctorToAppointment = asyncHandler(async (req, res) => {
+//   try {
+//     const { appointmentId, doctorId } = req.body;
 
-    // Fetch the appointment, doctor, user, and hair test details
-    const appointment = await Appointment.findById(appointmentId);
-    if (!appointment) {
-      throw new ApiError(404, "Appointment not found");
-    }
+//     // Fetch the appointment, doctor, user, and hair test details
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       throw new ApiError(404, "Appointment not found");
+//     }
 
-    const doctor = await User.findById(doctorId);
-    if (!doctor) {
-      throw new ApiError(404, "Doctor not found");
-    }
+//     const doctor = await User.findById(doctorId);
+//     if (!doctor) {
+//       throw new ApiError(404, "Doctor not found");
+//     }
 
-    const user = await User.findById(appointment.userId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
+//     const user = await User.findById(appointment.userId);
+//     if (!user) {
+//       throw new ApiError(404, "User not found");
+//     }
 
-    const hairTest = await HairTest.findById(appointment.hairTestId);
-    if (!hairTest) {
-      throw new ApiError(404, "Hair Test not found");
-    }
+//     const hairTest = await HairTest.findById(appointment.hairTestId);
+//     if (!hairTest) {
+//       throw new ApiError(404, "Hair Test not found");
+//     }
 
-    console.log("Appoinmenmt", appointment);
-    // Prepare WhatsApp notification payload
-    const whatsappPayload = {
-      attr: null,
-      name: doctor.fullname,
-      phone: doctor.mobile?.toString(),
-      campName: "doctor_message_Utility",
-      // media: {
-      //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725596233/hair-assessment/bhwlkkh2ul9dig5hnelp.png",
-      //   filename: "file",
-      // },
-    };
+//     console.log("Appoinmenmt", appointment);
+//     // Prepare WhatsApp notification payload
+//     const whatsappPayload = {
+//       attr: null,
+//       name: doctor.fullname,
+//       phone: doctor.mobile?.toString(),
+//       campName: "doctor_message_Utility",
+//       // media: {
+//       //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725596233/hair-assessment/bhwlkkh2ul9dig5hnelp.png",
+//       //   filename: "file",
+//       // },
+//     };
 
-    // Send WhatsApp notification
-    const notificationStatus = await WhatsappTextTemplate(whatsappPayload);
+//     // Send WhatsApp notification
+//     const notificationStatus = await WhatsappTextTemplate(whatsappPayload);
 
-    // Check notification status
-    if (!notificationStatus || !notificationStatus.success) {
-      throw new ApiError(400, "WhatsApp notification not confirmed");
-    }
+//     // Check notification status
+//     if (!notificationStatus || !notificationStatus.success) {
+//       throw new ApiError(400, "WhatsApp notification not confirmed");
+//     }
 
-    // Update the appointment after successful notification
-    const updatedAppointment = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      { doctorId: doctorId, status: "assigned" },
-      { new: true },
-    );
+//     // Update the appointment after successful notification
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       { doctorId: doctorId, status: "assigned" },
+//       { new: true }
+//     );
 
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          updatedAppointment,
-          "Appointment assigned successfully",
-        ),
-      );
-  } catch (error) {
-    console.error("Error assigning appointment:", error.message);
-    throw new ApiError(400, error.message, error.message);
-  }
-});
+//     return res
+//       .status(200)
+//       .json(
+//         new ApiResponse(
+//           200,
+//           updatedAppointment,
+//           "Appointment assigned successfully"
+//         )
+//       );
+//   } catch (error) {
+//     console.error("Error assigning appointment:", error.message);
+//     throw new ApiError(400, error.message, error.message);
+//   }
+// });
 
 const getOrders = asyncHandler(async (req, res) => {
   try {
@@ -1143,6 +1167,7 @@ const getOrders = asyncHandler(async (req, res) => {
           $in: ["processing", "shipped", "delivered", "canceled"],
         },
       })
+
       .populate("userId", "fullname")
       .populate("addressId", "fullAdress")
       .sort({ createdAt: -1 });
@@ -1156,7 +1181,9 @@ const getOrders = asyncHandler(async (req, res) => {
 
 const getCoupons = asyncHandler(async (req, res) => {
   try {
-    const data = await CouponsModel.find(req.user.role === "admin" ? {} : { isActive: true }).sort({
+    const data = await CouponsModel.find(
+      req.user.role === "admin" ? {} : { isActive: true }
+    ).sort({
       createdAt: -1,
     });
     return res
@@ -1170,32 +1197,85 @@ const getCoupons = asyncHandler(async (req, res) => {
 
 const editCoupon = asyncHandler(async (req, res) => {
   try {
-    let { code, id, validity, percent, type, isActive } = req.body;
-    console.log("lmekrmo", req.body);
-    if (!id) {
-      if (!code || !validity || !percent) {
-        return res.status(400).json(new ApiResponse(400, "Details required"));
-      }
-      let input = { code, validity, percent, type, isActive };
-      let add = await CouponsModel.create(input);
-      return res
-        .status(200)
-        .json(new ApiResponse(200, add, "coupon add successfully"));
-    } else {
-      let coupon = await CouponsModel.findOne({ _id: id });
-      if (code) coupon.code = code;
-      if (validity) coupon.validity = validity;
-      if (percent) coupon.percent = percent;
-      if (type) coupon.type = type;
-      if (isActive !== undefined) coupon.isActive = isActive;
+    const { code, _id, validity, percent, type, isActive } = req.body;
 
-      await coupon.save();
+    console.log("Request body:", req.body);
+
+    // Create new coupon if _id is not provided
+    if (!_id) {
+      console.log("Creating a new coupon...");
+
+      if (!code || !validity || percent === undefined || type === undefined) {
+        console.log("Missing required fields for new coupon:", {
+          code,
+          validity,
+          percent,
+          type,
+        });
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              "All fields (code, validity, percent, type) are required for creating a new coupon."
+            )
+          );
+      }
+
+      const newCoupon = await CouponsModel.create({
+        code,
+        validity,
+        percent,
+        type,
+        isActive: isActive ?? true,
+      });
+
+      console.log("New coupon created:", newCoupon);
+
       return res
         .status(200)
-        .json(new ApiResponse(200, coupon, "coupon edit successfully"));
+        .json(new ApiResponse(200, newCoupon, "Coupon added successfully."));
     }
+
+    // Update existing coupon if _id is provided
+    console.log("Editing existing coupon with _id:", _id);
+
+    const updateData = {
+      ...(code && { code }),
+      ...(validity && { validity }),
+      ...(percent !== undefined && { percent }),
+      ...(type !== undefined && { type }),
+      ...(isActive !== undefined && { isActive }),
+    };
+
+    console.log("Update data:", updateData);
+
+    const updatedCoupon = await CouponsModel.findByIdAndUpdate(
+      _id,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedCoupon) {
+      console.log("Coupon not found for _id:", _id);
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Coupon not found."));
+    }
+
+    console.log("Coupon updated successfully:", updatedCoupon);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedCoupon, "Coupon updated successfully.")
+      );
   } catch (error) {
-    throw new ApiError(400, "Failed to assign appointment", error.message);
+    console.error("Edit Coupon Error:", error);
+    return res
+      .status(500)
+      .json(new ApiResponse(500, null, "Server error while editing coupon."));
   }
 });
 
@@ -1203,14 +1283,19 @@ const deleteCoupon = asyncHandler(async (req, res) => {
   try {
     const { id } = req.body;
 
-    let coupon = await CouponsModel.findOne({ _id: id });
-    coupon.isActive = 0;
-    await coupon.save();
+    const deletedCoupon = await CouponsModel.findByIdAndDelete(id);
+
+    if (!deletedCoupon) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Coupon not found"));
+    }
+
     return res
       .status(200)
-      .json(new ApiResponse(200, coupon, "coupon delete succesffully"));
+      .json(new ApiResponse(200, deletedCoupon, "Coupon deleted successfully"));
   } catch (error) {
-    throw new ApiError(400, "Failed to assign appointment", error.message);
+    throw new ApiError(400, "Failed to delete coupon", error.message);
   }
 });
 
@@ -1218,20 +1303,24 @@ const sendWhatsapp = asyncHandler(async (req, res) => {
   try {
     let { userId } = req.query;
     const user = await User.findOne({ _id: userId });
+
     await WhatsappTextTemplate({
       attr: null,
-      name: user?.fullname,
+      name: user?.fulln, // Make sure this is correct; maybe user?.fullName?
       phone: user?.mobile?.toString(),
       campName: "new_complete_hair_test_utility",
-      // media: {
-      //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767315/hair-assessment/f2pevsnjbttikmo05tbs.jpg",
-      //   filename: "file",
-      // },
+      // media: {...}
     });
 
     return res
       .status(200)
-      .json(new ApiResponse(200, {}, "whatsapp send successfully"));
+      .json(
+        new ApiResponse(
+          200,
+          { sentToName: user?.fulln || "User" },
+          "Whatsapp sent successfully"
+        )
+      );
   } catch (error) {
     throw new ApiError(400, "Failed to assign appointment", error.message);
   }
@@ -1347,6 +1436,8 @@ const getInvoices = asyncHandler(async (req, res) => {
       .populate("items.item")
       .sort({ createdAt: -1 });
 
+    console.log();
+
     return res
       .status(200)
       .json(new ApiResponse(200, invoices, "invoice fetch successfully"));
@@ -1392,7 +1483,7 @@ const syncProduct = asyncHandler(async (req, res) => {
         });
         let u = await User.updateOne(
           { _id: element?._id },
-          { zohoUserId: record?.data?.[0]?.details?.id?.toString() },
+          { zohoUserId: record?.data?.[0]?.details?.id?.toString() }
         );
         console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
       } catch (error) {
@@ -1584,6 +1675,581 @@ const getNewsFeed = asyncHandler(async (req, res) => {
   }
 });
 
+// fonix
+const createFollowUp = asyncHandler(async (req, res) => {
+  try {
+    const {
+      hairTestId,
+
+      appointmentDate,
+      timeSlot,
+
+      planId,
+      appointmentType,
+      notes,
+      prescription,
+    } = req.body;
+
+    if (
+      !userId ||
+      !doctorId ||
+      !hairTestId ||
+      !firstAppointmentId ||
+      !appointmentDate ||
+      !timeSlot
+    ) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const DoctorUserID = await Doctors.findById(doctorId);
+
+    // Step 1: Create a new Appointment
+    const newAppointment = await AppointmentModel.create({
+      userId,
+      doctorId: DoctorUserID.userId,
+      hairTestId,
+      appointmentDate,
+      timeSlot,
+      duration: duration || 2,
+      planId,
+      amount,
+      appointmentType: appointmentType || "hair_test_with_prescription",
+      status: "pending",
+      notes,
+      prescription,
+    });
+
+    // Step 2: Find or create FollowUp document
+    let followUpDoc = await FollowUpModel.findOne({
+      userId,
+      doctorId,
+      hairTestId,
+      firstAppointmentId,
+    });
+
+    if (!followUpDoc) {
+      // Create new follow-up document if not exists
+      followUpDoc = new FollowUpModel({
+        userId,
+        doctorId,
+        hairTestId,
+        firstAppointmentId,
+        followUpAppointments: [newAppointment._id],
+      });
+    } else {
+      // Push new appointment ID
+      followUpDoc.followUpAppointments.push(newAppointment._id);
+    }
+
+    await followUpDoc.save();
+
+    return res.status(201).json({
+      message: "Follow-up created successfully",
+      data: followUpDoc,
+    });
+  } catch (error) {
+    console.error("Error creating follow-up:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+const getMonthlyHairTestData = asyncHandler(async (req, res) => {
+  try {
+    const now = new Date();
+
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    const todayEnd = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1
+    );
+
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const previousMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1
+    );
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const getMonthlyDataCounts = async (startDate, endDate) => {
+      const hairTestAppointmentCount = await Appointment.countDocuments({
+        hairTestId: { $ne: null },
+        status: "completed",
+        paymentStatus: "paid",
+        createdAt: { $gte: startDate, $lt: endDate },
+      });
+
+      const productOrderCount = await orderModel.countDocuments({
+        status: "paid",
+        createdAt: { $gte: startDate, $lt: endDate },
+        orderType: "product Buy",
+      });
+
+      return {
+        totalHairTestCompletedOrders: hairTestAppointmentCount,
+        totalProductOnlyOrders: productOrderCount,
+      };
+    };
+
+    const currentMonthSummary = await getMonthlyDataCounts(
+      currentMonthStart,
+      currentMonthEnd
+    );
+    const previousMonthSummary = await getMonthlyDataCounts(
+      previousMonthStart,
+      previousMonthEnd
+    );
+
+    // ✅ Today’s hair tests
+    const todaysHairTests = await Appointment.countDocuments({
+      hairTestId: { $ne: null },
+      status: "completed",
+      paymentStatus: "paid",
+      createdAt: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    // ✅ Today’s total sales
+    const todaysOrders = await orderModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+          status: "paid",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    const totalSalesToday =
+      todaysOrders.length > 0 ? todaysOrders[0].totalSales : 0;
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          currentMonth: {
+            month: currentMonthStart.getMonth() + 1,
+            year: currentMonthStart.getFullYear(),
+            ...currentMonthSummary,
+          },
+          previousMonth: {
+            month: previousMonthStart.getMonth() + 1,
+            year: previousMonthStart.getFullYear(),
+            ...previousMonthSummary,
+          },
+          today: {
+            totalHairTests: todaysHairTests,
+            totalSales: totalSalesToday,
+          },
+        },
+        "HairTest monthly + daily report (summary only) fetched successfully"
+      )
+    );
+  } catch (error) {
+    throw new ApiError(400, "Something went wrong", error?.message);
+  }
+});
+
+const getpatientData = asyncHandler(async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new ApiError(400, "Invalid or missing userId");
+    }
+
+    const orders = await orderModel
+      .find({ userId })
+      .select("status createdAt totalAmount name products mode")
+      .populate("products.item", "name price")
+      .lean();
+
+    const trimmedOrders = orders.map((order) => ({
+      ...order,
+      products: order.products.map((p) => ({
+        quantity: p.quantity,
+        item: {
+          name: p.item?.name,
+          price: p.item?.price,
+        },
+      })),
+    }));
+
+    const appointments = await Appointment.find({ userId })
+      .select("doctorId _id appointmentDate timeSlot status")
+      .populate("doctorId", "fullname")
+      .lean();
+
+    // Fetch prescriptions for userId
+    const prescriptions = await Prescription.find({ userId }).lean();
+
+    const appointmentDoctorMap = {};
+    appointments.forEach((apt) => {
+      appointmentDoctorMap[apt._id.toString()] =
+        apt.doctorId?.fullname || "N/A";
+    });
+
+    const enrichedPrescriptions = prescriptions.map((prescription) => ({
+      ...prescription,
+      doctor:
+        appointmentDoctorMap[prescription.appointmentId?.toString()] || "N/A",
+      appointmentDetails:
+        appointments.find(
+          (apt) => apt._id.toString() === prescription.appointmentId?.toString()
+        ) || {},
+    }));
+
+    const loginHistory = await LoginModel.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    const hairTests = await HairTest.find({ userId }).lean();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          orders: trimmedOrders,
+          prescriptions: enrichedPrescriptions,
+          appointments,
+          loginHistory,
+          hairTests,
+        },
+        "Patient data fetched successfully"
+      )
+    );
+  } catch (error) {
+    console.error("getpatientData error:", error);
+    throw new ApiError(500, "Internal Server Error");
+  }
+});
+
+const assignDoctorForPrescription = asyncHandler(async (req, res) => {
+  try {
+    const { orderId, doctorId, items } = req.body;
+
+    if (!orderId || !doctorId || !items || !Array.isArray(items)) {
+      return res.status(400).json({ message: "Missing or invalid data" });
+    }
+
+    // Step 1: Find the order
+    const order = await orderModel.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const userId = order.userId;
+
+    // Step 2: Check if appointment already exists for this orderId
+    const existingAppointment = await Appointment.findOne({ orderId });
+
+    if (existingAppointment) {
+      return res.status(200).json({
+        success: true,
+        message: "Appointment already exists for this order",
+        data: existingAppointment,
+      });
+    }
+
+    // Step 3: Create Appointment
+    const appointment = new Appointment({
+      userId: userId,
+      doctorId: doctorId,
+      orderId: orderId,
+      appointmentDate: new Date(),
+      timeSlot: "noon",
+      status: "assigned",
+      appointmentType: "prescription_only",
+      prescriptionItems: items,
+    });
+
+    await appointment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor assigned and appointment created successfully",
+      data: appointment,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+});
+
+const createFollowupAppointment = asyncHandler(async (req, res) => {
+  try {
+    const { followupOf, appointmentDate, timeSlot, doctorId, status } =
+      req.body;
+
+    if (!followupOf || !appointmentDate || !timeSlot) {
+      return res.status(400).json({ message: "Required fields are missing" });
+    }
+
+    const DoctorUserID = await Doctors.findById(doctorId);
+
+    // Find the original appointment
+    const originalAppointment = await Appointment.findOne({
+      hairTestId: followupOf,
+    });
+    if (!originalAppointment) {
+      return res
+        .status(404)
+        .json({ message: "Original appointment not found" });
+    }
+
+    // Check if there is any follow-up appointment for this followupOf that is not completed yet
+    const existingPendingFollowup = await Appointment.findOne({
+      followupOf,
+      status: { $ne: "completed" }, // any status other than completed
+    });
+
+    if (existingPendingFollowup) {
+      return res.status(400).json({
+        message:
+          "Cannot create new follow-up appointment until the previous one is completed",
+      });
+    }
+
+    // Count total follow-ups so far
+    const totalFollowups = await Appointment.countDocuments({ followupOf });
+
+    // Create new follow-up appointment
+    const followup = await Appointment.create({
+      userId: originalAppointment.userId,
+      followupOf,
+      appointmentDate,
+      timeSlot,
+      doctorId: DoctorUserID?.userId || originalAppointment.doctorId, // fallback to original if not provided
+      followupVisitNumber: totalFollowups + 1,
+      status: status || "pending", // default status if not provided
+      nextAction: "none",
+    });
+
+    return res.status(201).json({ success: true, data: followup });
+  } catch (error) {
+    console.error("Error creating follow-up appointment:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+});
+
+const getFollowUps = asyncHandler(async (req, res) => {
+  try {
+    console.log(req.body);
+    const { followupOf } = req.body;
+
+    if (!followupOf) {
+      return res.status(400).json({ message: "followupOf field is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(followupOf)) {
+      return res.status(400).json({ message: "Invalid appointment ID" });
+    }
+
+    const followups = await Appointment.find({ followupOf })
+      .populate({ path: "doctorId", select: "name" })
+      .populate({ path: "userId", select: "fullname email" });
+    console.log(followups);
+
+    return res.status(200).json({ success: true, data: followups });
+  } catch (error) {
+    console.error("Error fetching follow-up appointments:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+});
+
+const assignDoctorToAppointment = asyncHandler(async (req, res) => {
+  try {
+    console.log("Request body:", req.body);
+
+    const { hairTestId, appointmentDate, timeSlot } = req.body;
+    var doctorId = req.body.doctorId;
+
+    // console.log("Parsed hairTestId:", hairTestId);
+    // console.log("Parsed appointmentDate:", appointmentDate);
+    // console.log("Parsed timeSlot:", timeSlot);
+    // console.log("Parsed doctorId:", doctorId);
+
+    if (!hairTestId || hairTestId === "") {
+      console.error("hairTestId is missing or empty");
+      throw new ApiError(400, "hairTestId is required and cannot be empty");
+    }
+
+    if (!doctorId || doctorId === "") {
+      console.error("doctorId is missing or empty");
+      throw new ApiError(400, "doctorId is required and cannot be empty");
+    }
+
+    // Fetch the appointment using hairTestId
+    const appointment = await Appointment.findOne({ hairTestId });
+    console.log("Appointment fetched:", appointment);
+    if (!appointment) {
+      console.error("Appointment not found for hairTestId:", hairTestId);
+      throw new ApiError(404, "Appointment not found");
+    }
+
+    // Fetch doctor by ID
+    const doctor = await Doctors.findById(doctorId);
+    console.log("Doctor fetched:", doctor);
+    if (!doctor) {
+      console.error("Doctor not found for doctorId:", doctorId);
+      throw new ApiError(404, "Doctor not found");
+    }
+
+    // Fetch user data for the doctor
+    const doctorData = await User.findOne({ _id: doctor.userId });
+    console.log("Doctor user data fetched:", doctorData);
+    if (!doctorData) {
+      console.error("User data not found for doctor userId:", doctor.userId);
+      throw new ApiError(404, "User not found");
+    }
+
+    // Fetch user linked to appointment
+    const user = await User.findOne({ _id: appointment.userId });
+    console.log("User linked to appointment fetched:", user);
+    if (!user) {
+      console.error(
+        "User not found for appointment userId:",
+        appointment.userId
+      );
+      throw new ApiError(404, "User not found");
+    }
+
+    // Fetch hair test linked to appointment
+    const hairTest = await HairTest.findOne({ _id: appointment.hairTestId });
+    console.log("HairTest fetched:", hairTest);
+    if (!hairTest) {
+      console.error("HairTest not found for id:", appointment.hairTestId);
+      throw new ApiError(404, "Hair Test not found");
+    }
+
+    console.log("Preparing WhatsApp notification payload");
+    const whatsappPayload = {
+      attr: null,
+      name: doctorData.fullname,
+      phone: doctorData.mobile?.toString(),
+      campName: "doctor_message_Utility",
+    };
+
+    console.log("Sending WhatsApp notification with payload:", whatsappPayload);
+    const notificationStatus = await WhatsappTextTemplate(whatsappPayload);
+    console.log("WhatsApp notification status:", notificationStatus);
+
+    if (!notificationStatus || !notificationStatus.success) {
+      console.error("WhatsApp notification failed or not confirmed");
+      throw new ApiError(400, "WhatsApp notification not confirmed");
+    }
+
+    // Update the appointment with assigned doctor and status
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointment._id,
+      {
+        doctorId: doctorData._id,
+        status: "assigned",
+        appointmentDate,
+        timeSlot,
+      },
+      { new: true }
+    );
+
+    console.log("Updated appointment:", updatedAppointment);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          updatedAppointment,
+          "Appointment assigned successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error assigning appointment:", error);
+    throw new ApiError(400, error.message, error.message);
+  }
+});
+
+const getOrderById = asyncHandler(async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid or missing orderId" });
+    }
+
+    const order = await orderModel
+      .findOne({
+        _id: orderId,
+        deliveryStatus: {
+          $in: ["processing", "shipped", "delivered", "canceled"],
+        },
+      })
+      .populate("userId", "fullname")
+      .populate("addressId", "fullAddress") // check spelling
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Simplify products to only include name of item
+    const simplifiedProducts = order.products.map((p) => ({
+      name: p.item?.name || "N/A",
+    }));
+
+    // Replace products in order with simplified version
+    const simplifiedOrder = {
+      ...order,
+      products: simplifiedProducts,
+    };
+
+    // Fetch related appointments
+    const orderAppointments = await Appointment.find({
+      orderId,
+      isDeleted: false,
+      appointmentType: "prescription_only",
+      status: { $in: ["assigned", "completed", "pending"] },
+    })
+      .populate("userId", "fullname")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          order: simplifiedOrder,
+          appointments: orderAppointments,
+        },
+        "Order and appointments fetched successfully"
+      )
+    );
+  } catch (error) {
+    console.error("getOrderById error:", error);
+    return res.status(500).json({
+      message: "Failed to fetch order and appointments",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -1632,4 +2298,13 @@ module.exports = {
   addBlogCategory,
   allBlogCategory,
   getNewsFeed,
+  //Fonix
+  deleteDoctor,
+  getMonthlyHairTestData,
+  createFollowUp,
+  getpatientData,
+  assignDoctorForPrescription,
+  createFollowupAppointment,
+  getFollowUps,
+  getOrderById,
 };

@@ -27,6 +27,7 @@ class CommonHelper {
   };
   generateAccessToken = async (user) => {
     console.log(process.env);
+    console.log("keyyyyyy", process.env.ACCESS_TOKEN_SECRET);
     return jwt.sign(
       {
         _id: user._id,
@@ -36,7 +37,7 @@ class CommonHelper {
       process.env.ACCESS_TOKEN_SECRET,
       {
         expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
-      },
+      }
     );
   };
   generateRefreshToken = async (user) => {
@@ -47,7 +48,7 @@ class CommonHelper {
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-      },
+      }
     );
   };
   // isValidOTP = async (otpCreatedAt) => {

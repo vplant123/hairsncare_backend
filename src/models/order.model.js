@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -20,9 +20,6 @@ const productSchema = new mongoose.Schema({
   longDes: { type: String },
   stock: { type: String },
   discount: { type: String },
-
-
-
   category: { type: String },
   subCategory: { type: String },
   gst: { type: Number },
@@ -71,89 +68,91 @@ const productSchema = new mongoose.Schema({
   ],
   review: {
     type: String,
-    default: "0"
+    default: "0",
   },
 });
 
-const orderSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', required: true
-  },
-
-  amount: {
-    type: Number,
-    required: true
-  },
-  addressId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'userAddresses'
-  },
-  plainId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Plan'
-  },
-  isDeleted: {
-    type: Boolean,
-    default: false
-  },
-  products: [
-    {
-      item: productSchema,
-      quantity: {
-        type: Number,
-        default: 1
-      },
+const orderSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
-  ],
-  currency: {
-    type: String,
 
+    amount: {
+      type: Number,
+      required: true,
+    },
+    addressId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "userAddresses",
+    },
+    plainId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Plan",
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    products: [
+      {
+        item: productSchema,
+        quantity: {
+          type: Number,
+          default: 1,
+        },
+      },
+    ],
+    currency: {
+      type: String,
+    },
+    coupon: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Coupons",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
+    orderType: {
+      type: String,
+      enum: ["Appointment", "product Buy"],
+      required: true,
+    },
+    deliveryStatus: {
+      type: String,
+      enum: ["pending", "processing", "shipped", "delivered", "canceled"], //processing+pending  == cash on deilvery
+      default: "pending", //pay online = pending + pending
+    },
+    deliveryCharges: {
+      type: Number,
+    },
+    totalDiscount: {
+      type: Number,
+    },
+    totalAmount: {
+      type: Number,
+    },
+    mode: {
+      type: String,
+      enum: ["cash", "online"],
+      default: "online",
+    },
+    shipRocket_order_Id: {
+      type: String,
+    },
+    zoho_order_Id: {
+      type: String,
+    },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoices",
+    },
   },
-  coupon: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Coupons'
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'paid', 'failed'],
-    default: 'pending'
-  },
-  orderType: {
-    type: String,
-    enum: ["Appointment", "product Buy"],
-    required: true
-  },
-  deliveryStatus: {
-    type: String,
-    enum: ['pending', "processing", "shipped", "delivered", "canceled"],   //processing+pending  == cash on deilvery
-    default: 'pending'                                                     //pay online = pending + pending
-  },
-  deliveryCharges: {
-    type: Number,
-  },
-  totalDiscount: {
-    type: Number,
-  },
-  totalAmount: {
-    type: Number,
-  },
-  mode: {
-    type: String,
-    enum: ["cash", "online"],
-    default: 'online'
-  },
-  shipRocket_order_Id: {
-    type: String,
-  },
-  zoho_order_Id: {
-    type: String,
-  },
-  invoiceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Invoices",
-  },
+  { timestamps: true }
+);
 
-}, { timestamps: true });
-
-module.exports = mongoose.model('Order', orderSchema);
+module.exports = mongoose.model("Order", orderSchema);
