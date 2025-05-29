@@ -19,7 +19,7 @@ const { verifyJwt } = require("../middlewares/auth.middleware.js");
 const router = express.Router();
 
 router.get("/get-all-appointment", verifyJwt, getAssignedAppointmentsForDoctor);
-router.get("/get-hair-test", verifyJwt, getHairTestDetail);
+router.get("/get-hair-test",  getHairTestDetail);
 
 router.post("/accept-appointment", acceptAppointment);
 router.post("/reject-appointment", rejectAppointment);
