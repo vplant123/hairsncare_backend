@@ -12,7 +12,7 @@ const cartRoutes = require("./routes/cart.routes.js");
 const utilityRoutes = require("./routes/utility.routes.js");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
-require("./lokiLogger.js")
+require("./lokiLogger.js");
 
 const app = express();
 app.use(bodyParser.json({ limit: "50mb" }));
@@ -21,23 +21,25 @@ app.use(
     limit: "50mb",
     extended: true,
     parameterLimit: 50000,
-  }),
+  })
 );
 
 app.use(
   cors({
     origin: "*",
     credentials: true,
-  }),
+  })
 );
 
-app.use(morgan('common', {
-  stream: {
-    write: (message) => console.log(message.trim())
-  }
-}));
+app.use(
+  morgan("common", {
+    stream: {
+      write: (message) => console.log(message.trim()),
+    },
+  })
+);
 
-app.use(express.json()); 
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 //routes declarition
@@ -54,6 +56,10 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/doctor", doctorRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/utility", utilityRoutes);
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.status(200).json({ message: "Server is running" });
+});
 
 app.use(errorHandler);
 // console.log("avinash")
