@@ -57,6 +57,7 @@ const {
   createFollowupAppointment,
   getFollowUps,
   getOrderById,
+  deleteAdmin,
 } = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -67,6 +68,7 @@ const router = express.Router();
 
 router.post("/addDoctor", validate(adminValidation.createDoctor), createDoctor);
 router.get("/allpatient", verifyJwt, getallPatient);
+
 router.post("/addAdmin", addAdmin);
 router.post("/getAdmin", getAdmin);
 
@@ -150,5 +152,7 @@ router.post(
 );
 router.post("/get-folllowUp-appointment", verifyJwt, getFollowUps);
 router.post("/order-details", verifyJwt, getOrderById);
+
+router.post("/delete-admin", verifyJwt, deleteAdmin);
 
 module.exports = router;

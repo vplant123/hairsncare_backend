@@ -117,26 +117,28 @@ class AdminService {
     const { orderId } = req.query;
     return await User.findByIdAndUpdate(orderId, { isDeleted: true });
   };
+
   addAdmin = async (data) => {
     const existedUser = await User.findOne({ email: data.email });
     console.log(data);
+
     if (existedUser) {
       throw new ApiError(409, "This email is already in use.");
     }
+
     const passwordHash = await CommonHelper.hashPassword(data.password);
     const user = await User.create({
       fullname: data.fullname,
       email: data.email,
       password: passwordHash,
       mobile: data.mobile,
-      // profileImage: data.profileImage,
-      // coverImage: data.coverImage,
       role: data.role,
       permission: data.permission,
     });
 
     return user;
   };
+
   updateAdmin = async (req) => {
     const { user } = req;
     console.log("user", user);
@@ -247,5 +249,71 @@ class AdminService {
       return false;
     }
   };
+
+  updateAdminProfile = async (data) => {
+    const admin = await User.findOne({ _id: data._id });
+
+    if (!admin) {
+      throw new ApiError(404, "Admin not found");
+    }
+
+    // Check if trying to change email to one that already exists
+    if (data.email && data.email !== admin.email) {
+      const emailExists = await User.findOne({ email: data.email });
+      if (emailExists) {
+        throw new ApiError(409, "This email is already in use by another user");
+      }
+    }
+
+    const updateData = {
+      fullname: data.fullname || admin.fullname,
+      email: data.email || admin.email,
+      mobile: data.mobile || admin.mobile,
+      role: data.role || admin.role,
+      permission: data.permission || admin.permission,
+    };
+
+    console.log(updateData);
+
+    // Only hash and update password if it's provided
+    if (data.password) {
+      updateData.password = await CommonHelper.hashPassword(data.password);
+    }
+
+    const updatedAdmin = await User.findByIdAndUpdate(admin._id, updateData, {
+      new: true,
+    }).select("-password"); // Exclude password from response
+
+    console.log(updatedAdmin);
+
+    if (!updatedAdmin) {
+      throw new ApiError(400, "Failed to update admin profile");
+    }
+
+    return updatedAdmin;
+  };
+
+  deleteAdmin = async (adminId) => {
+    const admin = await User.findOne({ _id: adminId });
+
+    if (!admin) {
+      throw new ApiError(404, "Admin not found");
+    }
+
+    // Check if trying to delete a super admin
+    if (admin.role === "admin" && admin.permission?.admin === true) {
+      throw new ApiError(403, "Cannot delete super admin");
+    }
+
+    // Perform actual deletion
+    const deletedAdmin = await User.findByIdAndDelete(adminId);
+
+    if (!deletedAdmin) {
+      throw new ApiError(400, "Failed to delete admin");
+    }
+
+    return true;
+  };
 }
+
 module.exports = new AdminService();

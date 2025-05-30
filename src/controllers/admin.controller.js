@@ -38,12 +38,12 @@ const FollowUpModel = require("../models/followUpAppointments.model.js");
 const addAdmin = asyncHandler(async (req, res) => {
   try {
     console.log(req.body);
-    const adminregister = await AdminService.addAdmin(req.body);
+    const adminResult = await AdminService.addAdmin(req.body);
     return res
-      .status(200)
-      .json(new ApiResponse(200, "Admin added succesffully", adminregister));
+      .status(201)
+      .json(new ApiResponse(201, adminResult, "Admin added successfully"));
   } catch (error) {
-    throw new ApiError(400, "Unable to add Admin", error.message);
+    throw new ApiError(400, "Unable to add admin", error.message);
   }
 });
 
@@ -792,13 +792,19 @@ const getProductsByCategory = asyncHandler(async (req, res) => {
 });
 const updateAdminProfile = asyncHandler(async (req, res) => {
   try {
-    await AdminService.updateAdmin(req);
+    const adminData = req.body;
+    
+    if (!adminData._id) {
+      throw new ApiError(400, "Admin ID is required");
+    }
 
+    const updatedAdmin = await AdminService.updateAdminProfile(adminData);
+    
     return res
       .status(200)
-      .json(new ApiResponse(200, "Profile updated successfully"));
+      .json(new ApiResponse(200, updatedAdmin, "Admin profile updated successfully"));
   } catch (error) {
-    throw new ApiError(400, "Something went wrong", error.message);
+    throw new ApiError(error.statusCode || 400, error.message);
   }
 });
 const searchUsers = asyncHandler(async (req, res, next) => {
@@ -1807,7 +1813,7 @@ const getMonthlyHairTestData = asyncHandler(async (req, res) => {
       previousMonthEnd
     );
 
-    // ✅ Today’s hair tests
+    // ✅ Today's hair tests
     const todaysHairTests = await Appointment.countDocuments({
       hairTestId: { $ne: null },
       status: "completed",
@@ -1815,7 +1821,7 @@ const getMonthlyHairTestData = asyncHandler(async (req, res) => {
       createdAt: { $gte: todayStart, $lt: todayEnd },
     });
 
-    // ✅ Today’s total sales
+    // ✅ Today's total sales
     const todaysOrders = await orderModel.aggregate([
       {
         $match: {
@@ -2250,6 +2256,29 @@ const getOrderById = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteAdmin = asyncHandler(async (req, res) => {
+  try {
+    const { adminId } = req.body;
+    
+    if (!adminId) {
+      throw new ApiError(400, "Admin ID is required");
+    }
+
+    // Check if trying to delete self
+    if (req.user._id.toString() === adminId) {
+      throw new ApiError(403, "Cannot delete your own admin account");
+    }
+
+    await AdminService.deleteAdmin(adminId);
+    
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Admin permanently deleted"));
+  } catch (error) {
+    throw new ApiError(error.statusCode || 400, error.message);
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2307,4 +2336,5 @@ module.exports = {
   createFollowupAppointment,
   getFollowUps,
   getOrderById,
+  deleteAdmin,
 };
