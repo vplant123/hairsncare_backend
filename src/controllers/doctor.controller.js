@@ -11,6 +11,8 @@ const fs = require("fs");
 const path = require("path");
 const Product = require("../models/products.models");
 const Cart = require("../models/Cart.model");
+const orderModel = require("../models/order.model");
+
 const { v4: uuidv4 } = require("uuid");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp");
 
@@ -89,6 +91,39 @@ const getHairTestDetail = asyncHandler(async (req, res) => {
           200,
           hairTest,
           "Hair test details retrieved successfully"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
+const getOrderedMedicine = asyncHandler(async (req, res) => {
+  try {
+    const { userId, orderId } = req.query;
+    let order;
+
+
+    if (orderId) {
+      order = await orderModel.findOne({ _id: orderId });
+      console.log("hairTest by ID:", order);
+    } else {
+      order = await orderModel.find({ userId: userId });
+    }
+
+    if (!order || order === null) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Order not found"));
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          order,
+          "Order details retrieved successfully"
         )
       );
   } catch (error) {
@@ -416,7 +451,10 @@ const getAllPrescription = asyncHandler(async (req, res) => {
 
 module.exports = {
   acceptAppointment,
+
   getHairTestDetail,
+  getOrderedMedicine,
+
   rejectAppointment,
 
   getAssignedAppointmentsForDoctor,
