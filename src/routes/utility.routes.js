@@ -18,12 +18,12 @@ const {
 
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
 
-const router = express.Router();   
-router.post("/getContent", verifyJwt, getContent);
-  
+const router = express.Router();
+router.post("/getContent", getContent);
+
 router.post("/editHome", verifyJwt, editHome);
 router.post("/editExpertise", verifyJwt, editExpertise);
-router.post("/editAboutUs1", verifyJwt, editAboutUs1);  
+router.post("/editAboutUs1", verifyJwt, editAboutUs1);
 router.post("/editSpecialist", verifyJwt, editSpecialist);
 router.post("/editVideoCustomer", verifyJwt, editCustomerVideos);
 router.post("/editContactUs", verifyJwt, editContactUs);
