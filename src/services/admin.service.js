@@ -9,6 +9,7 @@ const orderModel = require("../models/order.model.js");
 const Cart = require("../models/Cart.model.js");
 const HairTest = require("../models/hairTest.model.js");
 const AppointmentModel = require("../models/Appointment.model.js");
+const mongoose = require("mongoose");
 
 // const CommonHelper = require("../utils/commonHelper.js")
 // const { sendEmail } = require("../utils/nodemailer.util.js")
@@ -294,25 +295,57 @@ class AdminService {
   };
 
   deleteAdmin = async (adminId) => {
-    const admin = await User.findOne({ _id: adminId });
+    try {
+      if (!adminId) {
+        throw new ApiError(400, "Admin ID is required");
+      }
 
-    if (!admin) {
-      throw new ApiError(404, "Admin not found");
+      if (!mongoose.Types.ObjectId.isValid(adminId)) {
+        throw new ApiError(400, "Invalid admin ID format");
+      }
+
+      const admin = await User.findOne({ _id: adminId });
+
+      if (!admin) {
+        throw new ApiError(404, "Admin not found");
+      }
+
+      if (admin.role == "admin") {
+        throw new ApiError(400, "Can only delete subadmin users");
+      }
+
+      // Check if admin is already deleted
+      if (admin.isDeleted) {
+        throw new ApiError(400, "Admin account is already deleted");
+      }
+
+      // Perform actual deletion
+      const deletedAdmin = await User.findByIdAndDelete(adminId);
+
+      if (!deletedAdmin) {
+        throw new ApiError(500, "Failed to delete admin. Please try again.");
+      }
+
+      return {
+        success: true,
+        message: "Admin deleted successfully",
+        deletedAdminId: adminId,
+      };
+    } catch (error) {
+      // Handle mongoose errors
+      if (error.name === "MongoServerError") {
+        throw new ApiError(500, "Database error while deleting admin");
+      }
+      // Rethrow our custom API errors
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      // Handle any other unexpected errors
+      throw new ApiError(
+        500,
+        "An unexpected error occurred while deleting admin"
+      );
     }
-
-    // Check if trying to delete a super admin
-    if (admin.role === "admin" && admin.permission?.admin === true) {
-      throw new ApiError(403, "Cannot delete super admin");
-    }
-
-    // Perform actual deletion
-    const deletedAdmin = await User.findByIdAndDelete(adminId);
-
-    if (!deletedAdmin) {
-      throw new ApiError(400, "Failed to delete admin");
-    }
-
-    return true;
   };
 }
 

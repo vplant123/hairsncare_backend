@@ -103,7 +103,6 @@ const getOrderedMedicine = asyncHandler(async (req, res) => {
     const { userId, orderId } = req.query;
     let order;
 
-
     if (orderId) {
       order = await orderModel.findOne({ _id: orderId });
       console.log("hairTest by ID:", order);
@@ -120,11 +119,7 @@ const getOrderedMedicine = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(
-          200,
-          order,
-          "Order details retrieved successfully"
-        )
+        new ApiResponse(200, order, "Order details retrieved successfully")
       );
   } catch (error) {
     throw new ApiError(400, "Something went wrong", error.message);
@@ -275,8 +270,10 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       _id: appointment?.hairTestId,
     });
 
-    hairTest.status = "completed";
-    await hairTest.save();
+    if (hairTest) {
+      hairTest.status = "completed";
+      await hairTest.save();
+    }
 
     // console.log("Appointment Details:", appointment);
 

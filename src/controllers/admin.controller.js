@@ -793,16 +793,18 @@ const getProductsByCategory = asyncHandler(async (req, res) => {
 const updateAdminProfile = asyncHandler(async (req, res) => {
   try {
     const adminData = req.body;
-    
+
     if (!adminData._id) {
       throw new ApiError(400, "Admin ID is required");
     }
 
     const updatedAdmin = await AdminService.updateAdminProfile(adminData);
-    
+
     return res
       .status(200)
-      .json(new ApiResponse(200, updatedAdmin, "Admin profile updated successfully"));
+      .json(
+        new ApiResponse(200, updatedAdmin, "Admin profile updated successfully")
+      );
   } catch (error) {
     throw new ApiError(error.statusCode || 400, error.message);
   }
@@ -1369,13 +1371,27 @@ const getReviewAll = asyncHandler(async (req, res) => {
 
 const deleteReview = asyncHandler(async (req, res) => {
   try {
+    // First find the review to get its current status
     let review = await ReviewModel.findOne({ _id: req.params.id });
-    let p = await ReviewModel.deleteOne({ _id: req.params.id });
-    console.log("rreeeee", review?.productId);
 
-    let all = await ReviewModel.find({ productId: review?.productId });
+    if (!review) {
+      throw new ApiError(404, "Review not found");
+    }
+
+    // Toggle the isDeleted status
+    review = await ReviewModel.findOneAndUpdate(
+      { _id: req.params.id },
+      { isDeleted: !review.isDeleted },
+      { new: true }
+    );
+
+    // Get all non-deleted reviews for the product
+    let all = await ReviewModel.find({
+      productId: review.productId,
+      isDeleted: false,
+    });
+
     let tot = 0;
-    console.log("rreeeee", all);
 
     if (all?.length > 0) {
       let x = 0;
@@ -1383,13 +1399,23 @@ const deleteReview = asyncHandler(async (req, res) => {
         x = x + parseFloat(e?.rating || 0);
       });
       tot = (parseFloat(x) / parseFloat(all?.length))?.toFixed(1);
-      await Product.updateOne({ _id: review?.productId }, { review: tot });
+      await Product.updateOne({ _id: review.productId }, { review: tot });
     }
+
     return res
       .status(200)
-      .json(new ApiResponse(200, tot, "review delete successfully"));
+      .json(
+        new ApiResponse(
+          200,
+          { review, averageRating: tot },
+          `Review ${review.isDeleted ? "disabled" : "enabled"} successfully`
+        )
+      );
   } catch (error) {
-    throw new ApiError(400, "something error", error.message);
+    throw new ApiError(
+      400,
+      error.message || "Something went wrong while updating review status"
+    );
   }
 });
 
@@ -1893,28 +1919,81 @@ const getpatientData = asyncHandler(async (req, res) => {
     }));
 
     const appointments = await Appointment.find({ userId })
-      .select("doctorId _id appointmentDate timeSlot status")
-      .populate("doctorId", "fullname")
+      .select(
+        "doctorId appointmentDate timeSlot status duration appointmentType paymentStatus"
+      )
+      .populate({
+        path: "doctorId",
+        select: "fullname email mobile speciality",
+      })
       .lean();
 
-    // Fetch prescriptions for userId
+    // Fetch prescriptions for userId without populate
     const prescriptions = await Prescription.find({ userId }).lean();
 
-    const appointmentDoctorMap = {};
-    appointments.forEach((apt) => {
-      appointmentDoctorMap[apt._id.toString()] =
-        apt.doctorId?.fullname || "N/A";
-    });
+    // Get all unique appointment IDs from prescriptions
+    const appointmentIds = [
+      ...new Set(prescriptions.map((p) => p.appointmentId).filter(Boolean)),
+    ];
 
-    const enrichedPrescriptions = prescriptions.map((prescription) => ({
-      ...prescription,
-      doctor:
-        appointmentDoctorMap[prescription.appointmentId?.toString()] || "N/A",
-      appointmentDetails:
-        appointments.find(
-          (apt) => apt._id.toString() === prescription.appointmentId?.toString()
-        ) || {},
-    }));
+    // Fetch all relevant appointments in one query
+    const prescriptionAppointments = await Appointment.find({
+      _id: { $in: appointmentIds },
+    }).lean();
+
+    // Fetch all doctor information for these appointments
+    const doctorIds = [
+      ...new Set(
+        prescriptionAppointments.map((a) => a.doctorId).filter(Boolean)
+      ),
+    ];
+    const doctors = await User.find({
+      _id: { $in: doctorIds },
+    })
+      .select("fullname email mobile speciality")
+      .lean();
+
+    // Create lookup maps for faster access
+    const appointmentMap = prescriptionAppointments.reduce((acc, apt) => {
+      acc[apt._id.toString()] = apt;
+      return acc;
+    }, {});
+
+    const doctorMap = doctors.reduce((acc, doc) => {
+      acc[doc._id.toString()] = doc;
+      return acc;
+    }, {});
+
+    const enrichedPrescriptions = prescriptions.map((prescription) => {
+      // Get the related appointment
+      const relatedAppointment =
+        appointmentMap[prescription.appointmentId?.toString()];
+      // Get the doctor info if available
+      const doctorInfo = relatedAppointment?.doctorId
+        ? doctorMap[relatedAppointment.doctorId.toString()]
+        : null;
+
+      // Create a new object without the specified keys
+      const {
+        dianosis,
+        hairScalp,
+        overall,
+        nutrition,
+        ...filteredPrescription
+      } = prescription;
+
+      return {
+        ...filteredPrescription,
+        doctor: doctorInfo?.fullname || "N/A",
+        appointmentDetails: {
+          _id: relatedAppointment?._id || prescription.appointmentId,
+          appointmentDate: relatedAppointment?.appointmentDate || "",
+          timeSlot: relatedAppointment?.timeSlot || "noon",
+          status: relatedAppointment?.status || "completed",
+          doctorId: doctorInfo || null,
+        },
+      };
+    });
 
     const loginHistory = await LoginModel.find({ userId })
       .sort({ createdAt: -1 })
@@ -2259,23 +2338,46 @@ const getOrderById = asyncHandler(async (req, res) => {
 const deleteAdmin = asyncHandler(async (req, res) => {
   try {
     const { adminId } = req.body;
-    
-    if (!adminId) {
-      throw new ApiError(400, "Admin ID is required");
-    }
 
     // Check if trying to delete self
     if (req.user._id.toString() === adminId) {
       throw new ApiError(403, "Cannot delete your own admin account");
     }
 
-    await AdminService.deleteAdmin(adminId);
-    
+    const result = await AdminService.deleteAdmin(adminId);
+
+    return res.status(200).json(new ApiResponse(200, result, result.message));
+  } catch (error) {
+    // Log the error for debugging (you can use your logging system)
+    console.error("Admin deletion error:", error);
+
+    // Handle different types of errors
+    if (error instanceof ApiError) {
+      throw error;
+    } else if (error.name === "CastError" || error.name === "ValidationError") {
+      throw new ApiError(400, "Invalid data provided");
+    } else {
+      throw new ApiError(500, "Failed to process admin deletion request");
+    }
+  }
+});
+
+const getMyProfile = asyncHandler(async (req, res) => {
+  try {
+    const admin = req.user;
+
+    if (!admin) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     return res
       .status(200)
-      .json(new ApiResponse(200, null, "Admin permanently deleted"));
+      .json(new ApiResponse(200, admin, "Profile fetched successfully"));
   } catch (error) {
-    throw new ApiError(error.statusCode || 400, error.message);
+    console.error("getMyProfile error:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch profile", error: error.message });
   }
 });
 
@@ -2337,4 +2439,5 @@ module.exports = {
   getFollowUps,
   getOrderById,
   deleteAdmin,
+  getMyProfile,
 };

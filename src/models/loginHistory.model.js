@@ -5,7 +5,9 @@ const loginHistorySchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: function() {
+        return this.status === 'success'; // userId only required for successful logins
+      }
     },
     ipAddress: {
       type: String,

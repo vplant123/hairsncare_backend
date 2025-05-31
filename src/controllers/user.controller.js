@@ -267,6 +267,7 @@ const resendOtpMobile = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   try {
+    console.log(req.body);
     const logedInUser = await UserService.loginService(req.body, req); // pass req
     return res
       .status(200)

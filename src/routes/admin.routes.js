@@ -58,6 +58,7 @@ const {
   getFollowUps,
   getOrderById,
   deleteAdmin,
+  getMyProfile,
 } = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -116,6 +117,7 @@ router.post("/sendWhatsapp", verifyJwt, sendWhatsapp);
 
 router.post("/getReviewAll", verifyJwt, getReviewAll);
 router.post("/deleteReview/:id", deleteReview);
+
 router.post("/allUserData", verifyJwt, AllUserData);
 
 router.post("/contactDetails", verifyJwt, contactDetails);
@@ -154,5 +156,6 @@ router.post("/get-folllowUp-appointment", verifyJwt, getFollowUps);
 router.post("/order-details", verifyJwt, getOrderById);
 
 router.post("/delete-admin", verifyJwt, deleteAdmin);
+router.get("/my-profile", verifyJwt, getMyProfile);
 
 module.exports = router;

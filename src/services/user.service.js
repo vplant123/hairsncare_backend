@@ -104,7 +104,9 @@ class UserService {
   };
 
   loginService = async (data, req) => {
+    console.log(data);
     const user = await User.findOne({ email: data.email });
+    console.log(user);
 
     if (!user) {
       // Optional: record failed login
