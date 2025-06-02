@@ -1190,7 +1190,7 @@ const getOrders = asyncHandler(async (req, res) => {
 const getCoupons = asyncHandler(async (req, res) => {
   try {
     const data = await CouponsModel.find(
-      req.user.role === "admin" ? {} : { isActive: true }
+      req.user.role === "admin" ||"subadmin" ? {} : { isActive: true }
     ).sort({
       createdAt: -1,
     });
