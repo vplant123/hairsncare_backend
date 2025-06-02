@@ -124,9 +124,22 @@ class AdminService {
     console.log(data);
 
     if (existedUser) {
-      throw new ApiError(409, "This email is already in use.");
+      // If user exists but is not an admin, update their role and permissions
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: existedUser._id },
+        {
+          role: data.role,
+          permission: data.permission,
+          fullname: data.fullname,
+          mobile: data.mobile,
+        },
+        { new: true }
+      );
+
+      return updatedUser;
     }
 
+    // If user doesn't exist, create new admin user
     const passwordHash = await CommonHelper.hashPassword(data.password);
     const user = await User.create({
       fullname: data.fullname,
