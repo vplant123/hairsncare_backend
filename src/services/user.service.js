@@ -29,33 +29,50 @@ const instance = new Razorpay({
 
 class UserService {
   registerService = async (data) => {
-    console.log(data);
-    // const existedUser = await User.findOne({ email: data.email });
-    // if (existedUser) {
-    //     throw new ApiError(409, "This email is already in use.");
-    // }
+    console.log("Incoming registration data:", data);
+    console.log("Fullname type:", typeof data.fullname);
+    console.log("Fullname value:", data.fullname);
+
     const user = await User.findOne({ mobile: data.mobile, isVerified: true });
-    console.log(user);
-    // if (!user) {
-    //   throw new ApiError(
-    //     400,
-    //     "User is not verified, first verify mobile number"
-    //   );
-    // }
-    const passwordHash = await CommonHelper.hashPassword(data.password);
-    user.fullname = data.fullname;
-    user.email = data.email;
-    user.password = passwordHash;
+    console.log("Found user:", user);
+
+    if (!user) {
+      throw new ApiError(
+        400,
+        "User is not verified, first verify mobile number"
+      );
+    }
+
+    // Safely assign incoming data
+    if (data.fullname && typeof data.fullname === "string") {
+      console.log("Setting fullname to:", data.fullname.trim());
+      user.fullname = data.fullname.trim();
+    } else {
+      console.log("Fullname validation failed:", {
+        hasFullname: !!data.fullname,
+        fullnameType: typeof data.fullname,
+      });
+    }
+
+    if (data.email && typeof data.email === "string") {
+      user.email = data.email.toLowerCase();
+    }
+
+    if (data.password && data.password !== "") {
+      const passwordHash = await CommonHelper.hashPassword(data.password);
+      user.password = passwordHash;
+    }
+
     user.status = true;
     user.lastLogin = new Date();
-    user.registration_method = data.registration_method;
+    user.registration_method =
+      data.registration_method || user.registration_method;
+
     await user.save();
 
     const accessToken = await CommonHelper.generateAccessToken(user._id);
     console.log(accessToken);
     const refreshToken = await CommonHelper.generateRefreshToken(user._id);
-    // await sendEmail(data.email, 'Welcome to HairsnCares.com!',
-    //     `You are Successfully logged In.`)
 
     if (!user.zohoUserId) {
       let productData = {
@@ -65,7 +82,6 @@ class UserService {
             First_Name: user?.fullname,
             Email: user?.email,
             Phone: user?.mobile,
-            // "Company": element?.email
           },
         ],
       };
@@ -82,12 +98,13 @@ class UserService {
       } catch (error) {
         console.log("knmsnjdi", error);
       }
+
       await sendEmail(
         data.email,
         "Welcome to HairsnCares.com!",
-        `Hi ${data?.fullname},\n\nWelcome to HairsnCares.com! Your account is now ready.\n\nTo log in, please use the OTP sent to your registered mobile number or email.\n\nBest Regards,\nThe HairsnCares Team
-`
+        `Hi ${data?.fullname},\n\nWelcome to HairsnCares.com! Your account is now ready.\n\nTo log in, please use the OTP sent to your registered mobile number or email.\n\nBest Regards,\nThe HairsnCares Team`
       );
+
       await WhatsappTextTemplate({
         attr: null,
         name: user?.fullname,
@@ -100,7 +117,13 @@ class UserService {
       });
     }
 
-    return { accessToken, refreshToken, role: user?.role, user };
+    // Final output preserved as-is
+    return {
+      accessToken,
+      refreshToken,
+      role: user?.role,
+      user,
+    };
   };
 
   loginService = async (data, req) => {
@@ -524,9 +547,11 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
 
   getReview = async (req, data) => {
     const { id } = data;
-    // console.log(data)
     let reviews = await Review.find({
-      productId: new mongoose.Types.ObjectId(id),
+      $and: [
+        { productId: new mongoose.Types.ObjectId(id) },
+        { isDeleted: false },
+      ],
     });
     return reviews;
   };

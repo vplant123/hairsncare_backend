@@ -1190,7 +1190,7 @@ const getOrders = asyncHandler(async (req, res) => {
 const getCoupons = asyncHandler(async (req, res) => {
   try {
     const data = await CouponsModel.find(
-      req.user.role === "admin" ||"subadmin" ? {} : { isActive: true }
+      req.user.role === "admin" || "subadmin" ? {} : { isActive: true }
     ).sort({
       createdAt: -1,
     });
@@ -2024,12 +2024,16 @@ const getpatientData = asyncHandler(async (req, res) => {
 const assignDoctorForPrescription = asyncHandler(async (req, res) => {
   try {
     const { orderId, doctorId, items } = req.body;
+    console.log("[DEBUG] Assigning doctor:", {
+      orderId,
+      doctorId,
+      itemsCount: items?.length,
+    });
 
     if (!orderId || !doctorId || !items || !Array.isArray(items)) {
       return res.status(400).json({ message: "Missing or invalid data" });
     }
 
-    // Step 1: Find the order
     const order = await orderModel.findById(orderId);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -2037,10 +2041,13 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
 
     const userId = order.userId;
 
-    // Step 2: Check if appointment already exists for this orderId
+    // Check if appointment already exists for this orderId
     const existingAppointment = await Appointment.findOne({ orderId });
-
     if (existingAppointment) {
+      console.log(
+        "[DEBUG] Appointment already exists:",
+        existingAppointment._id
+      );
       return res.status(200).json({
         success: true,
         message: "Appointment already exists for this order",
@@ -2048,11 +2055,17 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
       });
     }
 
-    // Step 3: Create Appointment
+    // Find and verify doctor
+    const doctor = await Doctors.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    // Create Appointment with correct IDs
     const appointment = new Appointment({
-      userId: userId,
-      doctorId: doctorId,
-      orderId: orderId,
+      userId: userId, // Patient's user ID
+      doctorId: doctor.userId, // Assuming doctor.userId stores the doctor's user ID
+      orderId,
       appointmentDate: new Date(),
       timeSlot: "noon",
       status: "assigned",
@@ -2061,6 +2074,7 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
     });
 
     await appointment.save();
+    console.log("[DEBUG] Created appointment:", appointment._id);
 
     return res.status(200).json({
       success: true,
@@ -2068,10 +2082,12 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
       data: appointment,
     });
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+    console.error("[ERROR] Failed to assign doctor:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
   }
 });
 
@@ -2381,6 +2397,31 @@ const getMyProfile = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteContactquery = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) {
+      return res.status(400).json({ message: "Contact query ID is required" });
+    }
+
+    const contactQuery = await contactUsModel.findById(id);
+    if (!contactQuery) {
+      return res.status(404).json({ message: "Contact query not found" });
+    }
+
+    await contactUsModel.findByIdAndDelete(id);
+
+    return res
+      .status(200)
+      .json({ message: "Contact query deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting contact query:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2440,4 +2481,5 @@ module.exports = {
   getOrderById,
   deleteAdmin,
   getMyProfile,
+  deleteContactquery,
 };

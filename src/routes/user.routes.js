@@ -43,6 +43,7 @@ router.post("/contact-us", contactUs)
 router.post("/changepassword", verifyJwt, changeCurrentPassword)
 
 router.post("/forgetpassword", forgetPassword)
+
 router.post("/add-review", verifyJwt, addReview)
 router.get("/get-review/:id", getReview)
 
@@ -54,6 +55,7 @@ router.post("/addAddress",verifyJwt, addAddress)
 router.post("/getAddress",verifyJwt, getAddress)
 router.post("/editAddress", verifyJwt,editAddress)
 router.post("/deleteAddress", verifyJwt,deleteAddress)
+
 router.post("/get-orders", verifyJwt,getOrders)
 
 router.post("/bookAppointmentContactUs",bookAppointmentContactUs)

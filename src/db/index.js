@@ -2,13 +2,14 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-
-    const dbUri = process.env.MONGODB_URI || "mongodb://develop:911Admin007@147.79.68.31:27017/myappdb?authSource=myappdb";
+    const dbUri =
+      process.env.MONGODB_URI ||
+      "mongodb://develop:911Admin007@147.79.68.31:27017/myappdb?authSource=myappdb";
     const connectionInstance = await mongoose.connect(dbUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Set a timeout to avoid hanging on connection failures
-      directConnection: true, // Set to true for direct connection
+      serverSelectionTimeoutMS: 5000,
+      directConnection: true,
     });
 
     console.log(

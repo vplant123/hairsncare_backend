@@ -376,6 +376,8 @@ const addAddress = asyncHandler(async (req, res) => {
     const { userId, name, phone, fullAdress, pin, state, city, email } =
       req.body;
 
+    console.log("req.body", req.body);
+
     if (!userId || !fullAdress || !pin) {
       return res.status(400).json(new ApiResponse(400, "Details required"));
     }

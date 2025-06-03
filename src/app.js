@@ -10,8 +10,10 @@ const doctorRoutes = require("./routes/doctor.routes.js");
 const bookapointment = require("./routes/payment.routes.js");
 const cartRoutes = require("./routes/cart.routes.js");
 const utilityRoutes = require("./routes/utility.routes.js");
+
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
+
 require("./lokiLogger.js");
 
 const app = express();

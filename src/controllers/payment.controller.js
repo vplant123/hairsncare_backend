@@ -59,6 +59,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       coupon: couponId || null,
     });
     await order.save();
+
     if (mode == "cash") {
       let cart = await Cart.findOne({ userId: user._id });
       if (cart) {
@@ -114,12 +115,18 @@ const placeOrder = asyncHandler(async (req, res) => {
       totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
       const deliveryChargeCalc =
         total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
+      console.log("Amount calculation:", {
+        baseAmount: total,
+        deliveryCharge: deliveryChargeCalc,
+        discount: totalD,
+      });
+
       await Order.updateOne(
         { _id: order._id },
         {
           deliveryCharges: deliveryChargeCalc,
           totalDiscount: totalD,
-          totalAmount: total,
+          totalAmount: total - totalD + deliveryChargeCalc,
         }
       );
       let shipRocketOrder = {
@@ -498,13 +505,17 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
     const deliveryChargeCalc =
       total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
-    console.log(total, orderC?.percent);
+    console.log("Amount calculation:", {
+      baseAmount: total,
+      deliveryCharge: deliveryChargeCalc,
+      discount: totalD,
+    });
     await Order.updateOne(
       { _id: order._id },
       {
         deliveryCharges: deliveryChargeCalc,
         totalDiscount: totalD,
-        totalAmount: total,
+        totalAmount: total - totalD + deliveryChargeCalc,
       }
     );
     let shipRocketOrder = {
