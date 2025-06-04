@@ -14,22 +14,41 @@ const utilityRoutes = require("./routes/utility.routes.js");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
 
-require("./lokiLogger.js");
+// require("./lokiLogger.js");
+
+// Security middleware
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
+
+// Apply security middleware
+app.use(helmet()); // Adds various HTTP headers for security
+app.use(mongoSanitize()); // Prevent NoSQL injection attacks
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300,
+});
+app.use(limiter);
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+app.use(cors(corsOptions));
+
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(
   bodyParser.urlencoded({
     limit: "50mb",
     extended: true,
     parameterLimit: 50000,
-  })
-);
-
-app.use(
-  cors({
-    origin: "*",
-    credentials: true,
   })
 );
 

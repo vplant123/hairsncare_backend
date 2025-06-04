@@ -397,7 +397,7 @@ const generatePaymentLink = asyncHandler(async (req, res) => {
 
 const deleteAllPayments = async () => {
   try {
-    const result = await Payment.deleteMany({});
+    // const result = await Payment.deleteMany({});
     console.log(`${result.deletedCount} payments deleted successfully.`);
   } catch (error) {
     console.error("Error deleting payments:", error);
