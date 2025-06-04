@@ -17,22 +17,15 @@ const morgan = require("morgan");
 // require("./lokiLogger.js");
 
 // Security middleware
-const helmet = require("helmet");
-const mongoSanitize = require("express-mongo-sanitize");
-const rateLimit = require("express-rate-limit");
 
 const app = express();
 
-// Apply security middleware
-app.use(helmet()); // Adds various HTTP headers for security
-app.use(mongoSanitize()); // Prevent NoSQL injection attacks
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
-});
-app.use(limiter);
+// // Rate limiting
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 300,
+// });
+// app.use(limiter);
 
 // CORS configuration
 const corsOptions = {
@@ -63,7 +56,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-//routes declarition
+//routes declaration
 app.use("/api/v1/users", route);
 app.use("/api/v1/hair-tests", hairTestRoutes);
 //payment
@@ -73,16 +66,18 @@ app.use("/api/vi/bookAppointment", bookapointment);
 //admin
 app.use("/api/v1/admin", adminRoutes);
 
-//
+//doctor routes
 app.use("/api/v1/doctor", doctorRoutes);
+//cart routes
 app.use("/api/v1/cart", cartRoutes);
+//utility routes
 app.use("/api/v1/utility", utilityRoutes);
+
 // Health check endpoint
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Server is running" });
 });
 
 app.use(errorHandler);
-// console.log("avinash")
 
 module.exports = app;

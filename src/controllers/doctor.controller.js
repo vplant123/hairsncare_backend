@@ -377,24 +377,63 @@ const updatePrescription = asyncHandler(async (req, res) => {
 const getPrescription = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;
-    const prescription = await Prescription.findOne({
+
+    // Fetch the prescription for the given appointmentId
+    let prescription = await Prescription.findOne({
       appointmentId: appointmentId,
     });
 
-    if (!prescription || prescription?.length < 1) {
-      return res.status(404).send("Prescription not found for this user");
+    if (prescription) {
+      // If prescription found, return success response
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            prescription,
+            "Prescription detail fetched successfully"
+          )
+        );
     }
 
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          prescription,
-          "Prescription detail fetched successfully"
-        )
-      );
+    // If no prescription found, try fetching the follow-up appointment
+    const appointment = await Appointment.findById(appointmentId);
+    console.log("appointment", appointment);
+
+    if (appointment) {
+      const MyhairTestId = appointment?.followupOf;
+      const prevAppointment = await Appointment.findOne({
+        hairTestId: MyhairTestId,
+      });
+
+      console.log("prevAppointment", prevAppointment);
+
+      if (prevAppointment) {
+        // Fetch the prescription for the previous appointment
+        prescription = await Prescription.findOne({
+          appointmentId: prevAppointment.id, // Use findOne() to get a single document
+        });
+
+        console.log("prescription", prescription);
+
+        if (prescription) {
+          return res
+            .status(200)
+            .json(
+              new ApiResponse(
+                200,
+                prescription,
+                "Prescription detail fetched successfully"
+              )
+            );
+        }
+      }
+    }
+
+    // If prescription is still not found, send an error response
+    return res.status(404).send("Prescription not found for this user");
   } catch (error) {
+    // Catch any errors and return the error response
     return res
       .status(400)
       .json(

@@ -91,16 +91,14 @@ const placeOrder = asyncHandler(async (req, res) => {
           tax: item?.item?.gst,
           hsn: item?.item?.hsn,
         });
-        // if (item?.item?.zohoProductId)
-        if (item?.item?.zohoProductId) {
-        }
-        total += item?.item?.price - item?.item?.discount;
+        // Calculate item total: (price - discount) * quantity
+        const itemTotal = (item?.item?.price - item?.item?.discount) * item?.quantity;
+        total += itemTotal;
         Product_Details.push({
           product: {
             id: item?.item?.zohoProductId,
           },
           quantity: item?.quantity,
-          // Discount: item?.item?.discount,
           product_description: item?.item?.description,
           "Unit Price": item?.item?.price - item?.item?.discount,
           list_price: item?.item?.price - item?.item?.discount,
@@ -115,10 +113,15 @@ const placeOrder = asyncHandler(async (req, res) => {
       totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
       const deliveryChargeCalc =
         total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
+
+      // Calculate final total: subtotal - discount + delivery charge
+      const finalTotal = total - totalD + deliveryChargeCalc;
+
       console.log("Amount calculation:", {
         baseAmount: total,
         deliveryCharge: deliveryChargeCalc,
         discount: totalD,
+        finalTotal: finalTotal
       });
 
       await Order.updateOne(
@@ -126,7 +129,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         {
           deliveryCharges: deliveryChargeCalc,
           totalDiscount: totalD,
-          totalAmount: total - totalD + deliveryChargeCalc,
+          totalAmount: finalTotal
         }
       );
       let shipRocketOrder = {
@@ -318,6 +321,8 @@ const placeOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Failed to create order", error.message);
   }
 });
+
+
 
 const generatePaymentLink = asyncHandler(async (req, res) => {
   try {
