@@ -205,66 +205,88 @@ const updateDoctorAccount = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something wrong".error.message);
   }
 });
+
 const prescriptionDetailForm = asyncHandler(async (req, res) => {
   try {
     const userId = req.query.userId;
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res
         .status(400)
+        .json({ success: false, message: "Invalid user ID" });
+    }
+
+    const { appointmentId } = req.body;
+    console.log("appointmentId", appointmentId);
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res
+        .status(400)
         .json({ success: false, message: "Invalid appointment ID" });
     }
-    // console.log("useriddddddddd", userId)
+
+    // Check if prescription already exists for this appointment
+    const existingPrescription = await Prescription.findOne({ appointmentId });
+    if (existingPrescription) {
+      return res.status(400).json({
+        success: false,
+        message: "Prescription already exists for this appointment",
+        data: existingPrescription,
+      });
+    }
+
     req.body.showToUser = false;
 
+    // Create prescription first
     const prescription = await Prescription.create(req.body);
 
-    //for cart insert
-
-    let productArr = req.body?.test6?.medicines;
+    // Handle cart creation and updates
+    const productArr = req.body?.test6?.medicines;
     if (productArr?.length > 0) {
       let cart = await Cart.findOne({ userId });
       if (!cart) {
-        let newCart = new Cart({
+        cart = await Cart.create({
           userId: userId,
           cartId: uuidv4(),
           items: [],
           showToUser: false,
         });
-        await newCart.save();
-        cart = await Cart.findOne({ userId });
-      }
-      const medicines = productArr[0]?.medicines;
-      if (medicines && medicines instanceof Object) {
-        for (const medicine of Object.keys(medicines)) {
-          let proudct = await Product.findOne({ name: medicine });
-          if (!proudct) continue;
-          if (
-            cart.items?.findIndex((e) => e?.item?._id == proudct?._id) != -1
-          ) {
-            cart.items[
-              cart.items?.findIndex((e) => e?.item?._id == proudct?._id)
-            ].quantity += medicines[medicine]?.quantity ?? 1;
-          }
-          cart.items.push({
-            item: proudct,
-            quantity: medicines[medicine]?.quantity ?? 1,
-          });
-        }
       }
 
-      // for (let index = 0; index < productArr?.length; index++) {
-      //   const element = productArr[index];
-      //   let proudct = await Product.findOne({ name: element?.kit });
-      //   if (!proudct) continue;
-      //   cart.items.push({ item: proudct });
-      // }
-      await cart.save();
+      const medicines = productArr[0]?.medicines;
+      if (medicines && typeof medicines === "object") {
+        for (const medicineName of Object.keys(medicines)) {
+          const product = await Product.findOne({ name: medicineName });
+          if (!product) continue;
+
+          const existingItemIndex = cart.items?.findIndex(
+            (e) => e?.item?._id.toString() === product._id.toString()
+          );
+
+          if (existingItemIndex !== -1) {
+            cart.items[existingItemIndex].quantity +=
+              medicines[medicineName]?.quantity || 1;
+          } else {
+            cart.items.push({
+              item: product,
+              quantity: medicines[medicineName]?.quantity || 1,
+            });
+          }
+        }
+        await cart.save();
+      }
     }
 
+    // Update appointment and hair test status
     const appointment = await Appointment.findOne({
       userId,
-      _id: req.body?.appointmentId,
+      _id: appointmentId,
     });
+
+    if (!appointment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
     const hairTest = await HairTest.findOne({
       userId,
       _id: appointment?.hairTestId,
@@ -275,29 +297,21 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       await hairTest.save();
     }
 
-    // console.log("Appointment Details:", appointment);
-
-    if (!appointment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
-    }
-
-    // Update the appointment status to 'completed'
     appointment.status = "completed";
-    const updatedAppointment = await appointment.save();
-    // console.log("Updated Appointment:", updatedAppointment);
+    await appointment.save();
 
     return res.status(201).json({
       success: true,
       data: prescription,
-      message: "Successfully created",
+      message: "Prescription created successfully",
     });
   } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Failed to create prescription" });
+    console.error("Error in prescriptionDetailForm:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create prescription",
+      error: error.message,
+    });
   }
 });
 

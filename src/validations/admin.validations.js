@@ -14,6 +14,7 @@ const createDoctor = {
       .required(),
 
     name: Joi.string().required(),
+    password: Joi.string(),
 
     phone: Joi.string().required(),
     specialist: Joi.string().required(),

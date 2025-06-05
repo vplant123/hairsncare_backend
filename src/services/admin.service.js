@@ -16,15 +16,7 @@ const mongoose = require("mongoose");
 
 class AdminService {
   createDoctor = async (data) => {
-    // const fullname = data.fullname;
-
-    const generatePassword = (fullname) => {
-      return fullname.replace(/\s/g, "") + "@2024";
-    };
-    const password = generatePassword(data.name);
-    // console.log("...................", password)
-    const hashPassword = await CommonHelper.hashPassword(password);
-
+    const hashPassword = await CommonHelper.hashPassword(data.password);
     console.log("hhhhhhhhhhhhhhhhhhhhhhhh", hashPassword);
 
     const createUser = {

@@ -18,6 +18,7 @@ const shipRocket = require("../services/shipRocket.js");
 const zohoService = require("../services/zoho.service.js");
 const Config = require("../models/config.model.js");
 const Invoices = require("../models/invoice.model.js");
+const Product = require("../models/products.models.js");
 
 const instance = new Razorpay({
   key_id: "rzp_test_IVOsFC0Bobcxcv",
@@ -27,145 +28,146 @@ const instance = new Razorpay({
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
+    console.log("debug Req body", req.body);
+    console.log("req.body.products[0].item", req.body.products[0].item);
     const { user } = req;
 
-    let config = await Config.find({});
-
-    if (config?.length > 0) {
-      config = config[0];
-    }
-
-    const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config;
-
-    console.log(config);
-
-    if (!user || !user._id || products?.length < 1) {
+    if (!user || !user._id || !products?.length) {
       return res
         .status(404)
-        .json({ message: "User not found or user ID is missing" });
+        .json(
+          new ApiResponse(404, null, "User not found or no products provided")
+        );
     }
-    // let plan = await Config.findOne({ _id: new mongoose.Types.ObjectId("6714362ab526d76306f3c9e3") });
 
+    // Fetch config
+    let config = await Config.findOne({});
+    const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config || {};
+
+    // Validate address
+    const address = await userAddresses.findOne({
+      _id: addressId,
+      userId: user._id,
+    });
+    if (!address) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Invalid or unauthorized address"));
+    }
+
+    // Calculate order items and subtotal
+    let subTotal = 0;
+    const orderItems = products.map((item) => {
+      const itemPrice = item.item.price - (parseFloat(item.item.discount) || 0);
+      const itemTotal = itemPrice * item.quantity;
+      subTotal += itemTotal;
+
+      return {
+        name: item.item.name,
+        sku: item.item._id,
+        units: item.quantity,
+        selling_price: item.item.price,
+        discount: item.item.discount || 0,
+        tax: item.item.gst || 0,
+        hsn: item.item.hsn || "",
+      };
+    });
+
+    // Apply coupon discount
+    let totalDiscount = 0;
+    let coupon = null;
+    if (couponId) {
+      coupon = await CouponsModel.findOne({ _id: couponId, status: 1 });
+      if (!coupon || coupon.expiryDate < new Date()) {
+        return res
+          .status(400)
+          .json(new ApiResponse(400, null, "Invalid or expired coupon"));
+      }
+      const couponMapping = await CouponsMappingModel.findOne({
+        userId: user._id,
+        coupon: couponId,
+        status: 1,
+        type: 2,
+      });
+      if (!couponMapping) {
+        return res
+          .status(400)
+          .json(new ApiResponse(400, null, "Coupon not applicable"));
+      }
+      totalDiscount = (parseFloat(coupon.percent || 0) * subTotal) / 100;
+    }
+
+    // Calculate delivery charge
+    const deliveryChargeCalc =
+      subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge;
+
+    // Calculate final total amount
+    const totalAmount = subTotal - totalDiscount + deliveryChargeCalc;
+
+    // Create order
     const order = new Order({
       userId: user._id,
       currency: "INR",
-      amount: amount,
+      amount: amount, // Using amount from request body as required by schema
+      subTotal,
+      totalAmount,
       status: "pending",
       orderType: "product Buy",
-      products,
-      addressId: addressId,
+      products: products.map((item) => ({
+        item: {
+          _id: item.item._id,
+          name: item.item.name,
+          description: item.item.description,
+          price: item.item.price,
+          discount: item.item.discount || 0,
+          gst: item.item.gst || 0,
+          hsn: item.item.hsn || "",
+          src: item.item.src,
+          zohoProductId: item.item.zohoProductId,
+        },
+        quantity: item.quantity,
+      })),
+      addressId,
       mode,
-      deliveryStatus: mode == "cash" ? "processing" : "pending",
+      deliveryStatus: mode === "cash" ? "processing" : "pending",
       coupon: couponId || null,
+      deliveryCharges: deliveryChargeCalc,
+      totalDiscount,
     });
     await order.save();
 
-    if (mode == "cash") {
+    if (mode === "cash") {
+      // Clear cart
       let cart = await Cart.findOne({ userId: user._id });
       if (cart) {
-        let arr = cart?.items;
-        for (let index = 0; index < products.length; index++) {
-          const element = products[index];
-          arr = arr?.filter((e) => e?.item?._id != element?.item?._id);
-        }
-        cart.items = arr;
+        cart.items = cart.items.filter(
+          (e) => !products.some((p) => p.item._id === e.item._id)
+        );
         await cart.save();
       }
 
-      //CREATE SHIP ROCKET####
-      let add = await userAddresses.findOne({ _id: order?.addressId });
-      let orderC = await CouponsModel.findOne({ _id: couponId });
-      let totalD =
-        (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
-      let order_items = [],
-        Product_Details = [];
-
-      let total = 0;
-      products?.map((item) => {
-        order_items.push({
-          name: item?.item?.name,
-          sku: item?.item?._id,
-          units: item?.quantity,
-          selling_price: item?.item?.price,
-          discount: item?.item?.discount,
-          tax: item?.item?.gst,
-          hsn: item?.item?.hsn,
-        });
-        // Calculate item total: (price - discount) * quantity
-        const itemTotal = (item?.item?.price - item?.item?.discount) * item?.quantity;
-        total += itemTotal;
-        Product_Details.push({
-          product: {
-            id: item?.item?.zohoProductId,
-          },
-          quantity: item?.quantity,
-          product_description: item?.item?.description,
-          "Unit Price": item?.item?.price - item?.item?.discount,
-          list_price: item?.item?.price - item?.item?.discount,
-          line_tax: [
-            {
-              percentage: item?.item?.gst || 0,
-              name: "Sales Tax",
-            },
-          ],
-        });
-      });
-      totalD = (parseFloat(orderC?.percent || 0) * parseFloat(total)) / 100;
-      const deliveryChargeCalc =
-        total - totalD > deliveryAmt ? 0 : deliveryCharge * 1.0;
-
-      // Calculate final total: subtotal - discount + delivery charge
-      const finalTotal = total - totalD + deliveryChargeCalc;
-
-      console.log("Amount calculation:", {
-        baseAmount: total,
-        deliveryCharge: deliveryChargeCalc,
-        discount: totalD,
-        finalTotal: finalTotal
-      });
-
-      await Order.updateOne(
-        { _id: order._id },
-        {
-          deliveryCharges: deliveryChargeCalc,
-          totalDiscount: totalD,
-          totalAmount: finalTotal
-        }
-      );
+      // Create Shiprocket order
       let shipRocketOrder = {
         order_id: order._id,
         order_date: moment(new Date()).format("YYYY-MM-DD"),
         pickup_location: "Primary",
-        // "channel_id": "",
-        // "comment": "Reseller: M/s Goku",
         billing_customer_name: user?.fullname,
         billing_last_name: user?.fullname?.split(" ")?.[1] || "",
-        billing_address: add?.fullAdress,
-        // "billing_address_2": "Near Hokage House",
-        billing_city: add?.city,
-        billing_pincode: add?.pin,
-        billing_state: add?.state,
+        billing_address: address?.fullAdress,
+        billing_city: address?.city,
+        billing_pincode: address?.pin,
+        billing_state: address?.state,
         billing_country: "India",
-        billing_email: add?.email,
-        billing_phone: add?.phone,
+        billing_email: address?.email,
+        billing_phone: address?.phone,
         shipping_is_billing: true,
-        // "shipping_customer_name": "",
-        // "shipping_last_name": "",
-        // "shipping_address": "",
-        // "shipping_address_2": "",
-        // "shipping_city": "",
-        // "shipping_pincode": "",
-        // "shipping_country": "",
-        // "shipping_state": "",
-        // "shipping_email": "",
-        // "shipping_phone": "",
-        order_items: order_items,
+        order_items: orderItems,
         payment_method: "COD",
         shipping_charges: deliveryChargeCalc,
         giftwrap_charges: 0,
         transaction_charges: 0,
-        total_discount: totalD,
-        sub_total: total,
+        total_discount: totalDiscount,
+        sub_total: subTotal,
         length: 10,
         breadth: 15,
         height: 20,
@@ -178,61 +180,42 @@ const placeOrder = asyncHandler(async (req, res) => {
           { shipRocket_order_Id: createOrderShipRocket?.order_id }
         );
       }
-      console.log(Product_Details);
+
+      // Create Zoho order
+      let Product_Details = products.map((item) => ({
+        product: {
+          id: item.item.zohoProductId,
+        },
+        quantity: item.quantity,
+        product_description: item.item.description,
+        "Unit Price": item.item.price - (parseFloat(item.item.discount) || 0),
+        list_price: item.item.price - (parseFloat(item.item.discount) || 0),
+        line_tax: [
+          {
+            percentage: item.item.gst || 0,
+            name: "Sales Tax",
+          },
+        ],
+      }));
+
       let zohoOrder = {
         data: [
           {
-            // "Owner": {
-            //     "id": "{{user-id}}"
-            // },
-            // "Deal_Name": {
-            //     "id": "{{deal-id}}"
-            // },
-            // "Account_Name": {
-            //     "id": "{{account-id}}"
-            // },
-            // "Quote_Name": {
-            //     "id": "{{quote-id}}"
-            // },
             Contact_Name: {
               id: user?.zohoUserId,
             },
-            Discount: totalD,
-            // "Description": "Design your own layouts that align your business processes precisely. Assign them to profiles appropriately.",
-            // "Customer_No": "Customer_No",
-            Shipping_State: add?.state,
-            // "Tax": 127.67,
+            Discount: totalDiscount,
+            Shipping_State: address?.state,
             Billing_Country: "India",
-            // "Carrier": "USPS",
             Status: "Created",
-            // "Sales_Commission": 127.67,
-            // "Due_Date": "2018-01-25",
-            Billing_Street: add?.city,
-            // "Adjustment": 127.67,
-            // "Terms_and_Conditions": "Design your own layouts that align your business processes precisely. Assign them to profiles appropriately.",
-            // "Billing_Code": "Billing_Code",
-            Product_Details: Product_Details,
-            Subject: `Order ${order._id}`,
-            // "Excise_Duty": 127.67,
-            Shipping_City: add?.city,
-            Shipping_Country: "India",
-            // "Shipping_Code": "Shipping_Code",
-            Billing_City: add?.city,
-            // "Purchase_Order": "Purchase_Order",
-            Billing_State: add?.state,
+            Billing_Street: address?.city,
+            Billing_City: address?.city,
+            Billing_State: address?.state,
             Adjustment: deliveryChargeCalc,
-            // "$line_tax": [
-            //     {
-            //         "percentage": 12.5,
-            //         "name": "Sales Tax"
-            //     },
-            //     {
-            //         "percentage": 8.5,
-            //         "name": "Common Tax"
-            //     }
-            // ],
-            // "Pending": "Pending",
-            // "Shipping_Street": "Shipping_Street"
+            Product_Details,
+            Subject: `Order ${order._id}`,
+            Shipping_City: address?.city,
+            Shipping_Country: "India",
           },
         ],
       };
@@ -246,43 +229,50 @@ const placeOrder = asyncHandler(async (req, res) => {
           { zoho_order_Id: record?.data?.[0]?.details?.id }
         );
       }
-      if (add?.email) {
-        let email = await sendEmailTemplate(
-          add?.email,
-          "Order Plaeced Successfully",
+
+      // Send email
+      if (address?.email) {
+        await sendEmailTemplate(
+          address?.email,
+          "Order Placed Successfully",
           htmls
         );
-        console.log("kfoker", email);
       }
-      let couponMexist = await CouponsMappingModel.findOne({
-        userId: user._id,
-        coupon: couponId,
-        status: 1,
-        type: 2,
-      });
-      if (couponMexist) {
-        couponMexist.status = 2;
-        await couponMexist.save();
-      }
-      const user1 = await User.findOne({ _id: user._id });
 
+      // Update coupon status
+      if (couponId) {
+        let couponMexist = await CouponsMappingModel.findOne({
+          userId: user._id,
+          coupon: couponId,
+          status: 1,
+          type: 2,
+        });
+        if (couponMexist) {
+          couponMexist.status = 2;
+          await couponMexist.save();
+        }
+      }
+
+      // Send WhatsApp notifications
+      const user1 = await User.findOne({ _id: user._id });
       await WhatsappTextTemplate({
         attr: null,
         name: user1?.fullname,
         phone: user1?.mobile?.toString(),
         campName: "Thank_you_message_after_buy_medicines",
-        // media: {
-        //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767430/hair-assessment/xjh0qwivzuacgxvmdlib.jpg",
-        //   filename: "file",
-        // },
       });
-    }
-
-    if (mode != "cash") {
+      await WhatsappTextTemplate({
+        attr: null,
+        name: "Pharmacist",
+        phone: "7007517763",
+        campName: "utility_pharmacy_notification_new",
+      });
+    } else {
+      // Create payment record for non-COD orders
       const paymentData = {
         orderId: order._id,
         userId: user._id,
-        totalAmount: amount,
+        totalAmount,
         paymentStatus: "pending",
         paymentMethod: "",
       };
@@ -290,26 +280,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       await payment.save();
     }
 
-    // const orderUser = await User.findOne({ _id: user._id });
-    // const add = await userAddresses.findOne({ _id: order?.addressId });
-    await WhatsappTextTemplate({
-      attr: null,
-      name: "Pharmacist",
-      phone: "7007517763",
-      campName: "utility_pharmacy_notification_new",
-      // media: {
-      //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725596233/hair-assessment/bhwlkkh2ul9dig5hnelp.png",
-      //   filename: "file",
-      // },
-    });
-
-    // empty cart
-    const cart = await Cart.findOne({ userId: user._id });
-    if (cart) {
-      cart.items = [];
-      await cart.save();
-    }
-
+    // Update user order count
     const userToUpdate = await User.findById(user._id);
     userToUpdate.orders = (userToUpdate.orders || 0) + 1;
     await userToUpdate.save();
@@ -318,11 +289,14 @@ const placeOrder = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, order._id, "Order created successfully"));
   } catch (error) {
-    throw new ApiError(400, "Failed to create order", error.message);
+    console.error("Order creation error:", error);
+    return res
+      .status(400)
+      .json(
+        new ApiResponse(400, null, error.message || "Failed to create order")
+      );
   }
 });
-
-
 
 const generatePaymentLink = asyncHandler(async (req, res) => {
   try {

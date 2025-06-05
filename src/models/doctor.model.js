@@ -15,11 +15,15 @@ const doctorSchema = new Schema(
     },
     showOnDashboard: {
       type: Boolean,
+      default: false,
     },
     name: {
       type: String,
       // required: true,
       unique: true,
+    },
+    password: {
+      type: String,
     },
     phone: {
       type: String,

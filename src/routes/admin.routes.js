@@ -83,6 +83,7 @@ router.put("/update-admin-profile", verifyJwt, updateAdminProfile);
 
 router.get("/alldoctor", verifyJwt, getallDoctor);
 router.get("/all-doctor-Data", getallDoctorData);
+
 router.post("/edit-doctor", editDoctor);
 router.post("/get-doctor/:id", getDoctor);
 

@@ -1169,21 +1169,113 @@ const getBookedAppointment = asyncHandler(async (req, res) => {
 
 const getOrders = asyncHandler(async (req, res) => {
   try {
-    const data = await orderModel
+    const orders = await orderModel
       .find({
         deliveryStatus: {
           $in: ["processing", "shipped", "delivered", "canceled"],
         },
       })
+      .populate({
+        path: "userId",
+        select: "fullname",
+        options: { strictPopulate: false },
+      })
+      .populate({
+        path: "addressId",
+        select: "fullAddress",
+        options: { strictPopulate: false },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
 
-      .populate("userId", "fullname")
-      .populate("addressId", "fullAdress")
-      .sort({ createdAt: -1 });
+    if (!orders || orders.length === 0) {
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            [],
+            "No orders found with the specified delivery statuses"
+          )
+        );
+    }
+
+    console.log(`Total orders found: ${orders.length}`);
+    const ordersWithPrescriptions = [];
+
+    for (const order of orders) {
+      console.log(`Processing order ID: ${order._id}`);
+
+      const appointments = await Appointment.find({
+        orderId: order._id,
+        status: "completed",
+      }).lean();
+
+      console.log(
+        `Found ${appointments.length} completed appointments for order ${order._id}`
+      );
+      const prescriptionDetails = [];
+
+      // Process each appointment sequentially
+      if (appointments && appointments.length > 0) {
+        for (const appointment of appointments) {
+          console.log(`Processing appointment ID: ${appointment._id}`);
+
+          // Find prescription for this appointment
+          const prescription = await Prescription.findOne({
+            appointmentId: appointment._id?.toString(),
+          }).lean();
+
+          console.log(
+            `Prescription found for appointment ${appointment._id}:`,
+            prescription ? "Yes" : "No"
+          );
+
+          if (prescription) {
+            prescriptionDetails.push({
+              appointment,
+              prescription,
+            });
+          }
+        }
+      }
+
+      console.log(
+        `Found ${prescriptionDetails.length} prescriptions for order ${order._id}`
+      );
+
+      // Add order with its prescriptions to the result array
+      ordersWithPrescriptions.push({
+        ...order,
+        prescriptionDetails: prescriptionDetails,
+      });
+    }
+
+    // Log for debugging
+    console.log(
+      `Fetched ${ordersWithPrescriptions.length} orders with prescriptions`
+    );
+
+    // Log a sample order with prescriptions
+    if (ordersWithPrescriptions.length > 0) {
+      console.log(
+        "Sample order prescriptionDetails:",
+        JSON.stringify(ordersWithPrescriptions[0].prescriptionDetails, null, 2)
+      );
+    }
+
     return res
       .status(200)
-      .json(new ApiResponse(200, data, "Orders get succesffully"));
+      .json(
+        new ApiResponse(
+          200,
+          ordersWithPrescriptions,
+          "Orders fetched successfully"
+        )
+      );
   } catch (error) {
-    throw new ApiError(400, "Failed to assign appointment", error.message);
+    console.error("Error fetching orders:", error);
+    throw new ApiError(500, "Failed to fetch orders", error.message);
   }
 });
 
@@ -2292,7 +2384,7 @@ const getOrderById = asyncHandler(async (req, res) => {
     const { orderId } = req.body;
 
     if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ message: "Invalid or missing orderId" });
+      throw new ApiError(400, "Invalid or missing orderId");
     }
 
     const order = await orderModel
@@ -2303,25 +2395,15 @@ const getOrderById = asyncHandler(async (req, res) => {
         },
       })
       .populate("userId", "fullname")
-      .populate("addressId", "fullAddress") // check spelling
+      .populate("addressId")
+      .populate("products.item")
       .lean();
 
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      throw new ApiError(404, "Order not found");
     }
 
-    // Simplify products to only include name of item
-    const simplifiedProducts = order.products.map((p) => ({
-      name: p.item?.name || "N/A",
-    }));
-
-    // Replace products in order with simplified version
-    const simplifiedOrder = {
-      ...order,
-      products: simplifiedProducts,
-    };
-
-    // Fetch related appointments
+    // Fetch related appointments with doctor information
     const orderAppointments = await Appointment.find({
       orderId,
       isDeleted: false,
@@ -2329,25 +2411,43 @@ const getOrderById = asyncHandler(async (req, res) => {
       status: { $in: ["assigned", "completed", "pending"] },
     })
       .populate("userId", "fullname")
+      .populate("doctorId", "fullname")
       .sort({ createdAt: -1 })
       .lean();
+
+    // Get prescriptions for completed appointments
+    const appointmentsWithPrescriptions = await Promise.all(
+      orderAppointments.map(async (appointment) => {
+        if (appointment.status === "completed") {
+          const prescription = await Prescription.findOne({
+            appointmentId: appointment._id,
+          }).lean();
+
+          return {
+            ...appointment,
+            prescription: prescription || null,
+          };
+        }
+        return appointment;
+      })
+    );
 
     return res.status(200).json(
       new ApiResponse(
         200,
         {
-          order: simplifiedOrder,
-          appointments: orderAppointments,
+          order,
+          appointments: appointmentsWithPrescriptions,
         },
         "Order and appointments fetched successfully"
       )
     );
   } catch (error) {
     console.error("getOrderById error:", error);
-    return res.status(500).json({
-      message: "Failed to fetch order and appointments",
-      error: error.message,
-    });
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Failed to fetch order and appointments"
+    );
   }
 });
 
