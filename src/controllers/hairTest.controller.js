@@ -39,22 +39,62 @@ const getHairTest = asyncHandler(async (req, res) => {
       .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
       .lean();
 
+    console.log(hairtests);
+
+    // If no hairtests found, return early
+    if (!hairtests || hairtests.length === 0) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, "No hair tests found", []));
+    }
+
     const hairtestsWithAppointments = await Promise.all(
       hairtests.map(async (test) => {
-        const appointments = await Appointment.find({
-          isDeleted: false,
-          status: { $in: ["assigned", "completed", "pending"] },
-          $or: [{ hairTestId: test._id }, { followupof: test._id }],
-        })
-          .populate("doctorId", "fullname")
-          .lean();
+        try {
+          const appointments = await Appointment.find({
+            isDeleted: false,
+            status: { $in: ["assigned", "completed", "pending"] },
+            $or: [{ hairTestId: test._id }, { followupof: test._id }],
+          })
+            .populate("doctorId", "fullname")
+            .lean();
 
-        return {
-          ...test,
-          appointments,
-        };
+          return {
+            ...test,
+            appointments: appointments || [
+              {
+                _id: "No App. present",
+                userId: "Sample Data",
+                appointmentDate:
+                  "Thu Jun 05 2025 12:31:24 GMT+0000 (Coordinated Universal Time)",
+                timeSlot: "noon",
+                doctorId: "66e1752d2958dd62090e9282",
+                status: "not available",
+                duration: 2,
+                isDeleted: false,
+                orderId: "",
+                appointmentType: "",
+                followupOf: null,
+                nextAction: "none",
+                createdAt: "2025-06-05T12:31:24.997Z",
+                updatedAt: "2025-06-05T12:33:10.186Z",
+              },
+            ],
+          };
+        } catch (innerError) {
+          console.error(
+            `Error fetching appointments for hairTestId: ${test._id}`,
+            innerError
+          );
+          return {
+            ...test,
+            appointments: [],
+          };
+        }
       })
     );
+
+    console.log(hairtestsWithAppointments);
 
     return res
       .status(200)

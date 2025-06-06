@@ -169,7 +169,6 @@
 // //             default: ""
 // //         }
 
-
 // //     },
 // //     stress: {
 // //         physicalExercise: {
@@ -214,7 +213,6 @@
 // //             required: true,
 // //             default: ""
 // //         },
-
 
 // //     },
 // //     hairAndScalpAssessment: {
@@ -312,10 +310,6 @@
 // //             }
 // //         },
 
-
-
-
-
 // //         havePCOD: {
 // //             type: String,
 // //             enum: ["not sure", "yes"],
@@ -371,7 +365,6 @@
 // //             }
 // //         },
 
-
 // //         signOfThryoid: {
 // //             type: String,
 // //             enum: ["not sure", "yes", "no"],
@@ -404,7 +397,6 @@
 // //             }
 // //         },
 
-
 // //         lowHaemoglobin: {
 // //             type: String,
 // //             enum: ["not sure", "yes", "no"],
@@ -419,7 +411,6 @@
 // //                 return this.lowHaemoglobin === "not sure"
 // //             }
 // //         },
-
 
 // //         experiencedSignificantHairLoss: {
 // //             type: String,
@@ -442,7 +433,6 @@
 // //                 return this.anyMedicationCurrentlyBasis.some(option => option !== "No");
 // //             },
 // //         },
-
 
 // //         anyCoexistingIllnessesOrMedicalCondition: {
 // //             type: [String],
@@ -590,7 +580,6 @@
 // //             }
 // //         },
 
-
 // //         hairGoals: {
 // //             type: [String],
 // //             enum: ["stop hair fall", "hair thickness", "cure baldness", "hair maintenance", "stop dandruff", "reduce greying", "soft,shine hair"],
@@ -614,7 +603,7 @@
 // // })
 
 // const HairTest = mongoose.model("HairTest", hairTestSchema)
-// module.exports = HairTest  
+// module.exports = HairTest
 
 // const mongoose = require("mongoose");
 
@@ -626,18 +615,24 @@
 
 // const mongoose = require("mongoose");
 
-
 // const HairTest = mongoose.model("HairTest", {});
 
 // module.exports = HairTest;
 const mongoose = require("mongoose");
 
-const hairTestSchema = new mongoose.Schema({
+const hairTestSchema = new mongoose.Schema(
+  {
     status: {
-        type: String,
-        default: 'pending'
-    }
-}, { strict: false });
+      type: String,
+      default: "pending",
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  { strict: false }
+);
 
 const HairTest = mongoose.model("HairTest", hairTestSchema);
 
