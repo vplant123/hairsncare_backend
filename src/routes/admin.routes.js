@@ -160,5 +160,6 @@ router.post("/order-details", verifyJwt, getOrderById);
 router.post("/delete-admin", verifyJwt, deleteAdmin);
 router.get("/my-profile", verifyJwt, getMyProfile);
 router.delete("/deleteContact", verifyJwt, deleteContactquery);
+// router.get("/doctors", alldoctors);
 
 module.exports = router;

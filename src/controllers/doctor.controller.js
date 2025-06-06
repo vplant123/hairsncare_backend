@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const Product = require("../models/products.models");
 const Cart = require("../models/Cart.model");
-const orderModel = require("../models/order.model");
+const Doctor = require("../models/doctor.model");
 
 const { v4: uuidv4 } = require("uuid");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp");
@@ -499,6 +499,25 @@ const getAllPrescription = asyncHandler(async (req, res) => {
   }
 });
 
+const ActiveDoctors = asyncHandler(async (req, res) => {
+  try {
+    const doctors = await Doctor.find({
+      isActive: true,
+      showOnDashboard: true,
+    });
+    console.log("doctors", doctors);
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, doctors, "Active doctors fetched successfully")
+      );
+  } catch (error) {
+    return res
+      .status(500)
+      .json(new ApiResponse(500, null, "Failed to fetch active doctors"));
+  }
+});
+
 module.exports = {
   acceptAppointment,
 
@@ -514,4 +533,6 @@ module.exports = {
   updatePrescription,
   getPrescription,
   getAllPrescription,
+
+  ActiveDoctors,
 };
