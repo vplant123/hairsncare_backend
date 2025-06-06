@@ -29,7 +29,7 @@ const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
     console.log("debug Req body", req.body);
-    console.log("req.body.products[0].item", req.body.products[0].item);
+    // console.log("req.body.products[0].item", req.body.products[0].item);
     const { user } = req;
 
     if (!user || !user._id || !products?.length) {

@@ -115,6 +115,7 @@ router.get("/getOrders", getOrders);
 router.get("/getCoupons", verifyJwt, getCoupons);
 router.post("/editCoupon", verifyJwt, editCoupon);
 router.post("/deleteCoupon", verifyJwt, deleteCoupon);
+
 router.post("/sendWhatsapp", verifyJwt, sendWhatsapp);
 
 router.post("/getReviewAll", verifyJwt, getReviewAll);

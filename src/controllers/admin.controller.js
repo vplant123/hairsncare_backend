@@ -1200,68 +1200,82 @@ const getOrders = asyncHandler(async (req, res) => {
         );
     }
 
-    console.log(`Total orders found: ${orders.length}`);
     const ordersWithPrescriptions = [];
 
     for (const order of orders) {
-      console.log(`Processing order ID: ${order._id}`);
-
-      const appointments = await Appointment.find({
-        orderId: order._id,
-        status: "completed",
-      }).lean();
-
-      console.log(
-        `Found ${appointments.length} completed appointments for order ${order._id}`
-      );
-      const prescriptionDetails = [];
-
-      // Process each appointment sequentially
-      if (appointments && appointments.length > 0) {
-        for (const appointment of appointments) {
-          console.log(`Processing appointment ID: ${appointment._id}`);
-
-          // Find prescription for this appointment
-          const prescription = await Prescription.findOne({
-            appointmentId: appointment._id?.toString(),
-          }).lean();
-
-          console.log(
-            `Prescription found for appointment ${appointment._id}:`,
-            prescription ? "Yes" : "No"
+      try {
+        let appointments = [];
+        try {
+          appointments =
+            (await Appointment.find({
+              orderId: order._id,
+            }).lean()) || [];
+        } catch (appointmentError) {
+          console.error(
+            `Error fetching appointments for order ${order._id}:`,
+            appointmentError
           );
+          appointments = [];
+        }
 
-          if (prescription) {
+        const prescriptionDetails = [];
+
+        for (const appointment of appointments) {
+          try {
+            const prescriptionData = {
+              appointment: appointment,
+            };
+
+            if (appointment?._id) {
+              const prescription = await Prescription.findOne({
+                appointmentId: appointment._id.toString(),
+              }).lean();
+
+              if (prescription) {
+                prescriptionData.prescription = prescription;
+              }
+            }
+
+            prescriptionDetails.push(prescriptionData);
+          } catch (prescriptionError) {
+            console.error(
+              `Error fetching prescription for appointment ${appointment?._id}:`,
+              prescriptionError
+            );
             prescriptionDetails.push({
-              appointment,
-              prescription,
+              appointment: appointment,
+              error: "Failed to fetch prescription",
             });
           }
         }
+
+        ordersWithPrescriptions.push({
+          ...order,
+          prescriptionDetails:
+            prescriptionDetails.length > 0
+              ? prescriptionDetails
+              : [
+                  {
+                    appointment: {
+                      _id: "No appointments present",
+                      status: "not available",
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    },
+                  },
+                ],
+        });
+      } catch (orderError) {
+        console.error(`Error processing order ${order._id}:`, orderError);
+        ordersWithPrescriptions.push({
+          ...order,
+          prescriptionDetails: [
+            {
+              error: "Failed to process order details",
+            },
+          ],
+        });
       }
-
-      console.log(
-        `Found ${prescriptionDetails.length} prescriptions for order ${order._id}`
-      );
-
-      // Add order with its prescriptions to the result array
-      ordersWithPrescriptions.push({
-        ...order,
-        prescriptionDetails: prescriptionDetails,
-      });
-    }
-
-    // Log for debugging
-    console.log(
-      `Fetched ${ordersWithPrescriptions.length} orders with prescriptions`
-    );
-
-    // Log a sample order with prescriptions
-    if (ordersWithPrescriptions.length > 0) {
-      console.log(
-        "Sample order prescriptionDetails:",
-        JSON.stringify(ordersWithPrescriptions[0].prescriptionDetails, null, 2)
-      );
     }
 
     return res
