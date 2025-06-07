@@ -92,9 +92,11 @@ router.delete("/deleteuser", verifyJwt, deleteUser);
 router.get("/totalpatient", verifyJwt, getTotalpatient);
 
 router.post("/addproduct", verifyJwt, addProductToCategory);
+
 router.get("/product/:id", getProductById);
 router.get("/product", getProduct);
 router.put("/update-product", verifyJwt, updateProductDetails);
+
 router.get("/productBycategory", verifyJwt, getProductsByCategory);
 
 router.delete(

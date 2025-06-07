@@ -12,6 +12,7 @@ const path = require("path");
 const Product = require("../models/products.models");
 const Cart = require("../models/Cart.model");
 const Doctor = require("../models/doctor.model");
+const orderModel = require("../models/order.model");
 
 const { v4: uuidv4 } = require("uuid");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp");
@@ -104,10 +105,21 @@ const getOrderedMedicine = asyncHandler(async (req, res) => {
     let order;
 
     if (orderId) {
-      order = await orderModel.findOne({ _id: orderId });
-      console.log("hairTest by ID:", order);
+      order = await orderModel
+        .findOne({ _id: orderId })
+        .populate({
+          path: "userId",
+          select: "fullname email mobile",
+        })
+        .lean();
     } else {
-      order = await orderModel.find({ userId: userId });
+      order = await orderModel
+        .find({ userId: userId })
+        .populate({
+          path: "userId",
+          select: "fullname email mobile",
+        })
+        .lean();
     }
 
     if (!order || order === null) {
@@ -388,6 +400,7 @@ const updatePrescription = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Failed to update prescription" });
   }
 });
+
 const getPrescription = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;

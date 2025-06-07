@@ -165,6 +165,8 @@ const editDoctor = asyncHandler(async (req, res) => {
       console.log("sjeojfoer", result.isSpec, req.body?.isSpec);
       result.isSpec = req.body?.isSpec;
     }
+    if (req.body?.showOnDashboard)
+      result.showOnDashboard = req.body?.showOnDashboard;
 
     await result.save();
     return res
@@ -477,6 +479,132 @@ const getTotalpatient = asyncHandler(async (req, res) => {
   }
 });
 
+// const addProductToCategory = asyncHandler(async (req, res) => {
+//   const {
+//     name,
+//     price,
+//     description,
+//     kit,
+//     src,
+//     longDes,
+//     stock,
+//     userReview,
+//     discount,
+//     shortDes,
+//     highlights,
+//     benefits,
+//     ingredient,
+//     faq,
+//     benefitsMain,
+//     ingredientMain,
+//     productDisplay,
+//     category,
+//     subCategory,
+//     gst,
+//     expiryDate,
+//     batchNo,
+//     mfgName,
+//     filter,
+//     width,
+//     height,
+//     weight,
+
+//     metaTitle,
+//     metaDesc,
+//     metaSlug,
+//     metaCanonical,
+//   } = req.body;
+
+//   try {
+//     let isProductExist = await Product.findOne({ name: name });
+
+//     if (isProductExist) {
+//       throw new ApiError(404, "product already exist");
+//     }
+//     let newProduct = {
+//       name,
+//       price,
+//       description,
+//       kit: kit || [],
+//       src: src || [],
+//       longDes: longDes || "",
+//       stock: stock || "",
+//       userReview: userReview || [],
+//       discount: discount || "",
+//       shortDes,
+//       benefits,
+//       ingredient,
+//       highlights,
+//       benefitsMain,
+//       ingredientMain,
+//       faq, //userReview : []
+//       productDisplay,
+//       category,
+//       subCategory,
+//       gst,
+//       expiryDate,
+//       batchNo,
+//       mfgName,
+//       filter,
+//       width,
+//       height,
+//       weight,
+//       metaTitle,
+//       metaDesc,
+//       metaSlug,
+//       metaCanonical,
+//     };
+//     let productCreate = await Product.create(newProduct);
+
+//     let productData = {
+//       data: [
+//         {
+//           //   "Product_Category": "Software",
+//           //   "Qty_in_Demand": 1237.89,
+//           Description: productCreate?.description,
+//           //   "Commission_Rate": 1237.67,
+//           Product_Name: productCreate?.name,
+//           //   "Quantity_In_Stock": 12792,
+//           //   "Sales_Start_Date": "2018-01-25",
+//           Tax: ["Sales Tax"],
+//           //   "Support_Start_Date": "2018-01-25",
+//           Product_Active: true,
+//           //   "Usage_Unit": "Caton",
+//           Product_Code: productCreate?._id,
+//           //   "Qty_Ordered": 1237.89,
+//           //   "Manufacturer": "LexPon Inc.",
+//           //   "Qty_in_Stock": 1237.89,
+//           //   "Support_Expiry_Date": "2018-01-25",
+//           //   "Sales_End_Date": "2018-01-25",
+//           Unit_Price:
+//             parseFloat(productCreate?.price || 0) -
+//             parseFloat(productCreate?.price || 0) *
+//               (parseFloat(productCreate?.discount || 0) / 100),
+//           Taxable: true,
+//           //   "Reorder_Level": 1237.89
+//         },
+//       ],
+//     };
+//     try {
+//       let record = await zohoService.createRecord({
+//         module: "Products",
+//         reqData: productData,
+//       });
+//       let u = await Product.updateOne(
+//         { _id: element?._id },
+//         { zohoProductId: record?.data?.[0]?.details?.id?.toString() }
+//       );
+//       console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
+//     } catch (error) {
+//       console.log("knmsnjdi", error);
+//     }
+//     res.status(201).json({ message: "Product added successfully." });
+//   } catch (error) {
+//     console.error("Error adding product:", error);
+//     res.status(400).json({ message: "Something went wrong" });
+//   }
+// });
+
 const addProductToCategory = asyncHandler(async (req, res) => {
   const {
     name,
@@ -512,12 +640,39 @@ const addProductToCategory = asyncHandler(async (req, res) => {
     metaCanonical,
   } = req.body;
 
+  // Validation
+  if (!name || !price || !description) {
+    throw new ApiError(400, "Name, price, and description are required");
+  }
+  if (price < 0) {
+    throw new ApiError(400, "Price must be non-negative");
+  }
+  if (discount && (discount < 0 || discount > 100)) {
+    throw new ApiError(400, "Discount must be between 0 and 100");
+  }
+  if (stock && stock < 0) {
+    throw new ApiError(400, "Stock must be non-negative");
+  }
+  if (gst && gst < 0) {
+    throw new ApiError(400, "GST must be non-negative");
+  }
+  if (weight && weight < 0) {
+    throw new ApiError(400, "Weight must be non-negative");
+  }
+  if (height && height < 0) {
+    throw new ApiError(400, "Height must be non-negative");
+  }
+  if (width && width < 0) {
+    throw new ApiError(400, "Width must be non-negative");
+  }
+
   try {
     let isProductExist = await Product.findOne({ name: name });
 
     if (isProductExist) {
-      throw new ApiError(404, "product already exist");
+      throw new ApiError(409, "Product already exists"); // Changed to 409
     }
+
     let newProduct = {
       name,
       price,
@@ -525,16 +680,16 @@ const addProductToCategory = asyncHandler(async (req, res) => {
       kit: kit || [],
       src: src || [],
       longDes: longDes || "",
-      stock: stock || "",
+      stock: stock || 0, // Default to 0 for consistency
       userReview: userReview || [],
-      discount: discount || "",
+      discount: discount || 0, // Default to 0
       shortDes,
       benefits,
       ingredient,
       highlights,
       benefitsMain,
       ingredientMain,
-      faq, //userReview : []
+      faq,
       productDisplay,
       category,
       subCategory,
@@ -556,51 +711,302 @@ const addProductToCategory = asyncHandler(async (req, res) => {
     let productData = {
       data: [
         {
-          //   "Product_Category": "Software",
-          //   "Qty_in_Demand": 1237.89,
           Description: productCreate?.description,
-          //   "Commission_Rate": 1237.67,
           Product_Name: productCreate?.name,
-          //   "Quantity_In_Stock": 12792,
-          //   "Sales_Start_Date": "2018-01-25",
-          Tax: ["Sales Tax"],
-          //   "Support_Start_Date": "2018-01-25",
-          Product_Active: true,
-          //   "Usage_Unit": "Caton",
           Product_Code: productCreate?._id,
-          //   "Qty_Ordered": 1237.89,
-          //   "Manufacturer": "LexPon Inc.",
-          //   "Qty_in_Stock": 1237.89,
-          //   "Support_Expiry_Date": "2018-01-25",
-          //   "Sales_End_Date": "2018-01-25",
           Unit_Price:
             parseFloat(productCreate?.price || 0) -
             parseFloat(productCreate?.price || 0) *
               (parseFloat(productCreate?.discount || 0) / 100),
+          Tax: ["Sales Tax"],
+          Product_Active: true,
           Taxable: true,
-          //   "Reorder_Level": 1237.89
         },
       ],
     };
+
     try {
       let record = await zohoService.createRecord({
         module: "Products",
         reqData: productData,
       });
       let u = await Product.updateOne(
-        { _id: element?._id },
+        { _id: productCreate?._id }, // Fixed from element?._id
         { zohoProductId: record?.data?.[0]?.details?.id?.toString() }
       );
-      console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
+      if (!u.modifiedCount) {
+        throw new Error("Failed to update product with Zoho ID");
+      }
+      console.log("Zoho sync successful", u, record?.data?.[0]?.details?.id);
     } catch (error) {
-      console.log("knmsnjdi", error);
+      console.error("Zoho sync error:", error);
+      // Revert MongoDB creation on Zoho failure
+      await Product.deleteOne({ _id: productCreate?._id });
+      throw new ApiError(
+        500,
+        "Failed to sync product with Zoho: " + error.message
+      );
     }
+
     res.status(201).json({ message: "Product added successfully." });
   } catch (error) {
     console.error("Error adding product:", error);
-    res.status(400).json({ message: "Something went wrong" });
+    throw new ApiError(
+      error.statusCode || 400,
+      error.message || "Something went wrong"
+    );
   }
 });
+
+// const updateProductDetails = asyncHandler(async (req, res) => {
+//   const {
+//     _id,
+//     newName,
+//     newPrice,
+//     gst,
+//     newDescription,
+//     kit,
+//     src,
+//     longDes,
+//     stock,
+//     userReview,
+//     discount,
+//     ingredient,
+//     benefits,
+//     highlights,
+//     benefitsMain,
+//     ingredientMain,
+//     productDisplay,
+//     filter,
+//     batchNo,
+//     mfgName,
+//     weight,
+//     height,
+//     width,
+//     metaTitle,
+//     metaDesc,
+//     metaSlug,
+//     metaCanonical,
+//     slug,
+//   } = req.body;
+
+//   try {
+//     console.log(req.body);
+//     let product = await Product.findById(_id);
+//     console.log("product", product);
+//     if (!product) {
+//       throw new ApiError(404, "product not found");
+//     }
+//     if (newPrice !== undefined) {
+//       product.price = newPrice;
+//     }
+//     if (newDescription !== undefined) {
+//       product.description = newDescription;
+//     }
+//     if (newName !== undefined) {
+//       product.name = newName;
+//     }
+//     if (kit != undefined) {
+//       product.kit = kit;
+//     }
+//     if (src != undefined) {
+//       product.src = src;
+//     }
+//     if (longDes != undefined) {
+//       product.longDes = longDes;
+//     }
+//     if (stock != undefined) {
+//       product.stock = stock;
+//     }
+//     if (userReview != undefined) {
+//       product.userReview = userReview;
+//     }
+//     if (discount != undefined) {
+//       product.discount = discount;
+//     }
+
+//     if (ingredient) {
+//       product.ingredient = ingredient;
+//     }
+//     if (benefits) {
+//       product.benefits = benefits;
+//     }
+//     if (highlights) {
+//       product.highlights = highlights;
+//     }
+//     if (benefitsMain) {
+//       product.benefitsMain = benefitsMain;
+//     }
+//     if (ingredientMain) {
+//       product.ingredientMain = ingredientMain;
+//     }
+//     // if(productDisplay){
+//     product.productDisplay = productDisplay || false;
+//     // }
+//     if (filter) {
+//       product.filter = filter;
+//     }
+//     if (batchNo) {
+//       product.batchNo = batchNo;
+//     }
+//     if (mfgName) {
+//       product.mfgName = mfgName;
+//     }
+//     if (weight) {
+//       product.weight = weight;
+//     }
+//     if (height) {
+//       product.height = height;
+//     }
+//     if (width) {
+//       product.width = width;
+//     }
+//     if (metaSlug) product.metaSlug = metaSlug;
+//     if (slug) product.metaSlug = slug;
+//     if (metaTitle) product.metaTitle = metaTitle;
+//     if (metaDesc) product.metaDesc = metaDesc;
+//     if (metaCanonical) product.metaCanonical = metaCanonical;
+//     if (gst) product.gst = gst;
+
+//     await product.save();
+
+//     res
+//       .status(200)
+//       .json(
+//         new ApiResponse(200, product, "Product details updated successfully.")
+//       );
+//   } catch (error) {
+//     console.error("Error updating product details:", error);
+//     throw new ApiError(400, "Something went wrong", error.message);
+//   }
+// });
+
+const updateProductDetails = asyncHandler(async (req, res) => {
+  const {
+    _id,
+    newName,
+    newPrice,
+    newDescription,
+    category,
+    subCategory,
+    gst,
+    expiryDate,
+    kit,
+    src,
+    longDes,
+    stock,
+    userReview,
+    discount,
+    ingredient,
+    benefits,
+    highlights,
+    benefitsMain,
+    ingredientMain,
+    productDisplay,
+    filter,
+    batchNo,
+    mfgName,
+    weight,
+    height,
+    width,
+    metaTitle,
+    metaDesc,
+    metaSlug,
+    metaCanonical,
+  } = req.body;
+
+  // Validation
+  if (!_id) {
+    throw new ApiError(400, "Product ID is required");
+  }
+  if (!newName || !newPrice || !newDescription) {
+    throw new ApiError(400, "Name, price, and description are required");
+  }
+  if (newPrice && (isNaN(newPrice) || Number(newPrice) < 0)) {
+    throw new ApiError(400, "Price must be a non-negative number");
+  }
+  if (stock && (isNaN(stock) || Number(stock) < 0)) {
+    throw new ApiError(400, "Stock must be a non-negative number");
+  }
+  if (
+    discount &&
+    (isNaN(discount) || Number(discount) < 0 || Number(discount) > 100)
+  ) {
+    throw new ApiError(400, "Discount must be a number between 0 and 100");
+  }
+  if (gst && (isNaN(gst) || Number(gst) < 0)) {
+    throw new ApiError(400, "GST must be a non-negative number");
+  }
+  if (weight && (isNaN(weight) || Number(weight) < 0)) {
+    throw new ApiError(400, "Weight must be a non-negative number");
+  }
+  if (height && (isNaN(height) || Number(height) < 0)) {
+    throw new ApiError(400, "Height must be a non-negative number");
+  }
+  if (width && (isNaN(width) || Number(width) < 0)) {
+    throw new ApiError(400, "Width must be a non-negative number");
+  }
+  if (expiryDate) {
+    const selectedDate = new Date(expiryDate);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    if (selectedDate < tomorrow) {
+      throw new ApiError(400, "Expiry date must be at least tomorrow");
+    }
+  }
+
+  try {
+    let product = await Product.findById(_id);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    // Update fields with type conversion
+    if (newName !== undefined) product.name = newName;
+    if (newPrice !== undefined) product.price = Number(newPrice);
+    if (newDescription !== undefined) product.description = newDescription;
+    if (category !== undefined) product.category = category;
+    if (subCategory !== undefined) product.subCategory = subCategory;
+    if (gst !== undefined) product.gst = Number(gst);
+    if (expiryDate !== undefined) product.expiryDate = new Date(expiryDate);
+    if (kit !== undefined) product.kit = kit;
+    if (src !== undefined) product.src = src;
+    if (longDes !== undefined) product.longDes = longDes;
+    if (stock !== undefined) product.stock = Number(stock);
+    if (userReview !== undefined) product.userReview = userReview;
+    if (discount !== undefined) product.discount = Number(discount);
+    if (ingredient !== undefined) product.ingredient = ingredient;
+    if (benefits !== undefined) product.benefits = benefits;
+    if (highlights !== undefined) product.highlights = highlights;
+    if (benefitsMain !== undefined) product.benefitsMain = benefitsMain;
+    if (ingredientMain !== undefined) product.ingredientMain = ingredientMain;
+    if (productDisplay !== undefined)
+      product.productDisplay = Boolean(productDisplay);
+    if (filter !== undefined) product.filter = filter;
+    if (batchNo !== undefined) product.batchNo = batchNo;
+    if (mfgName !== undefined) product.mfgName = mfgName;
+    if (weight !== undefined) product.weight = Number(weight);
+    if (height !== undefined) product.height = Number(height);
+    if (width !== undefined) product.width = Number(width);
+    if (metaTitle !== undefined) product.metaTitle = metaTitle;
+    if (metaDesc !== undefined) product.metaDesc = metaDesc;
+    if (metaSlug !== undefined) product.metaSlug = metaSlug; // Use metaSlug only
+    if (metaCanonical !== undefined) product.metaCanonical = metaCanonical;
+
+    await product.save();
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(200, product, "Product details updated successfully.")
+      );
+  } catch (error) {
+    console.error("Error updating product details:", error);
+    throw new ApiError(400, error.message || "Something went wrong");
+  }
+});
+
 const deleteProductFromCategory = asyncHandler(async (req, res) => {
   const { categoryName, productName } = req.body;
 
@@ -626,129 +1032,6 @@ const deleteProductFromCategory = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, "Product deleted successfully."));
   } catch (error) {
     throw new ApiError(400, "Something wrong", error.message);
-  }
-});
-
-const updateProductDetails = asyncHandler(async (req, res) => {
-  const {
-    _id,
-    newName,
-    newPrice,
-    gst,
-    newDescription,
-    kit,
-    src,
-    longDes,
-    stock,
-    userReview,
-    discount,
-    ingredient,
-    benefits,
-    highlights,
-    benefitsMain,
-    ingredientMain,
-    productDisplay,
-    filter,
-    batchNo,
-    mfgName,
-    weight,
-    height,
-    width,
-    metaTitle,
-    metaDesc,
-    metaSlug,
-    metaCanonical,
-    slug,
-  } = req.body;
-
-  try {
-    console.log(req.body);
-    let product = await Product.findById(_id);
-    console.log("product", product);
-    if (!product) {
-      throw new ApiError(404, "product not found");
-    }
-    if (newPrice !== undefined) {
-      product.price = newPrice;
-    }
-    if (newDescription !== undefined) {
-      product.description = newDescription;
-    }
-    if (newName !== undefined) {
-      product.name = newName;
-    }
-    if (kit != undefined) {
-      product.kit = kit;
-    }
-    if (src != undefined) {
-      product.src = src;
-    }
-    if (longDes != undefined) {
-      product.longDes = longDes;
-    }
-    if (stock != undefined) {
-      product.stock = stock;
-    }
-    if (userReview != undefined) {
-      product.userReview = userReview;
-    }
-    if (discount != undefined) {
-      product.discount = discount;
-    }
-
-    if (ingredient) {
-      product.ingredient = ingredient;
-    }
-    if (benefits) {
-      product.benefits = benefits;
-    }
-    if (highlights) {
-      product.highlights = highlights;
-    }
-    if (benefitsMain) {
-      product.benefitsMain = benefitsMain;
-    }
-    if (ingredientMain) {
-      product.ingredientMain = ingredientMain;
-    }
-    // if(productDisplay){
-    product.productDisplay = productDisplay || false;
-    // }
-    if (filter) {
-      product.filter = filter;
-    }
-    if (batchNo) {
-      product.batchNo = batchNo;
-    }
-    if (mfgName) {
-      product.mfgName = mfgName;
-    }
-    if (weight) {
-      product.weight = weight;
-    }
-    if (height) {
-      product.height = height;
-    }
-    if (width) {
-      product.width = width;
-    }
-    if (metaSlug) product.metaSlug = metaSlug;
-    if (slug) product.metaSlug = slug;
-    if (metaTitle) product.metaTitle = metaTitle;
-    if (metaDesc) product.metaDesc = metaDesc;
-    if (metaCanonical) product.metaCanonical = metaCanonical;
-    if (gst) product.gst = gst;
-
-    await product.save();
-
-    res
-      .status(200)
-      .json(
-        new ApiResponse(200, product, "Product details updated successfully.")
-      );
-  } catch (error) {
-    console.error("Error updating product details:", error);
-    throw new ApiError(400, "Something went wrong", error.message);
   }
 });
 
