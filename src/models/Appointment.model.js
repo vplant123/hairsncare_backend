@@ -57,6 +57,11 @@ const appointmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
     },
+    Method: {
+      type: String,
+      enum: ["Video Call", "Audio Call", "Other"],
+      default: "Other",
+    },
     coupon: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Coupons",

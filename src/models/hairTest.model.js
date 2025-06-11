@@ -630,8 +630,13 @@ const hairTestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    progress: {
+      type: Number,
+      default: 0,
+    },
+    
   },
-  { strict: false }
+  { timestamps: true }
 );
 
 const HairTest = mongoose.model("HairTest", hairTestSchema);

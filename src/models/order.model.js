@@ -88,7 +88,7 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "userAddresses",
     },
-    plainId: {
+    planId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Plan",
     },

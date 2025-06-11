@@ -8,6 +8,7 @@ const {
   getHairTestDetail,
   getHairTest,
   createHairTestForUserStepWise,
+  updateAllHairTestProgress,
 } = require("../controllers/hairTest.controller.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
 const { upload } = require("../utils/upload.utils.js");
@@ -25,5 +26,6 @@ router.post(
   createHairTestForUserStepWise
 );
 
+// router.post("/update-progress", updateAllHairTestProgress);
 
 module.exports = router;

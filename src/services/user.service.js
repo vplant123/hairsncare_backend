@@ -232,6 +232,7 @@ class UserService {
     userToUpdate.password = hashpass;
     await userToUpdate.save({ validateBeforeSave: false });
   };
+
   bookAppointment = async (req, data) => {
     const { user } = req;
     // console.log("userrrrr", user)
@@ -262,7 +263,6 @@ class UserService {
 
     const order = new Order({
       userId: user._id,
-
       planId: data.planId,
       amount:
         parseFloat(selectedPlan.price) -
@@ -270,13 +270,14 @@ class UserService {
       status: "pending",
       orderType: "Appointment",
     });
+
     await order.save();
     console.log("order", order);
 
     const appointment = await Appointment.findOne({ hairTestId: data?.testId });
-    (appointment.orderId = order._id),
-      (appointment.appointmentDate =
-        selectedPlan.features === "appointment" ? data.appointmentDate : ""),
+    (appointment.orderId = order._id), (appointment.status = "Booked");
+    (appointment.appointmentDate =
+      selectedPlan.features === "appointment" ? data.appointmentDate : ""),
       (appointment.timeSlot =
         selectedPlan.features === "appointment" ? data.timeSlot : "noon"),
       (appointment.planId = data.planId),
@@ -285,18 +286,12 @@ class UserService {
         (parseFloat(selectedPlan.price) * discount) / 100),
       (appointment.coupon = data?.couponId || null);
 
-    // new Appointment({
-    //     userId: user._id,
-    //     orderId: order._id,
-    //     appointmentDate: selectedPlan.features === 'appointment' ? data.appointmentDate : "",
-    //     timeSlot: selectedPlan.features === 'appointment' ? data.timeSlot : 'noon',
-    //     status: 'pending',
-    //     planId: data.planId,
-    //     amount: parseFloat(selectedPlan.price) - (parseFloat(selectedPlan.price)*discount/100),
-    //     paymentStatus: "pending",
-    //     hairTestId : data?.testId,
-    //     coupon : data?.couponId || null
-    // });
+    let plan = await Plan.findById(data?.planId).select("name");
+    if (plan?.name == "Local Plan") {
+      appointment.Method = "Audio Call";
+    } else {
+      appointment.Method = "Video Call";
+    }
 
     console.log("app", appointment);
 

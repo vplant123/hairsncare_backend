@@ -10,6 +10,7 @@ const { sendEmail } = require("../utils/nodemailer.util.js");
 const Plan = require("../models/plan.model");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp.js");
 const Prescription = require("../models/prescription.model.js");
+const OrderModel = require("../models/order.model.js");
 
 const createHairTestForUser = asyncHandler(async (req, res) => {
   try {
@@ -30,79 +31,73 @@ const createHairTestForUser = asyncHandler(async (req, res) => {
 
 const getHairTest = asyncHandler(async (req, res) => {
   try {
-    // Fetch hair tests with user populated, exclude unwanted fields using projection
     const hairtests = await HairTest.find()
       .populate({
         path: "userId",
-        select: "email personal status mobile", // Only selected fields for user
+        select: "email personal status mobile",
       })
       .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
       .lean();
 
-    console.log(hairtests);
-
-    // If no hairtests found, return early
     if (!hairtests || hairtests.length === 0) {
       return res
         .status(200)
         .json(new ApiResponse(200, "No hair tests found", []));
     }
 
-    const hairtestsWithAppointments = await Promise.all(
+    const hairtestsWithOrderData = await Promise.all(
       hairtests.map(async (test) => {
         try {
+          const orders = await OrderModel.findOne({
+            userId: test.userId,
+            orderType: "Appointment",
+          })
+            .select("amount")
+            .lean();
+
+          const plan = await Plan.findOne({
+            userId: test.userId,
+            orderType: "Appointment",
+          })
+            .select("amount")
+            .lean();
+
+          console.log("orders", orders);
+
           const appointments = await Appointment.find({
             isDeleted: false,
             status: { $in: ["assigned", "completed", "pending"] },
             $or: [{ hairTestId: test._id }, { followupof: test._id }],
           })
-            .populate("doctorId", "fullname")
+            .populate("doctorId", "name")
             .lean();
 
           return {
             ...test,
-            appointments: appointments || [
-              {
-                _id: "No App. present",
-                userId: "Sample Data",
-                appointmentDate:
-                  "Thu Jun 05 2025 12:31:24 GMT+0000 (Coordinated Universal Time)",
-                timeSlot: "noon",
-                doctorId: "66e1752d2958dd62090e9282",
-                status: "not available",
-                duration: 2,
-                isDeleted: false,
-                orderId: "",
-                appointmentType: "",
-                followupOf: null,
-                nextAction: "none",
-                createdAt: "2025-06-05T12:31:24.997Z",
-                updatedAt: "2025-06-05T12:33:10.186Z",
-              },
-            ],
+            orders: orders || null,
+            appointments: appointments || [],
           };
         } catch (innerError) {
           console.error(
-            `Error fetching appointments for hairTestId: ${test._id}`,
+            `Error fetching data for hairTestId: ${test._id}`,
             innerError
           );
           return {
             ...test,
+            orders: [],
             appointments: [],
           };
         }
       })
     );
 
-    console.log(hairtestsWithAppointments);
-
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          "All hairtests fetched successfully",
-          hairtestsWithAppointments
+          "All hair tests fetched successfully",
+          hairtestsWithOrderData
         )
       );
   } catch (error) {
@@ -111,7 +106,6 @@ const getHairTest = asyncHandler(async (req, res) => {
   }
 });
 
-// Controller to update hair test steps
 const updateHairTestStep = asyncHandler(async (req, res) => {
   const { step } = req.params;
   const stepNumber = parseInt(step);
@@ -161,6 +155,7 @@ const updateHairTestStep = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Internal server error");
   }
 });
+
 const getHairTestDetail = asyncHandler(async (req, res) => {
   try {
     const { user } = req;
@@ -230,7 +225,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
     if (!data?.userId) {
       return res.status(400).json({ message: "User id is required" });
     }
-    // for user id hair test is present
+
     const hairTest = await HairTest.findOne({ userId: data?.userId });
     if (hairTest) {
       id = hairTest._id;
@@ -300,6 +295,21 @@ Book Your Online Video Consultation Slot -  Pay Rs. ${p2?.price}/-\nOr\nBook You
       );
     }
 
+    let progress = 0;
+    if (newHairTest.personal) progress = 20;
+    if (newHairTest.nutritional) progress = 40;
+    if (newHairTest.lifeStyle) progress = 60;
+    if (newHairTest.stressManagement) progress = 80;
+    if (
+      newHairTest.hairAndScalpAssessment &&
+      newHairTest.UploadedImage &&
+      newHairTest.UploadedImage.length > 0
+    )
+      progress = 100;
+
+    newHairTest.progress = progress;
+    await newHairTest.save();
+
     return res.status(201).json({
       success: true,
       data: newHairTest,
@@ -313,6 +323,31 @@ Book Your Online Video Consultation Slot -  Pay Rs. ${p2?.price}/-\nOr\nBook You
   }
 });
 
+const updateAllHairTestProgress = asyncHandler(async (req, res) => {
+  try {
+    const hairTests = await HairTest.find();
+
+    for (let hairTest of hairTests) {
+      let progress = 100;
+      // Assign the calculated progress to the hairTest
+      hairTest.progress = progress;
+      await hairTest.save();
+
+      console.log("Updated progress:", progress); // Debug log to verify progress calculation
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Progress updated for all HairTest documents",
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to update progress" });
+  }
+});
+
 module.exports = {
   createHairTestForUser,
   getHairTest,
@@ -320,4 +355,5 @@ module.exports = {
   uploadImage,
   getHairTestDetail,
   createHairTestForUserStepWise,
+  updateAllHairTestProgress,
 };
