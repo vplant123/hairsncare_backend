@@ -618,6 +618,7 @@
 // const HairTest = mongoose.model("HairTest", {});
 
 // module.exports = HairTest;
+
 const mongoose = require("mongoose");
 
 const hairTestSchema = new mongoose.Schema(
@@ -634,9 +635,8 @@ const hairTestSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    
   },
-  { timestamps: true }
+  { timestamps: true } // Automatically adds createdAt and updatedAt fields
 );
 
 const HairTest = mongoose.model("HairTest", hairTestSchema);

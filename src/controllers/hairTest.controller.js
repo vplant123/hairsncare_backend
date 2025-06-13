@@ -55,19 +55,12 @@ const getHairTest = asyncHandler(async (req, res) => {
             .select("amount")
             .lean();
 
-          const plan = await Plan.findOne({
-            userId: test.userId,
-            orderType: "Appointment",
-          })
-            .select("amount")
-            .lean();
-
           console.log("orders", orders);
 
           const appointments = await Appointment.find({
             isDeleted: false,
             status: { $in: ["assigned", "completed", "pending"] },
-            $or: [{ hairTestId: test._id }, { followupof: test._id }],
+            $or: [{ hairTestId: test._id }],
           })
             .populate("doctorId", "name")
             .lean();
@@ -102,6 +95,81 @@ const getHairTest = asyncHandler(async (req, res) => {
       );
   } catch (error) {
     console.error("getHairTest error:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
+const getFollowupApointment = asyncHandler(async (req, res) => {
+  try {
+    const hairtests = await HairTest.find({
+      status: "completed",
+    })
+      .populate({
+        path: "userId",
+        select: "email personal status mobile",
+      })
+      .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
+      .lean();
+
+    if (!hairtests || hairtests.length === 0) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, "No hair tests found", []));
+    }
+
+    const hairtestsWithOrderData = await Promise.all(
+      hairtests.map(async (test) => {
+        try {
+          const orders = await OrderModel.findOne({
+            userId: test.userId,
+            orderType: "Appointment",
+          })
+            .select("amount")
+            .lean();
+
+          // Get the latest follow-up appointment (if any)
+          const latestFollowupAppointment = await Appointment.find({
+            isDeleted: false,
+            followupOf: test._id,
+          })
+            .populate("doctorId", "name")
+            .sort({ createdAt: -1 })
+            .lean();
+
+          console.log("latestFollowupAppointment", latestFollowupAppointment);
+
+          return {
+            ...test,
+            orders: orders || null,
+            appointments: latestFollowupAppointment
+              ? latestFollowupAppointment
+              : [],
+          };
+        } catch (innerError) {
+          console.error(
+            `Error fetching data for hairTestId: ${test._id}`,
+            innerError
+          );
+          return {
+            ...test,
+            orders: [],
+            appointments: [],
+          };
+        }
+      })
+    );
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "All hair tests fetched successfully",
+          hairtestsWithOrderData
+        )
+      );
+  } catch (error) {
+    console.error("getFollowupApointment error:", error);
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
@@ -356,4 +424,5 @@ module.exports = {
   getHairTestDetail,
   createHairTestForUserStepWise,
   updateAllHairTestProgress,
+  getFollowupApointment,
 };

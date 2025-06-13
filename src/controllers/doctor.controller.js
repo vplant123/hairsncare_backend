@@ -13,6 +13,7 @@ const Product = require("../models/products.models");
 const Cart = require("../models/Cart.model");
 const Doctor = require("../models/doctor.model");
 const orderModel = require("../models/order.model");
+const Plan = require("../models/plan.model.js");
 
 const { v4: uuidv4 } = require("uuid");
 const { WhatsappTextTemplate } = require("../utils/Whatsapp");
@@ -20,6 +21,8 @@ const { WhatsappTextTemplate } = require("../utils/Whatsapp");
 const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
   try {
     const { user } = req;
+
+    // Ensure that doctor ID is present in the user object
     if (!user || !user._id) {
       return res
         .status(400)
@@ -28,15 +31,48 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
 
     const doctorObjectId = new mongoose.Types.ObjectId(user._id);
 
-    // Fetch appointments with filters, populate user fullname and followups' hairTestId
+    // Fetch appointments for the doctor with appropriate filters
     let appointments = await Appointment.find({
       doctorId: doctorObjectId,
       isDeleted: false,
       status: { $in: ["assigned", "completed", "pending"] },
     })
-      .populate("userId", "fullname")
-      .sort({ createdAt: -1 });
+      .populate("userId", "fullname email mobile registration_method") // Corrected populate usage
+      .sort({ createdAt: -1 })
+      .lean();
 
+    appointments = await Promise.all(
+      appointments.map(async (appointment) => {
+        let progress = 0;
+        let Method = "Other";
+
+        // Get progress from HairTest
+        if (appointment?.hairTestId || appointment?.followupOf) {
+          const hairTest = await HairTest.findOne({
+            $or: [
+              { _id: appointment.hairTestId }, // Check using the original hairTestId
+              { _id: appointment.followupOf }, // Check using the followupOf (in case it's a follow-up)
+            ],
+          }).lean();
+
+          if (hairTest && typeof hairTest.progress === "number") {
+            progress = hairTest.progress;
+          }
+        }
+
+        // Get user's plan and determine Method
+        let plan = await Plan.findOne({ userId: appointment.userId }).lean();
+        if (plan && plan.name === "Local Plan") {
+          Method = "Audio Call";
+        } else {
+          Method = "Video Call";
+        }
+
+        return { ...appointment, progress, Method };
+      })
+    );
+
+    // Return the response with the appointments data
     return res
       .status(200)
       .json(
@@ -48,6 +84,8 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
       );
   } catch (error) {
     console.error("Error fetching assigned appointments:", error);
+
+    // Return a failure response with error message
     return res
       .status(500)
       .json(
@@ -287,7 +325,6 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       }
     }
 
-    // Update appointment and hair test status
     const appointment = await Appointment.findOne({
       userId,
       _id: appointmentId,
@@ -308,7 +345,7 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       hairTest.status = "completed";
       await hairTest.save();
     }
-
+    // appointment.followUpDate = followUpDate;
     appointment.status = "completed";
     await appointment.save();
 

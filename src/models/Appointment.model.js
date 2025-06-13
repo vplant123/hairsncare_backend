@@ -7,6 +7,9 @@ const appointmentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    followUpDate: {
+      type: Date,
+    },
     appointmentDate: {
       type: String,
     },
@@ -20,14 +23,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [
-        "pending",
-        "booked",
-        "assigned",
-        "accepted",
-        "rejected",
-        "completed",
-      ],
+      enum: ["pending", "booked", "assigned", "completed"],
       default: "pending",
     },
     duration: {

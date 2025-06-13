@@ -9,6 +9,7 @@ const {
   getHairTest,
   createHairTestForUserStepWise,
   updateAllHairTestProgress,
+  getFollowupApointment,
 } = require("../controllers/hairTest.controller.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
 const { upload } = require("../utils/upload.utils.js");
@@ -18,6 +19,7 @@ const { uploadImage } = require("../controllers/hairTest.controller.js");
 router.post("/upload-image", upload.single("image"), uploadImage);
 router.get("/gethairtest-detail", verifyJwt, getHairTestDetail);
 router.get("/getall", getHairTest);
+router.get("/getfollowup", getFollowupApointment);
 
 router.post("/create", verifyJwt, createHairTestForUser);
 router.post(

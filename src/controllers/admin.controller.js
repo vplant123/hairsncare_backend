@@ -2514,6 +2514,8 @@ const createFollowupAppointment = asyncHandler(async (req, res) => {
       });
     }
 
+    
+
     // Count total follow-ups so far
     const totalFollowups = await Appointment.countDocuments({ followupOf });
 

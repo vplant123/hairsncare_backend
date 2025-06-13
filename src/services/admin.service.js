@@ -17,7 +17,7 @@ const mongoose = require("mongoose");
 class AdminService {
   createDoctor = async (data) => {
     const hashPassword = await CommonHelper.hashPassword(data.password);
-    console.log("hhhhhhhhhhhhhhhhhhhhhhhh", hashPassword);
+    console.log("hh", hashPassword);
 
     const createUser = {
       fullname: data?.name,
@@ -39,7 +39,7 @@ class AdminService {
       data.email,
       "Login Credentials for Doctor Dashboard",
       `Your login credentials for the Doctor Dashboard are:\nEmail:
-          ${data.email}\nPassword: ${password}`
+          ${data.email}\nPassword: ${data.password}`
     );
   };
 
@@ -56,7 +56,7 @@ class AdminService {
 
       console.log("Sort object:", sort);
 
-      const patients = await User.find({ role: "patient" }).sort(sort).lean();
+      const patients = await User.find({ role: "patient" }).sort({ createdAt: -1 }).lean();
 
       const enrichedPatients = await Promise.all(
         patients.map(async (patient) => {

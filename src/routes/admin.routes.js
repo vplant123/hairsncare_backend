@@ -68,7 +68,7 @@ const { addPlan } = require("../controllers/plan.controller.js");
 
 const router = express.Router();
 
-router.post("/addDoctor", validate(adminValidation.createDoctor), createDoctor);
+router.post("/addDoctor", createDoctor);
 router.get("/allpatient", verifyJwt, getallPatient);
 
 router.post("/addAdmin", addAdmin);
