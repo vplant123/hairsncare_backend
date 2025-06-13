@@ -1703,7 +1703,7 @@ const sendWhatsapp = asyncHandler(async (req, res) => {
 
     await WhatsappTextTemplate({
       attr: null,
-      name: user?.fulln, // Make sure this is correct; maybe user?.fullName?
+      name: user?.fullname, // Make sure this is correct; maybe user?.fullName?
       phone: user?.mobile?.toString(),
       campName: "new_complete_hair_test_utility",
       // media: {...}

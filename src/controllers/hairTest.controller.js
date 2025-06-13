@@ -99,78 +99,167 @@ const getHairTest = asyncHandler(async (req, res) => {
   }
 });
 
+// const getFollowupApointment = asyncHandler(async (req, res) => {
+//   try {
+//     const hairtests = await HairTest.find({
+//       status: "completed",
+//     })
+//       .populate({
+//         path: "userId",
+//         select: "email personal status mobile",
+//       })
+//       .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
+//       .lean();
+
+//     if (!hairtests || hairtests.length === 0) {
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, "No hair tests found", []));
+//     }
+
+//     const hairtestsWithOrderData = await Promise.all(
+//       hairtests.map(async (test) => {
+//         try {
+//           const orders = await OrderModel.findOne({
+//             userId: test.userId,
+//             orderType: "Appointment",
+//           })
+//             .select("amount")
+//             .lean();
+
+//           // Get the latest follow-up appointment (if any)
+//           const latestFollowupAppointment = await Appointment.find({
+//             isDeleted: false,
+//             followupOf: test._id,
+//           })
+//             .populate("doctorId", "name")
+//             .sort({ createdAt: -1 })
+//             .lean();
+
+//           console.log("latestFollowupAppointment", latestFollowupAppointment);
+
+//           return {
+//             ...test,
+//             orders: orders || null,
+//             appointments: latestFollowupAppointment
+//               ? latestFollowupAppointment
+//               : [],
+//           };
+//         } catch (innerError) {
+//           console.error(
+//             `Error fetching data for hairTestId: ${test._id}`,
+//             innerError
+//           );
+//           return {
+//             ...test,
+//             orders: [],
+//             appointments: [],
+//           };
+//         }
+//       })
+//     );
+
+//     return res
+//       .status(200)
+//       .json(
+//         new ApiResponse(
+//           200,
+//           "All hair tests fetched successfully",
+//           hairtestsWithOrderData
+//         )
+//       );
+//   } catch (error) {
+//     console.error("getFollowupApointment error:", error);
+//     throw new ApiError(400, "Something went wrong", error.message);
+//   }
+// });
+
 const getFollowupApointment = asyncHandler(async (req, res) => {
   try {
-    const hairtests = await HairTest.find({
-      status: "completed",
+    const appointments = await Appointment.find({
+      isDeleted: false,
+      appointmentType: { $ne: "prescription_only" },
     })
-      .populate({
-        path: "userId",
-        select: "email personal status mobile",
-      })
-      .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
+      .populate("doctorId", "name")
+      .populate("userId", "fullname email mobile registration_method")
+      .sort({ createdAt: -1 })
       .lean();
 
-    if (!hairtests || hairtests.length === 0) {
+    if (!appointments || appointments.length === 0) {
       return res
         .status(200)
-        .json(new ApiResponse(200, "No hair tests found", []));
+        .json(new ApiResponse(200, "No Appointments found", []));
     }
 
     const hairtestsWithOrderData = await Promise.all(
-      hairtests.map(async (test) => {
+      appointments.map(async (appoint) => {
         try {
-          const orders = await OrderModel.findOne({
-            userId: test.userId,
+          // Fetch the associated order data for the appointment
+          const order = await OrderModel.findOne({
+            userId: appoint.userId?._id || appoint.userId,
             orderType: "Appointment",
           })
             .select("amount")
             .lean();
 
-          // Get the latest follow-up appointment (if any)
-          const latestFollowupAppointment = await Appointment.find({
-            isDeleted: false,
-            followupOf: test._id,
-          })
-            .populate("doctorId", "name")
-            .sort({ createdAt: -1 })
-            .lean();
+          // Use either hairTestId or followupOf to find the associated hair test data
+          const hairTestIdToUse = appoint.hairTestId || appoint.followupOf;
+          let progress = 0;
 
-          console.log("latestFollowupAppointment", latestFollowupAppointment);
+          if (hairTestIdToUse) {
+            const hairTest = await HairTest.findById(hairTestIdToUse).lean();
+            if (hairTest && typeof hairTest.progress === "number") {
+              progress = hairTest.progress;
+            }
+          }
+
+          // Determine the method of consultation based on the plan
+          let Method = "Other"; // Default value
+          if (appoint.planId) {
+            const plan = await Plan.findById(appoint.planId).lean();
+            if (plan) {
+              if (plan.name === "Local Plan") {
+                Method = "Audio Call";
+              } else if (plan.name === "Premium Plan") {
+                Method = "Video Call";
+              }
+            }
+          }
 
           return {
-            ...test,
-            orders: orders || null,
-            appointments: latestFollowupAppointment
-              ? latestFollowupAppointment
-              : [],
+            ...appoint,
+            followUpDate: appoint.followUpDate || null,
+            progress,
+            Method,
+            orderAmount: order?.amount || null,
           };
         } catch (innerError) {
-          console.error(
-            `Error fetching data for hairTestId: ${test._id}`,
-            innerError
-          );
+          console.error("Error fetching data for appointment:", innerError);
           return {
-            ...test,
-            orders: [],
-            appointments: [],
+            ...appoint,
+            followUpDate: null,
+            progress: 0,
+            Method: "Other",
+            orderAmount: null,
           };
         }
       })
     );
 
+    // Return the successfully fetched appointments with related data
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          "All hair tests fetched successfully",
-          hairtestsWithOrderData
+          hairtestsWithOrderData,
+          "All appointments fetched successfully",
+          "Success"
         )
       );
   } catch (error) {
-    console.error("getFollowupApointment error:", error);
-    throw new ApiError(400, "Something went wrong", error.message);
+    console.error("getFollowupAppointment error:", error);
+    throw new ApiError(400, null, "Something went wrong", error.message);
   }
 });
 
