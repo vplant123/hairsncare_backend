@@ -50,8 +50,8 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
         if (appointment?.hairTestId || appointment?.followupOf) {
           const hairTest = await HairTest.findOne({
             $or: [
-              { _id: appointment.hairTestId }, // Check using the original hairTestId
-              { _id: appointment.followupOf }, // Check using the followupOf (in case it's a follow-up)
+              { _id: appointment.hairTestId },
+              { _id: appointment.followupOf },
             ],
           }).lean();
 
@@ -60,12 +60,14 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
           }
         }
 
-        // Get user's plan and determine Method
-        let plan = await Plan.findOne({ userId: appointment.userId }).lean();
-        if (plan && plan.name === "Local Plan") {
-          Method = "Audio Call";
-        } else {
-          Method = "Video Call";
+        // Get plan from appointment.planId
+        if (appointment.planId) {
+          const plan = await Plan.findById(appointment.planId).lean();
+          if (plan && plan.name === "Local Plan") {
+            Method = "Audio Call";
+          } else if (plan && plan.name === "Premium Plan") {
+            Method = "Video Call";
+          }
         }
 
         return { ...appointment, progress, Method };
@@ -265,7 +267,7 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
         .json({ success: false, message: "Invalid user ID" });
     }
 
-    const { appointmentId, followUpDate} = req.body;
+    const { appointmentId, followUpDate } = req.body;
     console.log(req.body);
     console.log("appointmentId", appointmentId);
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
