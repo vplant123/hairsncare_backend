@@ -265,7 +265,8 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
         .json({ success: false, message: "Invalid user ID" });
     }
 
-    const { appointmentId } = req.body;
+    const { appointmentId, followUpDate} = req.body;
+    console.log(req.body);
     console.log("appointmentId", appointmentId);
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
       return res
@@ -345,7 +346,7 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
       hairTest.status = "completed";
       await hairTest.save();
     }
-    // appointment.followUpDate = followUpDate;
+    appointment.followUpDate = followUpDate;
     appointment.status = "completed";
     await appointment.save();
 
