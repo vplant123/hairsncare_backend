@@ -10,7 +10,7 @@ const couponsMapping = new mongoose.Schema({
         required: true
     },
     status: {
-        type: Number,    // 1-apply 2-used
+        type: Number,  
     },
     type : {
         type: Number, 

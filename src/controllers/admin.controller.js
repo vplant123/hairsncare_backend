@@ -2481,63 +2481,113 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
 });
 
 const createFollowupAppointment = asyncHandler(async (req, res) => {
-  try {
-    const { followupOf, appointmentDate, timeSlot, doctorId, status } =
-      req.body;
+  const { followupOf, appointmentDate, timeSlot, doctorId, status } = req.body;
 
-    if (!followupOf || !appointmentDate || !timeSlot) {
-      return res.status(400).json({ message: "Required fields are missing" });
-    }
+  // Validate inputs
+  console.log(req.body);
+  if (!followupOf || !mongoose.isValidObjectId(followupOf)) {
+    return res.status(400).json({ message: "Valid followupOf is required" });
+  }
+  if (!appointmentDate || isNaN(new Date(appointmentDate))) {
+    return res
+      .status(400)
+      .json({ message: "Valid appointmentDate is required" });
+  }
 
-    const DoctorUserID = await Doctors.findById(doctorId);
+  if (doctorId && !mongoose.isValidObjectId(doctorId)) {
+    return res.status(400).json({ message: "Valid doctorId is required" });
+  }
 
-    // Find the original appointment
-    const originalAppointment = await Appointment.findOne({
-      hairTestId: followupOf,
+  // Find the original appointment
+  const originalAppointment = await Appointment.findOne({
+    hairTestId: followupOf,
+  }).populate("userId doctorId");
+  if (!originalAppointment) {
+    return res.status(404).json({ message: "Original appointment not found" });
+  }
+
+  // Check for existing pending follow-up appointments
+  const existingPendingFollowup = await Appointment.findOne({
+    followupOf,
+    status: { $ne: "completed" },
+  });
+  if (existingPendingFollowup) {
+    return res.status(400).json({
+      message:
+        "Cannot create new follow-up until the previous one is completed",
     });
-    if (!originalAppointment) {
+  }
+
+  // Fetch doctor data if doctorId is provided, else use original appointment's doctor
+  let doctor;
+  if (doctorId) {
+    doctor = await Doctors.findById(doctorId).populate(
+      "userId",
+      "fullname mobile"
+    );
+    if (!doctor || !doctor.userId) {
       return res
         .status(404)
-        .json({ message: "Original appointment not found" });
+        .json({ message: "Doctor or associated user not found" });
     }
-
-    // Check if there is any follow-up appointment for this followupOf that is not completed yet
-    const existingPendingFollowup = await Appointment.findOne({
-      followupOf,
-      status: { $ne: "completed" }, // any status other than completed
-    });
-
-    if (existingPendingFollowup) {
-      return res.status(400).json({
-        message:
-          "Cannot create new follow-up appointment until the previous one is completed",
-      });
+  } else {
+    doctor = await Doctors.findById(originalAppointment.doctorId).populate(
+      "userId",
+      "fullname mobile"
+    );
+    if (!doctor || !doctor.userId) {
+      return res
+        .status(404)
+        .json({ message: "Doctor or associated user not found" });
     }
-
-    
-
-    // Count total follow-ups so far
-    const totalFollowups = await Appointment.countDocuments({ followupOf });
-
-    // Create new follow-up appointment
-    const followup = await Appointment.create({
-      userId: originalAppointment.userId,
-      followupOf,
-      appointmentDate,
-      timeSlot,
-      doctorId: DoctorUserID?.userId || originalAppointment.doctorId, // fallback to original if not provided
-      followupVisitNumber: totalFollowups + 1,
-      status: status || "pending", // default status if not provided
-      nextAction: "none",
-    });
-
-    return res.status(201).json({ success: true, data: followup });
-  } catch (error) {
-    console.error("Error creating follow-up appointment:", error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
   }
+
+  // Check doctor availability
+  const conflictingAppointment = await Appointment.findOne({
+    doctorId: doctor._id,
+    appointmentDate,
+    timeSlot,
+    status: "assigned",
+  });
+  if (conflictingAppointment) {
+    return res.status(409).json({
+      message: "Doctor is already assigned to another appointment at this time",
+    });
+  }
+
+  // Count total follow-ups
+  const totalFollowups = await Appointment.countDocuments({ followupOf });
+
+  // Create new follow-up appointment
+  const followup = await Appointment.create({
+    userId: originalAppointment.userId,
+    followupOf,
+    appointmentDate: new Date(appointmentDate),
+    timeSlot,
+    doctorId: doctor.userId,
+    followupVisitNumber: totalFollowups + 1,
+    status: status || "assigned",
+    nextAction: "none",
+  });
+
+  // Send WhatsApp notification
+  const whatsappPayload = {
+    attr: null,
+    name: doctor.userId.fullname,
+    phone: doctor.userId.mobile?.toString(),
+    campName: "doctor_message_Utility",
+  };
+
+  const notificationStatus = await WhatsappTextTemplate(whatsappPayload);
+  if (!notificationStatus?.success) {
+    console.error("WhatsApp notification failed:", notificationStatus);
+  }
+
+  return res.status(201).json({
+    success: true,
+    data: followup,
+    message: "Follow-up appointment created successfully",
+  });
 });
 
 const getFollowUps = asyncHandler(async (req, res) => {

@@ -630,13 +630,13 @@ const hairTestSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-    },
-    progress: {
-      type: Number,
-      default: 0,
+      required: true, // Added to ensure userId is always provided
     },
   },
-  { timestamps: true } // Automatically adds createdAt and updatedAt fields
+  {
+    timestamps: true,
+    strict: false,
+  }
 );
 
 const HairTest = mongoose.model("HairTest", hairTestSchema);

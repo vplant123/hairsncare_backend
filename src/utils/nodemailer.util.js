@@ -8,19 +8,30 @@ const nodemailer = require("nodemailer");
 //     }
 // });
 
+// const transporter = nodemailer.createTransport({
+//   host: "smtpout.secureserver.net", // GoDaddy SMTP server
+//   port: 465, // Secure SMTP port
+//   secure: true, // Use SSL/TLS
+//   auth: {
+//     user: "info@hairsncares.com", // Your GoDaddy email
+//     pass: "H@irs#321", // Your GoDaddy email password
+//   },
+
+// });
+
 const transporter = nodemailer.createTransport({
-  host: "smtpout.secureserver.net", // GoDaddy SMTP server
-  port: 465, // Secure SMTP port
-  secure: true, // Use SSL/TLS
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
-    user: "info@hairsncares.com", // Your GoDaddy email
-    pass: "H@irs#321", // Your GoDaddy email password
+    user: "work26mohit@gmail.com",
+    pass: "tzci ujtt atay ciap",
   },
 });
 
 const sendEmail = async (to, subject, text) => {
   const mailOptions = {
-    from: "info@hairsncares.com",
+    from: "work26mohit@gmail.com",
     to,
     subject,
     text,
@@ -31,7 +42,7 @@ const sendEmail = async (to, subject, text) => {
 
 const sendEmailTemplate = async (to, subject, emailHtml) => {
   const mailOptions = {
-    from: "info@hairsncares.com",
+    from: "work26mohit@gmail.com",
     to,
     subject,
     html: emailHtml,
@@ -42,3 +53,8 @@ const sendEmailTemplate = async (to, subject, emailHtml) => {
 };
 
 module.exports = { sendEmail, sendEmailTemplate };
+
+// SMTP_HOST=smtp.gmail.com
+// SMTP_PORT=587
+// SMTP_USER=work26mohit@gmail.com
+// SMTP_PASS=tzci ujtt atay ciap

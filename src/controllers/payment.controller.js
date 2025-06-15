@@ -28,11 +28,11 @@ const instance = new Razorpay({
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
-    console.log("debug Req body", req.body);
-    // console.log("req.body.products[0].item", req.body.products[0].item);
+    console.log("Request Body:", req.body);
     const { user } = req;
 
     if (!user || !user._id || !products?.length) {
+      console.log("User not found or no products provided");
       return res
         .status(404)
         .json(
@@ -43,6 +43,7 @@ const placeOrder = asyncHandler(async (req, res) => {
     // Fetch config
     let config = await Config.findOne({});
     const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config || {};
+    console.log("Config fetched:", config);
 
     // Validate address
     const address = await userAddresses.findOne({
@@ -50,6 +51,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       userId: user._id,
     });
     if (!address) {
+      console.log("Invalid or unauthorized address:", addressId);
       return res
         .status(400)
         .json(new ApiResponse(400, null, "Invalid or unauthorized address"));
@@ -72,13 +74,18 @@ const placeOrder = asyncHandler(async (req, res) => {
         hsn: item.item.hsn || "",
       };
     });
+    console.log("Subtotal:", subTotal);
 
     // Apply coupon discount
     let totalDiscount = 0;
     let coupon = null;
     if (couponId) {
-      coupon = await CouponsModel.findOne({ _id: couponId, status: 1 });
-      if (!coupon || coupon.expiryDate < new Date()) {
+      coupon = await CouponsModel.findOne({
+        _id: couponId,
+        isActive: true,
+      });
+      if (!coupon || (coupon.validity && coupon.validity < new Date())) {
+        console.log("Invalid or expired coupon:", couponId);
         return res
           .status(400)
           .json(new ApiResponse(400, null, "Invalid or expired coupon"));
@@ -90,25 +97,29 @@ const placeOrder = asyncHandler(async (req, res) => {
         type: 2,
       });
       if (!couponMapping) {
+        console.log("Coupon not applicable:", couponId);
         return res
           .status(400)
           .json(new ApiResponse(400, null, "Coupon not applicable"));
       }
       totalDiscount = (parseFloat(coupon.percent || 0) * subTotal) / 100;
+      console.log("Total Discount Applied:", totalDiscount);
     }
 
     // Calculate delivery charge
     const deliveryChargeCalc =
       subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge;
+    console.log("Delivery Charge Calculated:", deliveryChargeCalc);
 
     // Calculate final total amount
     const totalAmount = subTotal - totalDiscount + deliveryChargeCalc;
+    console.log("Total Amount:", totalAmount);
 
     // Create order
     const order = new Order({
       userId: user._id,
       currency: "INR",
-      amount: amount, // Using amount from request body as required by schema
+      amount: amount,
       subTotal,
       totalAmount,
       status: "pending",
@@ -134,6 +145,9 @@ const placeOrder = asyncHandler(async (req, res) => {
       deliveryCharges: deliveryChargeCalc,
       totalDiscount,
     });
+
+    console.log("Order created:", order);
+
     await order.save();
 
     if (mode === "cash") {
@@ -144,6 +158,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           (e) => !products.some((p) => p.item._id === e.item._id)
         );
         await cart.save();
+        console.log("Cart updated:", cart);
       }
 
       // Create Shiprocket order
@@ -173,12 +188,14 @@ const placeOrder = asyncHandler(async (req, res) => {
         height: 20,
         weight: 2.5,
       };
+      console.log("Shiprocket Order Data:", shipRocketOrder);
       let createOrderShipRocket = await shipRocket.createOrder(shipRocketOrder);
       if (createOrderShipRocket) {
         await Order.updateOne(
           { _id: order._id },
           { shipRocket_order_Id: createOrderShipRocket?.order_id }
         );
+        console.log("Shiprocket order created:", createOrderShipRocket);
       }
 
       // Create Zoho order
@@ -219,6 +236,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           },
         ],
       };
+      console.log("Zoho Order Data:", zohoOrder);
       let record = await zohoService.createRecord({
         module: "Sales_Orders",
         reqData: zohoOrder,
@@ -228,10 +246,12 @@ const placeOrder = asyncHandler(async (req, res) => {
           { _id: order._id },
           { zoho_order_Id: record?.data?.[0]?.details?.id }
         );
+        console.log("Zoho order created:", record);
       }
 
       // Send email
       if (address?.email) {
+        console.log("Sending email to:", address?.email);
         await sendEmailTemplate(
           address?.email,
           "Order Placed Successfully",
@@ -250,11 +270,13 @@ const placeOrder = asyncHandler(async (req, res) => {
         if (couponMexist) {
           couponMexist.status = 2;
           await couponMexist.save();
+          console.log("Coupon status updated:", couponMexist);
         }
       }
 
       // Send WhatsApp notifications
       const user1 = await User.findOne({ _id: user._id });
+      console.log("Sending WhatsApp notification to user:", user1?.fullname);
       await WhatsappTextTemplate({
         attr: null,
         name: user1?.fullname,
@@ -278,12 +300,14 @@ const placeOrder = asyncHandler(async (req, res) => {
       };
       const payment = new Payment(paymentData);
       await payment.save();
+      console.log("Payment record created:", payment);
     }
 
     // Update user order count
     const userToUpdate = await User.findById(user._id);
     userToUpdate.orders = (userToUpdate.orders || 0) + 1;
     await userToUpdate.save();
+    console.log("User order count updated:", userToUpdate.orders);
 
     return res
       .status(200)

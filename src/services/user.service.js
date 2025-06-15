@@ -235,25 +235,34 @@ class UserService {
 
   bookAppointment = async (req, data) => {
     const { user } = req;
-    // console.log("userrrrr", user)
+
+    console.log("Request received for booking appointment. User:", req);
+
+    // Check if user or user ID is missing
     if (!user || !user._id) {
+      console.log("User or user ID is missing");
       return res
         .status(404)
         .json({ message: "User not found or user ID is missing" });
     }
+
     const loggedInUser = await User.findById(user._id);
+    console.log("Logged-in user details:", loggedInUser);
 
-    // const { appointmentDate, timeSlot, planId } = req.body;
-
+    // Retrieve selected plan by ID
     const selectedPlan = await Plan.findById(data.planId);
+    console.log("Selected Plan:", selectedPlan);
+
     let discount = 0;
     if (data?.couponId) {
       let coupon = await CouponsModel.findOne({ _id: data?.couponId });
       discount = coupon?.percent;
+      console.log("Coupon applied. Discount percentage:", discount);
     }
-    // console.log("body", req.body)
-    // console.log("selectedplan", selectedPlan)
+
+    // Handle case where selected plan is not found
     if (!selectedPlan) {
+      console.log("Selected plan not found");
       const err = {
         status: 404,
         message: "Selected plan not found",
@@ -261,6 +270,7 @@ class UserService {
       return err;
     }
 
+    // Create the order
     const order = new Order({
       userId: user._id,
       planId: data.planId,
@@ -272,31 +282,44 @@ class UserService {
     });
 
     await order.save();
-    console.log("order", order);
+    console.log("Order saved. Order details:", order);
 
+    // Retrieve the appointment based on test ID
     const appointment = await Appointment.findOne({ hairTestId: data?.testId });
-    (appointment.orderId = order._id), (appointment.status = "Booked");
-    (appointment.appointmentDate =
-      selectedPlan.features === "appointment" ? data.appointmentDate : ""),
-      (appointment.timeSlot =
-        selectedPlan.features === "appointment" ? data.timeSlot : "noon"),
-      (appointment.planId = data.planId),
-      (appointment.amount =
-        parseFloat(selectedPlan.price) -
-        (parseFloat(selectedPlan.price) * discount) / 100),
-      (appointment.coupon = data?.couponId || null);
+    console.log("Found appointment for test ID:", appointment);
+
+    // Update appointment details
+    appointment.orderId = order._id;
+    appointment.status = "Booked";
+    appointment.appointmentDate =
+      selectedPlan.features === "appointment" ? data.appointmentDate : "";
+    appointment.timeSlot =
+      selectedPlan.features === "appointment" ? data.timeSlot : "noon";
+    appointment.planId = data.planId;
+    appointment.amount =
+      parseFloat(selectedPlan.price) -
+      (parseFloat(selectedPlan.price) * discount) / 100;
+    appointment.coupon = data?.couponId || null;
+
+    console.log("Updated appointment details:", appointment);
 
     let plan = await Plan.findById(data?.planId).select("name");
+    console.log("Plan name:", plan?.name);
+
+    // Determine method based on plan
     if (plan?.name == "Local Plan") {
       appointment.Method = "Audio Call";
     } else {
       appointment.Method = "Video Call";
     }
 
-    console.log("app", appointment);
+    console.log("Final appointment details:", appointment);
 
+    // Save the appointment
     await appointment.save();
+    console.log("Appointment saved:", appointment);
 
+    // Prepare payment data
     const paymentData = {
       orderId: order._id,
       userId: user._id,
@@ -306,11 +329,13 @@ class UserService {
       paymentStatus: "pending",
       paymentMethod: "",
     };
+
+    // Create the payment entry
     const payment = new Payment(paymentData);
     const response = await payment.save();
-    console.log("res", response);
+    console.log("Payment saved. Payment response:", response);
+
     return response;
-    // console.log("response", response)
   };
 
   updatePayment = async (req, data) => {

@@ -478,6 +478,8 @@ const applyCoupon = asyncHandler(async (req, res) => {
   try {
     const { user } = req;
     const { code, type, orderId, hairTestId } = req.body;
+    console.log(req.body);
+    console.log("user", user);
     if (!user || !user._id) {
       return res
         .status(404)
@@ -490,6 +492,9 @@ const applyCoupon = asyncHandler(async (req, res) => {
     if (!coupon) {
       console.log("coupon not found");
       return res.status(404).json({ message: "coupon not found" });
+    }
+    if (!coupon.isActive) {
+      return res.status(404).json({ message: "This coupon is not active" });
     }
     if (type != coupon?.type && coupon?.type != "3") {
       console.log("type different");
@@ -505,6 +510,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
       status: 2,
       type: type,
     });
+    console.log("mapping created", couponM);
     if (couponM) {
       return res.status(404).json({ message: "coupon already used" });
     }
@@ -518,7 +524,9 @@ const applyCoupon = asyncHandler(async (req, res) => {
     if (!couponMexist) {
       let input = { userId: user._id, coupon: coupon?._id, status: 1, type: 2 };
       let createMap = await CouponsMappingModel.create(input);
+      console.log(" create map", createMap);
     }
+    console.log(" created", couponMexist);
 
     // if(orderId){
     //     await orderModel.updateOne({_id : orderId},{coupon : coupon?._id})

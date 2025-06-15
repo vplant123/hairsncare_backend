@@ -6,14 +6,14 @@ const asyncHandler = require("../utils/asyncHandler.js");
 const verifyJwt = asyncHandler(async (req, res, next) => {
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
-        
+             console.log("nnnnnnnnnnn", token)
         if (!token) {
             throw new ApiError(404, "Unauthorized request");
         }
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
         const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
-        // console.log("nnnnnnnnnnn", user)
+        console.log("nnnnnnnnnnn", user)
         if (!user) {
             throw new ApiError(401, "Invalid Access Token");
         }
