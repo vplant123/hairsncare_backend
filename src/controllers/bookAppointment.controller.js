@@ -14,12 +14,16 @@ const zohoService = require("../services/zoho.service.js");
 
 const bookAppointment = asyncHandler(async (req, res) => {
   try {
-    console.log(req.body);
+    console.log("[DEBUG] Book Appointment Request Body:", req.body);
+    console.log("[DEBUG] Book Appointment User:", req.user);
+
     const payment = await UserService.bookAppointment(req, req.body);
+    console.log("[DEBUG] Book Appointment Response:", payment);
 
     return res.status(200).json(new ApiResponse(200, payment, "payment saved"));
   } catch (error) {
-    console.log("error", error.message);
+    console.error("[ERROR] Book Appointment Error:", error);
+    console.error("[ERROR] Error Stack:", error.stack);
     throw new ApiError(400, "Something wrong", error.message);
   }
 });

@@ -14,8 +14,8 @@ const { placeOrder, generatePaymentLink, deleteAllPayments,updatePaymentOrder, c
 // router.post("/order-create", verifyJwt, orderCreate);
 // router.post("/payment-create", verifyJwt, bookAppointment);
 router.post("/verification", paymentVerification);
-router.post("/bookAppointment", verifyJwt, bookAppointment)
-router.post("/update-payment", verifyJwt, updatePayment)
+router.post("/bookAppointment", verifyJwt, bookAppointment);
+router.post("/update-payment", verifyJwt, updatePayment);
 router.post("/update-payment-order", verifyJwt, updatePaymentOrder)
 
 router.post("/place-order", verifyJwt, placeOrder)

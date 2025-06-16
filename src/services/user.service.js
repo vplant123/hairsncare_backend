@@ -236,38 +236,46 @@ class UserService {
   bookAppointment = async (req, data) => {
     const { user } = req;
 
-    console.log("Request received for booking appointment. User:", req);
+    console.log("[DEBUG] Book Appointment Service - Request Data:", data);
+    console.log("[DEBUG] Book Appointment Service - User:", user);
 
     // Check if user or user ID is missing
     if (!user || !user._id) {
-      console.log("User or user ID is missing");
-      return res
-        .status(404)
-        .json({ message: "User not found or user ID is missing" });
+      console.error(
+        "[ERROR] Book Appointment Service - User or user ID is missing"
+      );
+      throw new Error("User not found or user ID is missing");
     }
 
     const loggedInUser = await User.findById(user._id);
-    console.log("Logged-in user details:", loggedInUser);
+    console.log(
+      "[DEBUG] Book Appointment Service - Logged-in user details:",
+      loggedInUser
+    );
 
     // Retrieve selected plan by ID
     const selectedPlan = await Plan.findById(data.planId);
-    console.log("Selected Plan:", selectedPlan);
+    console.log(
+      "[DEBUG] Book Appointment Service - Selected Plan:",
+      selectedPlan
+    );
 
     let discount = 0;
     if (data?.couponId) {
       let coupon = await CouponsModel.findOne({ _id: data?.couponId });
       discount = coupon?.percent;
-      console.log("Coupon applied. Discount percentage:", discount);
+      console.log(
+        "[DEBUG] Book Appointment Service - Coupon applied. Discount percentage:",
+        discount
+      );
     }
 
     // Handle case where selected plan is not found
     if (!selectedPlan) {
-      console.log("Selected plan not found");
-      const err = {
-        status: 404,
-        message: "Selected plan not found",
-      };
-      return err;
+      console.error(
+        "[ERROR] Book Appointment Service - Selected plan not found"
+      );
+      throw new Error("Selected plan not found");
     }
 
     // Create the order
@@ -282,15 +290,26 @@ class UserService {
     });
 
     await order.save();
-    console.log("Order saved. Order details:", order);
+    console.log("[DEBUG] Book Appointment Service - Order saved:", order);
 
     // Retrieve the appointment based on test ID
     const appointment = await Appointment.findOne({ hairTestId: data?.testId });
-    console.log("Found appointment for test ID:", appointment);
+    console.log(
+      "[DEBUG] Book Appointment Service - Found appointment:",
+      appointment
+    );
+
+    if (!appointment) {
+      console.error(
+        "[ERROR] Book Appointment Service - No appointment found for testId:",
+        data?.testId
+      );
+      throw new Error("No appointment found for the given test ID");
+    }
 
     // Update appointment details
     appointment.orderId = order._id;
-    appointment.status = "Booked";
+    appointment.status = "booked";
     appointment.appointmentDate =
       selectedPlan.features === "appointment" ? data.appointmentDate : "";
     appointment.timeSlot =
@@ -301,10 +320,13 @@ class UserService {
       (parseFloat(selectedPlan.price) * discount) / 100;
     appointment.coupon = data?.couponId || null;
 
-    console.log("Updated appointment details:", appointment);
+    console.log(
+      "[DEBUG] Book Appointment Service - Updated appointment details:",
+      appointment
+    );
 
     let plan = await Plan.findById(data?.planId).select("name");
-    console.log("Plan name:", plan?.name);
+    console.log("[DEBUG] Book Appointment Service - Plan name:", plan?.name);
 
     // Determine method based on plan
     if (plan?.name == "Local Plan") {
@@ -313,11 +335,16 @@ class UserService {
       appointment.Method = "Video Call";
     }
 
-    console.log("Final appointment details:", appointment);
+    console.log(
+      "[DEBUG] Book Appointment Service - Final appointment details:",
+      appointment
+    );
 
     // Save the appointment
     await appointment.save();
-    console.log("Appointment saved:", appointment);
+    console.log(
+      "[DEBUG] Book Appointment Service - Appointment saved successfully"
+    );
 
     // Prepare payment data
     const paymentData = {
@@ -330,10 +357,15 @@ class UserService {
       paymentMethod: "",
     };
 
+    console.log(
+      "[DEBUG] Book Appointment Service - Payment data prepared:",
+      paymentData
+    );
+
     // Create the payment entry
     const payment = new Payment(paymentData);
     const response = await payment.save();
-    console.log("Payment saved. Payment response:", response);
+    console.log("[DEBUG] Book Appointment Service - Payment saved:", response);
 
     return response;
   };

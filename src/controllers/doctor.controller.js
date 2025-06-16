@@ -22,7 +22,6 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
   try {
     const { user } = req;
 
-    // Ensure that doctor ID is present in the user object
     if (!user || !user._id) {
       return res
         .status(400)
@@ -31,50 +30,54 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
 
     const doctorObjectId = new mongoose.Types.ObjectId(user._id);
 
-    // Fetch appointments for the doctor with appropriate filters
+    // Fetch doctor's appointments
     let appointments = await Appointment.find({
       doctorId: doctorObjectId,
       isDeleted: false,
       status: { $in: ["assigned", "completed", "pending"] },
     })
-      .populate("userId", "fullname email mobile registration_method") // Corrected populate usage
+      .populate("userId", "fullname email mobile registration_method")
       .sort({ createdAt: -1 })
       .lean();
 
+    // Enrich appointment data with progress and Method
     appointments = await Promise.all(
       appointments.map(async (appointment) => {
         let progress = 0;
         let Method = "Other";
 
-        // Get progress from HairTest
-        if (appointment?.hairTestId || appointment?.followupOf) {
-          const hairTest = await HairTest.findOne({
-            $or: [
-              { _id: appointment.hairTestId },
-              { _id: appointment.followupOf },
-            ],
-          }).lean();
-
-          if (hairTest && typeof hairTest.progress === "number") {
+        // Get related hair test to extract progress
+        const hairTestId = appointment.hairTestId || appointment.followupOf;
+        if (hairTestId) {
+          const hairTest = await HairTest.findById(hairTestId).lean();
+          if (hairTest?.progress && typeof hairTest.progress === "number") {
             progress = hairTest.progress;
           }
         }
 
-        // Get plan from appointment.planId
-        if (appointment.planId) {
-          const plan = await Plan.findById(appointment.planId).lean();
-          if (plan && plan.name === "Local Plan") {
-            Method = "Audio Call";
-          } else if (plan && plan.name === "Premium Plan") {
-            Method = "Video Call";
-          }
+        // Identify the first appointment using hairTestId
+        let firstAppointment = null;
+        if (appointment.hairTestId || appointment.followupOf) {
+          firstAppointment = await Appointment.findOne({
+            hairTestId: appointment.hairTestId || appointment.followupOf,
+          })
+            .select("planId")
+            .lean();
+        }
+
+        // Determine Method from planId in first appointment
+        if (firstAppointment?.planId) {
+          const plan = await Plan.findById(firstAppointment.planId)
+            .select("name")
+            .lean();
+          if (plan?.name === "Local Plan") Method = "Audio Call";
+          else if (plan?.name === "Premium Plan") Method = "Video Call";
         }
 
         return { ...appointment, progress, Method };
       })
     );
 
-    // Return the response with the appointments data
     return res
       .status(200)
       .json(
@@ -86,8 +89,6 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
       );
   } catch (error) {
     console.error("Error fetching assigned appointments:", error);
-
-    // Return a failure response with error message
     return res
       .status(500)
       .json(

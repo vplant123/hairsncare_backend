@@ -61,7 +61,7 @@ app.use("/api/v1/users", route);
 app.use("/api/v1/hair-tests", hairTestRoutes);
 //payment
 app.use("/api/v1/payment", paymentRoute);
-app.use("/api/vi/bookAppointment", bookapointment);
+app.use("/api/v1/bookAppointment", bookapointment);
 
 //admin
 app.use("/api/v1/admin", adminRoutes);
