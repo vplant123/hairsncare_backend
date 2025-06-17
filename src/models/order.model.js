@@ -124,8 +124,8 @@ const orderSchema = new mongoose.Schema(
     },
     deliveryStatus: {
       type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "canceled"], //processing+pending  == cash on deilvery
-      default: "pending", //pay online = pending + pending
+      enum: ["pending", "processing", "shipped", "delivered", "canceled"], 
+      default: "pending", 
     },
     deliveryCharges: {
       type: Number,

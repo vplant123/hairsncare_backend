@@ -315,9 +315,9 @@ class UserService {
     appointment.timeSlot =
       selectedPlan.features === "appointment" ? data.timeSlot : "noon";
     appointment.planId = data.planId;
-    appointment.amount =
-      parseFloat(selectedPlan.price) -
-      (parseFloat(selectedPlan.price) * discount) / 100;
+    // appointment.amount =
+    //   parseFloat(selectedPlan.price) -
+    //   (parseFloat(selectedPlan.price) * discount) / 100;
     appointment.coupon = data?.couponId || null;
 
     console.log(

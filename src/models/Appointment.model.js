@@ -41,6 +41,10 @@ const appointmentSchema = new mongoose.Schema(
     amount: {
       type: Number,
     },
+    isReportSent: {
+      type: Boolean,
+      default: false,
+    },
     isDeleted: {
       type: Boolean,
       default: false,

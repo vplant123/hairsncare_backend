@@ -632,6 +632,9 @@ const hairTestSchema = new mongoose.Schema(
       ref: "User",
       required: true, // Added to ensure userId is always provided
     },
+    progress: {
+      type: Number,
+    },
   },
   {
     timestamps: true,

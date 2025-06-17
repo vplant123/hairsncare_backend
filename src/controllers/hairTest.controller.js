@@ -39,67 +39,59 @@ const getHairTest = asyncHandler(async (req, res) => {
       .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
       .lean();
 
-    if (!hairtests || hairtests.length === 0) {
+    if (!hairtests?.length) {
       return res
         .status(200)
-        .json(new ApiResponse(200, "No hair tests found", []));
+        .json(new ApiResponse(200, [], "No hair tests found", "Success"));
     }
 
     const hairtestsWithOrderData = await Promise.all(
       hairtests.map(async (test) => {
         try {
-          const orders = await OrderModel.findOne({
+          const order = await OrderModel.findOne({
             userId: test.userId,
             orderType: "Appointment",
+            status: "paid",
           })
-            .select("amount")
+            .select("amount planId")
             .lean();
 
           let appointments = await Appointment.find({
             isDeleted: false,
-            status: { $in: ["assigned", "completed", "pending"] },
-            $or: [{ hairTestId: test._id }],
-          })
-            .populate("doctorId", "fullname")
-            .lean();
+            hairTestId: test._id,
+          }).populate("doctorId", "fullname");
 
-          // Debug: log doctorId values
-          console.log(
-            "appointment doctorId:",
-            appointments.map((a) => a.doctorId)
-          );
+          if (appointments?.length > 0 && order?.planId) {
+            const plan = await Plan.findById(order.planId).lean();
 
-          // If doctorId is not populated, try populating all fields for debugging
-          if (
-            appointments.length > 0 &&
-            (!appointments[0].doctorId || !appointments[0].doctorId.name)
-          ) {
-            appointments = await Appointment.find({
-              isDeleted: false,
-              status: { $in: ["assigned", "completed", "pending"] },
-              $or: [{ hairTestId: test._id }],
-            })
-              .populate("doctorId")
-              .lean();
-            console.log(
-              "[DEBUG] Populated all doctorId fields:",
-              appointments.map((a) => a.doctorId)
-            );
+            if (plan?.name) {
+              const newMethod =
+                plan.name === "Local Plan"
+                  ? "Audio Call"
+                  : plan.name === "Premium Plan"
+                  ? "Video Call"
+                  : "Other";
+
+              for (let appt of appointments) {
+                if (appt.Method !== newMethod) {
+                  appt.Method = newMethod;
+                  await appt.save();
+                }
+              }
+            }
           }
 
+          const appointmentsData = appointments.map((a) => a.toObject());
+
           return {
             ...test,
-            orders: orders || null,
-            appointments: appointments || [],
+            orders: order || null,
+            appointments: appointmentsData || [],
           };
         } catch (innerError) {
-          console.error(
-            `Error fetching data for hairTestId: ${test._id}`,
-            innerError
-          );
           return {
             ...test,
-            orders: [],
+            orders: null,
             appointments: [],
           };
         }
@@ -111,13 +103,13 @@ const getHairTest = asyncHandler(async (req, res) => {
       .json(
         new ApiResponse(
           200,
+          hairtestsWithOrderData,
           "All hair tests fetched successfully",
-          hairtestsWithOrderData
+          "Success"
         )
       );
   } catch (error) {
-    console.error("getHairTest error:", error);
-    throw new ApiError(400, "Something went wrong", error.message);
+    throw new ApiError(400, null, "Something went wrong", error.message);
   }
 });
 
@@ -539,7 +531,6 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
     let { id, data } = req.body;
     let newHairTest;
 
-    // Log incoming request data
     console.log("Received Request Body:", req.body);
 
     if (!data?.userId) {
@@ -547,7 +538,6 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "User id is required" });
     }
 
-    // Check if an existing hair test exists for the user
     console.log("Checking if Hair Test exists for userId:", data?.userId);
     const hairTest = await HairTest.findOne({ userId: data?.userId });
     if (hairTest) {
@@ -557,7 +547,6 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       console.log("No existing Hair Test found, creating a new one.");
     }
 
-    // Log creation or update of Hair Test
     if (!id || !hairTest) {
       console.log("Creating new Hair Test with data:", data);
       newHairTest = await HairTest.create(data);
@@ -586,38 +575,39 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       console.log("Existing Hair Test updated with new data:", newData);
     }
 
-    // Calculate progress based on existing data
-    let progress = 0;
+    // ✅ Updated progress calculation logic
+    newHairTest = await HairTest.findOne({ _id: id || newHairTest._id });
 
-    // Increment progress based on fields being populated
-    if (newHairTest?.personal) progress += 20;
-    if (newHairTest?.nutritional) progress += 20;
-    if (newHairTest?.lifeStyle) progress += 20;
-    if (newHairTest?.stressManagement) progress += 20;
+    let progress = 0;
+    if (newHairTest?.personal && Object.keys(newHairTest.personal).length > 0)
+      progress += 20;
+    if (
+      newHairTest?.nutritional &&
+      Object.keys(newHairTest.nutritional).length > 0
+    )
+      progress += 20;
+    if (newHairTest?.lifeStyle && Object.keys(newHairTest.lifeStyle).length > 0)
+      progress += 20;
+    if (
+      newHairTest?.stressManagement &&
+      Object.keys(newHairTest.stressManagement).length > 0
+    )
+      progress += 20;
     if (
       newHairTest?.hairAndScalpAssessment &&
-      newHairTest?.UploadedImage?.length > 0
+      Object.keys(newHairTest.hairAndScalpAssessment).length > 0 &&
+      Array.isArray(newHairTest?.UploadedImage) &&
+      newHairTest.UploadedImage.length > 0
     )
       progress += 20;
 
-    // Ensure that progress doesn't exceed 100%
-    if (progress > 100) progress = 100;
-
-    // Ensure progress is always a valid number (avoid NaN)
-    if (isNaN(progress)) progress = 0;
+    progress = isNaN(progress) ? 0 : Math.min(progress, 100);
 
     console.log("Calculated progress:", progress);
-
-    // Update the progress field in the Hair Test object
     newHairTest.progress = progress;
-
-    // Log updating progress in the Hair Test
     console.log("Updating progress field in Hair Test:", newHairTest.progress);
-
-    // Save the updated Hair Test with progress
     await newHairTest.save();
 
-    // Log sending notifications if phone number is provided
     if (data?.personal && data?.personal?.phoneNumber) {
       const user = await User.findOne({ _id: data?.userId });
       console.log(
@@ -651,7 +641,6 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       );
     }
 
-    // Log checking if an image is uploaded and sending email if needed
     if (data?.UploadedImage?.length > 0 && !newHairTest?.UploadedImage) {
       const user = await User.findOne({ _id: data?.userId });
       let p1 = await Plan.findOne({ name: "Local Plan" });
@@ -670,7 +659,6 @@ Book Your Online Video Consultation Slot - Pay Rs. ${p2?.price}/-\nOr\nBook Your
       console.log("Email sent successfully:", emailResponse);
     }
 
-    // Log successful response with new hair test data
     console.log("Hair Test successfully created or updated:", newHairTest);
 
     return res.status(201).json({
@@ -679,7 +667,6 @@ Book Your Online Video Consultation Slot - Pay Rs. ${p2?.price}/-\nOr\nBook Your
       message: "Successfully created",
     });
   } catch (error) {
-    // Log error
     console.error("Error creating/updating Hair Test:", error);
     return res
       .status(500)

@@ -34,6 +34,7 @@ const xml2js = require("xml2js");
 
 const LoginModel = require("../models/loginHistory.model.js");
 const FollowUpModel = require("../models/followUpAppointments.model.js");
+const LoginHistory = require("../models/loginHistory.model.js");
 
 const addAdmin = asyncHandler(async (req, res) => {
   try {
@@ -60,27 +61,33 @@ const createDoctor = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something error ", error.message);
   }
 });
-// const getallPatient = asyncHandler(async (req, res) => {
-//     try {
-//         const patients = await AdminService.getAllPatient()
-//         return res.status(200).json(new ApiResponse(200, "Alll patient are ", patients))
-//     } catch (error) {
-//         throw new ApiError(400, "something wrong", error.message)
-//     }
-// })
+
 const getallPatient = asyncHandler(async (req, res) => {
   try {
+    console.log("[DEBUG] Getting all patients with query:", req.query);
     const { filterOption } = req.query;
     const data = {
       filterOption: filterOption,
     };
 
+    console.log("[DEBUG] Calling AdminService.getAllPatient with data:", data);
     const result = await AdminService.getAllPatient(data);
+    console.log("[DEBUG] Got result from AdminService.getAllPatient:", {
+      patientCount: result?.length || 0,
+      firstPatient: result?.[0]
+        ? {
+            id: result[0]._id,
+            name: result[0].fullname,
+            email: result[0].email,
+          }
+        : null,
+    });
 
     return res
       .status(200)
-      .json(new ApiResponse(200, result, "Patents get successfully"));
+      .json(new ApiResponse(200, result, "Patients get successfully"));
   } catch (error) {
+    console.error("[ERROR] getallPatient error:", error);
     throw new ApiError(400, "Something error", error.message);
   }
 });
@@ -386,40 +393,6 @@ const getPendingAppointments = asyncHandler(async (req, res) => {
     );
 });
 
-// const assignDoctorToAppointment = asyncHandler(async (req, res) => {
-//     req.body.doctorId = req.doctorId
-//     const { appointmentId } = req.body;
-//     // const { userId } = req.body;
-
-//     const appointment = await Appointment.findById(appointmentId);
-//     if (!appointment) {
-//         throw new ApiError(400, error?.message, "Appointment not found");
-//     }
-
-//     const user = await User.findById(appointment.user);
-//     if (!user) {
-//         throw new ApiError(400, "User not found", "User associated with the appointment not found");
-//     }
-
-//     // Update appointment with assigned doctor
-//     appointment.doctor = req.doctorId;
-//     await appointment.save();
-
-//     // Return user details along with success response
-//     return res.status(200).json(new ApiResponse({
-//         status: 200, user: {
-//             id: user._id,
-//             name: user.name,
-//             email: user.email,
-
-//         },
-
-//         message: "Appointment assigned successfully"
-
-//     }));
-
-// });
-
 const deleteUser = asyncHandler(async (req, res) => {
   try {
     await AdminService.deleteuser(req);
@@ -433,41 +406,6 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
-// const getFilteredUsers = asyncHandler(async (req, res) => {
-//     let { page = 1, limit = 10, searchQuery, serialNumber } = req.query;
-//     page = parseInt(page);
-//     limit = parseInt(limit);
-
-//     // Build query conditions based on search and filter criteria
-//     const query = {};
-//     if (searchQuery) {
-//         query.name = { $regex: `^${searchQuery}`, $options: 'i' }; // Case-insensitive regex search by name
-//     } else if (serialNumber) {
-//         query.serialNumber = serialNumber;
-//     }
-
-//     const totalUsers = await User.countDocuments(query);
-
-//     // Paginate the results
-//     const users = await User.find(query)
-//         .limit(limit)
-//         .skip((page - 1) * limit)
-//         .sort({ name: 1 }); // Sort by name alphabetically
-
-//     const totalPages = Math.ceil(totalUsers / limit);
-
-//     res.status(200).json(new ApiResponse({
-//         success: true,
-//         message: "Users fetched successfully",
-//         data: {
-//             users,
-//             page,
-//             totalPages,
-//             totalUsers
-//         }
-//     }))
-
-// });
 const getTotalpatient = asyncHandler(async (req, res) => {
   try {
     const patientCount = await User.countDocuments({ role: "patient" });
@@ -478,132 +416,6 @@ const getTotalpatient = asyncHandler(async (req, res) => {
     throw new ApiError(400, "something went wrong", error.message);
   }
 });
-
-// const addProductToCategory = asyncHandler(async (req, res) => {
-//   const {
-//     name,
-//     price,
-//     description,
-//     kit,
-//     src,
-//     longDes,
-//     stock,
-//     userReview,
-//     discount,
-//     shortDes,
-//     highlights,
-//     benefits,
-//     ingredient,
-//     faq,
-//     benefitsMain,
-//     ingredientMain,
-//     productDisplay,
-//     category,
-//     subCategory,
-//     gst,
-//     expiryDate,
-//     batchNo,
-//     mfgName,
-//     filter,
-//     width,
-//     height,
-//     weight,
-
-//     metaTitle,
-//     metaDesc,
-//     metaSlug,
-//     metaCanonical,
-//   } = req.body;
-
-//   try {
-//     let isProductExist = await Product.findOne({ name: name });
-
-//     if (isProductExist) {
-//       throw new ApiError(404, "product already exist");
-//     }
-//     let newProduct = {
-//       name,
-//       price,
-//       description,
-//       kit: kit || [],
-//       src: src || [],
-//       longDes: longDes || "",
-//       stock: stock || "",
-//       userReview: userReview || [],
-//       discount: discount || "",
-//       shortDes,
-//       benefits,
-//       ingredient,
-//       highlights,
-//       benefitsMain,
-//       ingredientMain,
-//       faq, //userReview : []
-//       productDisplay,
-//       category,
-//       subCategory,
-//       gst,
-//       expiryDate,
-//       batchNo,
-//       mfgName,
-//       filter,
-//       width,
-//       height,
-//       weight,
-//       metaTitle,
-//       metaDesc,
-//       metaSlug,
-//       metaCanonical,
-//     };
-//     let productCreate = await Product.create(newProduct);
-
-//     let productData = {
-//       data: [
-//         {
-//           //   "Product_Category": "Software",
-//           //   "Qty_in_Demand": 1237.89,
-//           Description: productCreate?.description,
-//           //   "Commission_Rate": 1237.67,
-//           Product_Name: productCreate?.name,
-//           //   "Quantity_In_Stock": 12792,
-//           //   "Sales_Start_Date": "2018-01-25",
-//           Tax: ["Sales Tax"],
-//           //   "Support_Start_Date": "2018-01-25",
-//           Product_Active: true,
-//           //   "Usage_Unit": "Caton",
-//           Product_Code: productCreate?._id,
-//           //   "Qty_Ordered": 1237.89,
-//           //   "Manufacturer": "LexPon Inc.",
-//           //   "Qty_in_Stock": 1237.89,
-//           //   "Support_Expiry_Date": "2018-01-25",
-//           //   "Sales_End_Date": "2018-01-25",
-//           Unit_Price:
-//             parseFloat(productCreate?.price || 0) -
-//             parseFloat(productCreate?.price || 0) *
-//               (parseFloat(productCreate?.discount || 0) / 100),
-//           Taxable: true,
-//           //   "Reorder_Level": 1237.89
-//         },
-//       ],
-//     };
-//     try {
-//       let record = await zohoService.createRecord({
-//         module: "Products",
-//         reqData: productData,
-//       });
-//       let u = await Product.updateOne(
-//         { _id: element?._id },
-//         { zohoProductId: record?.data?.[0]?.details?.id?.toString() }
-//       );
-//       console.log("hjjjjj", u, record?.data?.[0]?.details?.id);
-//     } catch (error) {
-//       console.log("knmsnjdi", error);
-//     }
-//     res.status(201).json({ message: "Product added successfully." });
-//   } catch (error) {
-//     console.error("Error adding product:", error);
-//     res.status(400).json({ message: "Something went wrong" });
-//   }
-// });
 
 const addProductToCategory = asyncHandler(async (req, res) => {
   const {
@@ -757,129 +569,6 @@ const addProductToCategory = asyncHandler(async (req, res) => {
     );
   }
 });
-
-// const updateProductDetails = asyncHandler(async (req, res) => {
-//   const {
-//     _id,
-//     newName,
-//     newPrice,
-//     gst,
-//     newDescription,
-//     kit,
-//     src,
-//     longDes,
-//     stock,
-//     userReview,
-//     discount,
-//     ingredient,
-//     benefits,
-//     highlights,
-//     benefitsMain,
-//     ingredientMain,
-//     productDisplay,
-//     filter,
-//     batchNo,
-//     mfgName,
-//     weight,
-//     height,
-//     width,
-//     metaTitle,
-//     metaDesc,
-//     metaSlug,
-//     metaCanonical,
-//     slug,
-//   } = req.body;
-
-//   try {
-//     console.log(req.body);
-//     let product = await Product.findById(_id);
-//     console.log("product", product);
-//     if (!product) {
-//       throw new ApiError(404, "product not found");
-//     }
-//     if (newPrice !== undefined) {
-//       product.price = newPrice;
-//     }
-//     if (newDescription !== undefined) {
-//       product.description = newDescription;
-//     }
-//     if (newName !== undefined) {
-//       product.name = newName;
-//     }
-//     if (kit != undefined) {
-//       product.kit = kit;
-//     }
-//     if (src != undefined) {
-//       product.src = src;
-//     }
-//     if (longDes != undefined) {
-//       product.longDes = longDes;
-//     }
-//     if (stock != undefined) {
-//       product.stock = stock;
-//     }
-//     if (userReview != undefined) {
-//       product.userReview = userReview;
-//     }
-//     if (discount != undefined) {
-//       product.discount = discount;
-//     }
-
-//     if (ingredient) {
-//       product.ingredient = ingredient;
-//     }
-//     if (benefits) {
-//       product.benefits = benefits;
-//     }
-//     if (highlights) {
-//       product.highlights = highlights;
-//     }
-//     if (benefitsMain) {
-//       product.benefitsMain = benefitsMain;
-//     }
-//     if (ingredientMain) {
-//       product.ingredientMain = ingredientMain;
-//     }
-//     // if(productDisplay){
-//     product.productDisplay = productDisplay || false;
-//     // }
-//     if (filter) {
-//       product.filter = filter;
-//     }
-//     if (batchNo) {
-//       product.batchNo = batchNo;
-//     }
-//     if (mfgName) {
-//       product.mfgName = mfgName;
-//     }
-//     if (weight) {
-//       product.weight = weight;
-//     }
-//     if (height) {
-//       product.height = height;
-//     }
-//     if (width) {
-//       product.width = width;
-//     }
-//     if (metaSlug) product.metaSlug = metaSlug;
-//     if (slug) product.metaSlug = slug;
-//     if (metaTitle) product.metaTitle = metaTitle;
-//     if (metaDesc) product.metaDesc = metaDesc;
-//     if (metaCanonical) product.metaCanonical = metaCanonical;
-//     if (gst) product.gst = gst;
-
-//     await product.save();
-
-//     res
-//       .status(200)
-//       .json(
-//         new ApiResponse(200, product, "Product details updated successfully.")
-//       );
-//   } catch (error) {
-//     console.error("Error updating product details:", error);
-//     throw new ApiError(400, "Something went wrong", error.message);
-//   }
-// });
 
 const updateProductDetails = asyncHandler(async (req, res) => {
   const {
@@ -1227,126 +916,6 @@ const softDeleteTransaction = asyncHandler(async (req, res) => {
   }
 });
 
-//     try {
-//         const { sortOption, page = 1, limit = 10 } = req.query;
-
-//         let sortCriteria = {};
-
-//         if (sortOption === 'alphabetically') {
-//             sortCriteria = { 'fullname': 1 };
-//         } else if (sortOption === 'date') {
-//             sortCriteria = { 'createdAt': -1 };
-//         }
-
-//         const payments = await Payment.aggregate([
-//             {
-//                 $lookup: {
-//                     from: 'users',
-//                     localField: 'userId',
-//                     foreignField: '_id',
-//                     as: 'user'
-//                 }
-//             },
-//             {
-//                 $unwind: {
-//                     path: '$user',
-//                     preserveNullAndEmptyArrays: true
-//                 }
-//             },
-//             {
-//                 $addFields: {
-//                     fullname: '$user.fullname'
-//                 }
-//             },
-//             {
-//                 $sort: sortCriteria
-//             },
-//             {
-//                 $skip: (parseInt(page, 10) - 1) * parseInt(limit, 10)
-//             },
-//             {
-//                 $limit: parseInt(limit, 10)
-//             },
-//             {
-//                 $project: {
-//                     'user': 0
-//                 }
-//             }
-//         ]);
-
-//         const formattedPayments = formatTransactionData(payments);
-//         const totalCount = await Payment.countDocuments();
-
-//         const totalPages = Math.ceil(totalCount / parseInt(limit, 10));
-
-//         const response = {
-//             data: formattedPayments,
-//             pagination: {
-//                 totalRecords: totalCount,
-//                 totalPages,
-//                 currentPage: parseInt(page, 10),
-//                 nextPage: parseInt(page, 10) < totalPages ? parseInt(page, 10) + 1 : null,
-//                 prevPage: parseInt(page, 10) > 1 ? parseInt(page, 10) - 1 : null,
-//             },
-//         };
-
-//         res.status(200).json(new ApiResponse(200, response, "Transaction data fetched successfully"));
-
-//     } catch (error) {
-//         console.error("Error fetching transaction data:", error);
-//         throw new ApiError(400, "Failed to fetch transaction data", error.message);
-//     }
-// });
-
-// const transactionData = asyncHandler(async (req, res) => {
-//     try {
-//         // Extract query parameters
-//         const { sortOption, page = 1, limit = 10 } = req.query;
-
-//         // Define sort options
-//         let sortCriteria = {};
-//         if (sortOption === 'alphabetically') {
-//             sortCriteria = { 'fullname': 1 }; // Sort by fullname in ascending order
-//         } else if (sortOption === 'date') {
-//             sortCriteria = { 'createdAt': -1 }; // Sort by createdAt in descending order
-//         }
-
-//         // Define query for pagination
-//         const query = {};
-
-//         // Fetch transactions with pagination and sorting
-//         const { data, totalPages, currentPage, totalItems, itemsPerPage } = await paginate(
-//             Payment,
-//             query,
-//             parseInt(page, 10),
-//             parseInt(limit, 10),
-//             sortCriteria
-//         );
-
-//         // Format transactions
-//         const formattedPayments = formatTransactionData(data);
-
-//         // Prepare response
-//         const response = {
-//             data: formattedPayments,
-//             pagination: {
-//                 totalRecords: totalItems,
-//                 totalPages,
-//                 currentPage,
-//                 nextPage: currentPage < totalPages ? currentPage + 1 : null,
-//                 prevPage: currentPage > 1 ? currentPage - 1 : null,
-//             },
-//         };
-
-//         // Send response
-//         res.status(200).json(new ApiResponse(200, response, "Transaction data fetched successfully"));
-
-//     } catch (error) {
-//         console.error("Error fetching transaction data:", error);
-//         throw new ApiError(400, "Failed to fetch transaction data", error.message);
-//     }
-// });
-
 const getBookedAppointment = asyncHandler(async (req, res) => {
   try {
     const data = await Appointment.find({
@@ -1381,74 +950,6 @@ const getBookedAppointment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Unable to get Appointment", error.message);
   }
 });
-
-// const assignDoctorToAppointment = asyncHandler(async (req, res) => {
-//   try {
-//     const { appointmentId, doctorId } = req.body;
-
-//     // Fetch the appointment, doctor, user, and hair test details
-//     const appointment = await Appointment.findById(appointmentId);
-//     if (!appointment) {
-//       throw new ApiError(404, "Appointment not found");
-//     }
-
-//     const doctor = await User.findById(doctorId);
-//     if (!doctor) {
-//       throw new ApiError(404, "Doctor not found");
-//     }
-
-//     const user = await User.findById(appointment.userId);
-//     if (!user) {
-//       throw new ApiError(404, "User not found");
-//     }
-
-//     const hairTest = await HairTest.findById(appointment.hairTestId);
-//     if (!hairTest) {
-//       throw new ApiError(404, "Hair Test not found");
-//     }
-
-//     console.log("Appoinmenmt", appointment);
-//     // Prepare WhatsApp notification payload
-//     const whatsappPayload = {
-//       attr: null,
-//       name: doctor.fullname,
-//       phone: doctor.mobile?.toString(),
-//       campName: "doctor_message_Utility",
-//       // media: {
-//       //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725596233/hair-assessment/bhwlkkh2ul9dig5hnelp.png",
-//       //   filename: "file",
-//       // },
-//     };
-
-//     // Send WhatsApp notification
-//     const notificationStatus = await WhatsappTextTemplate(whatsappPayload);
-
-//     // Check notification status
-//     if (!notificationStatus || !notificationStatus.success) {
-//       throw new ApiError(400, "WhatsApp notification not confirmed");
-//     }
-
-//     // Update the appointment after successful notification
-//     const updatedAppointment = await Appointment.findByIdAndUpdate(
-//       appointmentId,
-//       { doctorId: doctorId, status: "assigned" },
-//       { new: true }
-//     );
-
-//     return res
-//       .status(200)
-//       .json(
-//         new ApiResponse(
-//           200,
-//           updatedAppointment,
-//           "Appointment assigned successfully"
-//         )
-//       );
-//   } catch (error) {
-//     console.error("Error assigning appointment:", error.message);
-//     throw new ApiError(400, error.message, error.message);
-//   }
-// });
 
 const getOrders = asyncHandler(async (req, res) => {
   try {
@@ -2285,6 +1786,7 @@ const getMonthlyHairTestData = asyncHandler(async (req, res) => {
 const getpatientData = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.body;
+    console.log("[DEBUG] Getting patient data for userId:", userId);
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       throw new ApiError(400, "Invalid or missing userId");
@@ -2292,9 +1794,10 @@ const getpatientData = asyncHandler(async (req, res) => {
 
     const orders = await orderModel
       .find({ userId })
-      .select("status createdAt totalAmount name products mode")
+      .select("status createdAt totalAmount name products mode orderType")
       .populate("products.item", "name price")
       .lean();
+    console.log("[DEBUG] Found orders:", orders.length);
 
     const trimmedOrders = orders.map((order) => ({
       ...order,
@@ -2316,9 +1819,11 @@ const getpatientData = asyncHandler(async (req, res) => {
         select: "fullname email mobile speciality",
       })
       .lean();
+    console.log("[DEBUG] Found appointments:", appointments.length);
 
     // Fetch prescriptions for userId without populate
     const prescriptions = await Prescription.find({ userId }).lean();
+    console.log("[DEBUG] Found prescriptions:", prescriptions.length);
 
     // Get all unique appointment IDs from prescriptions
     const appointmentIds = [
@@ -2384,12 +1889,33 @@ const getpatientData = asyncHandler(async (req, res) => {
       };
     });
 
-    const loginHistory = await LoginModel.find({ userId })
+    // Fix: Use LoginHistory model instead of LoginModel
+    console.log("[DEBUG] Querying login history with userId:", userId);
+    const loginHistory = await LoginHistory.find({})
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
+    console.log(
+      "[DEBUG] All login history entries:",
+      loginHistory.map((entry) => ({
+        entryId: entry._id,
+        userId: entry.userId,
+        status: entry.status,
+        loginTime: entry.loginTime,
+      }))
+    );
+
+    // Filter login history for the specific user
+    const userLoginHistory = loginHistory.filter(
+      (entry) => entry.userId && entry.userId.toString() === userId
+    );
+    console.log(
+      "[DEBUG] Filtered login history for user:",
+      userLoginHistory.length
+    );
 
     const hairTests = await HairTest.find({ userId }).lean();
+    console.log("[DEBUG] Found hair tests:", hairTests.length);
 
     return res.status(200).json(
       new ApiResponse(
@@ -2398,14 +1924,14 @@ const getpatientData = asyncHandler(async (req, res) => {
           orders: trimmedOrders,
           prescriptions: enrichedPrescriptions,
           appointments,
-          loginHistory,
+          loginHistory: userLoginHistory,
           hairTests,
         },
         "Patient data fetched successfully"
       )
     );
   } catch (error) {
-    console.error("getpatientData error:", error);
+    console.error("[ERROR] getpatientData error:", error);
     throw new ApiError(500, "Internal Server Error");
   }
 });
@@ -2871,6 +2397,43 @@ const deleteContactquery = asyncHandler(async (req, res) => {
   }
 });
 
+const sendReport = asyncHandler(async (req, res) => {
+  try {
+    const { hairTestId } = req.query;
+
+    if (!hairTestId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "hairTestId is required" });
+    }
+
+    const appointment = await Appointment.findOne({ hairTestId });
+
+    if (!appointment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
+    appointment.isReportSent = true;
+    await appointment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Report sent successfully",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error sending report:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2931,4 +2494,5 @@ module.exports = {
   deleteAdmin,
   getMyProfile,
   deleteContactquery,
+  sendReport,
 };
