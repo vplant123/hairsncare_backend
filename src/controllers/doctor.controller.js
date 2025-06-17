@@ -446,30 +446,17 @@ const getPrescription = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;
 
-    // Fetch the prescription for the given appointmentId
-    let prescription = await Prescription.findOne({
-      appointmentId: appointmentId,
-    });
-
-    if (prescription) {
-      // If prescription found, return success response
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            prescription,
-            "Prescription detail fetched successfully"
-          )
-        );
-    }
-
     // If no prescription found, try fetching the follow-up appointment
     const appointment = await Appointment.findById(appointmentId);
     console.log("appointment", appointment);
 
-    if (appointment) {
+    if (!appointment.hairTestId) {
       const MyhairTestId = appointment?.followupOf;
+      const prevAppointment = await Appointment.findOne({
+        hairTestId: MyhairTestId,
+      });
+    } else {
+      const MyhairTestId = appointment?.hairTestId;
       const prevAppointment = await Appointment.findOne({
         hairTestId: MyhairTestId,
       });
@@ -483,6 +470,19 @@ const getPrescription = asyncHandler(async (req, res) => {
         });
 
         console.log("prescription", prescription);
+
+        if (prescription) {
+          // If prescription found, return success response
+          return res
+            .status(200)
+            .json(
+              new ApiResponse(
+                200,
+                prescription,
+                "Prescription detail fetched successfully"
+              )
+            );
+        }
 
         if (prescription) {
           return res
@@ -572,6 +572,54 @@ const ActiveDoctors = asyncHandler(async (req, res) => {
   }
 });
 
+const orderPrescription = asyncHandler(async (req, res) => {
+  try {
+    const { appointmentId } = req.query;
+
+    if (!appointmentId) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "appointmentId is required"));
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    console.log("appointment", appointment);
+
+    if (appointment) {
+      const prescription = await Prescription.findOne({
+        appointmentId: appointmentId,
+      });
+
+      if (prescription) {
+        return res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              prescription,
+              "Prescription detail fetched successfully"
+            )
+          );
+      }
+    }
+
+    // If prescription is still not found, send an error response
+    return res
+      .status(404)
+      .json(new ApiError(404, "Prescription not found for this user"));
+  } catch (error) {
+    console.error("Error fetching prescription:", error);
+    return res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "Something went wrong while getting prescription details"
+        )
+      );
+  }
+});
+
 module.exports = {
   acceptAppointment,
 
@@ -589,4 +637,5 @@ module.exports = {
   getAllPrescription,
 
   ActiveDoctors,
+  orderPrescription,
 };

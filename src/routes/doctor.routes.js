@@ -15,6 +15,7 @@ const {
   updatePrescription,
   getAllPrescription,
   ActiveDoctors,
+  orderPrescription,
 } = require("../controllers/doctor.controller.js");
 
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -33,6 +34,7 @@ router.post("/prescription-detail-form", prescriptionDetailForm);
 router.post("/update-prescription", updatePrescription);
 
 router.get("/getPrescription", getPrescription);
+router.get("/orderPrescription", orderPrescription);
 router.get("/getAllPrescription", getAllPrescription);
 
 // router.get("/doctors", ActiveDoctors);

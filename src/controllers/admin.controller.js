@@ -2406,7 +2406,7 @@ const sendReport = asyncHandler(async (req, res) => {
         .status(400)
         .json({ success: false, message: "hairTestId is required" });
     }
-
+    console.log(hairTestId);
     const appointment = await Appointment.findOne({ hairTestId });
 
     if (!appointment) {
@@ -2417,7 +2417,7 @@ const sendReport = asyncHandler(async (req, res) => {
 
     appointment.isReportSent = true;
     await appointment.save();
-
+    console.log(appointment);
     return res.status(200).json({
       success: true,
       message: "Report sent successfully",
@@ -2432,7 +2432,6 @@ const sendReport = asyncHandler(async (req, res) => {
     });
   }
 });
-
 
 module.exports = {
   createDoctor,
