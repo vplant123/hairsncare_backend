@@ -28,6 +28,6 @@ router.post(
   createHairTestForUserStepWise
 );
 
-// router.post("/update-progress", updateAllHairTestProgress);
+router.post("/update-progress", updateAllHairTestProgress);
 
 module.exports = router;

@@ -27,11 +27,11 @@ if (isProd) {
 }
 
 const connectDB = async () => {
-  const dbUri =
-    process.env.MONGODB_URI ||
-    "mongodb://develop:911Admin007@147.79.68.31:27017/myappdb?authSource=myappdb";
+  // const dbUri =
+  //   process.env.MONGODB_URI ||
+  //   "mongodb://develop:911Admin007@147.79.68.31:27017/myappdb?authSource=myappdb";
 
-  // const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
+  const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
 
   // Retry connection for a few attempts if it fails
   const connectWithRetry = async () => {

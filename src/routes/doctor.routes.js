@@ -37,7 +37,7 @@ router.get("/getPrescription", getPrescription);
 router.get("/orderPrescription", orderPrescription);
 router.get("/getAllPrescription", getAllPrescription);
 
-// router.get("/doctors", ActiveDoctors);
+router.get("/doctors", ActiveDoctors);
 
 // router.post("/getPrescription-pdf", getPrescriptionPdf)
 

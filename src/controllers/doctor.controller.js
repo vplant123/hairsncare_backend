@@ -516,38 +516,58 @@ const getPrescription = asyncHandler(async (req, res) => {
 const getAllPrescription = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.query;
-    console.log("njksnnfiwe", userId);
-    const prescription = await Prescription.find({ userId: userId })?.sort({
-      createdAt: -1,
-    });
+    console.log("Fetching prescriptions for userId:", userId);
 
-    if (!prescription || prescription?.length < 1) {
+    // Fetch prescriptions for the user
+    const prescriptions = await Prescription.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!prescriptions || prescriptions.length === 0) {
       return res.status(404).send("Prescription not found for this user");
     }
-    let result = [];
 
-    for (let index = 0; index < prescription.length; index++) {
-      const element = prescription[index];
-      const appointment = await Appointment.findOne({
-        _id: element.appointmentId,
-      });
-      result.push({ ...element, appointmentData: appointment });
-    }
+    // Extract all appointmentIds from prescriptions for a bulk query
+    const appointmentIds = prescriptions.map(
+      (prescription) => prescription.appointmentId
+    );
 
-    console.log("jsiejfiojes", result);
+    // Fetch all relevant appointments in a single query
+    const appointments = await Appointment.find({
+      _id: { $in: appointmentIds },
+      isReportSent: true,
+    }).lean();
+
+    // Map appointments to prescriptions
+    const result = prescriptions.map((prescription) => {
+      // Find corresponding appointment for each prescription
+      const appointmentData = appointments.find(
+        (appointment) =>
+          appointment._id.toString() === prescription.appointmentId.toString()
+      );
+      return { ...prescription, appointmentData: appointmentData || null };
+    });
+
+    console.log("Prescription data with appointments:", result);
 
     return res
       .status(200)
       .json(
-        new ApiResponse(200, result, "Prescription detail fetched successfully")
+        new ApiResponse(
+          200,
+          result,
+          "Prescription details fetched successfully"
+        )
       );
   } catch (error) {
+    console.error("Error fetching prescriptions:", error);
     return res
       .status(400)
       .json(
         new ApiError(
           400,
-          "Something went wrong while getting prescription details"
+          "Something went wrong while getting prescription details",
+          error.message
         )
       );
   }

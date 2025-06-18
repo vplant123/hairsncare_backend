@@ -53,7 +53,7 @@ const getHairTest = asyncHandler(async (req, res) => {
             orderType: "Appointment",
             status: "paid",
           })
-            .select("amount planId")
+            .select("amount")
             .lean();
 
           let appointments = await Appointment.find({
@@ -61,23 +61,57 @@ const getHairTest = asyncHandler(async (req, res) => {
             hairTestId: test._id,
           }).populate("doctorId", "fullname");
 
-          if (appointments?.length > 0 && order?.planId) {
-            const plan = await Plan.findById(order.planId).lean();
+          if (appointments?.length > 0) {
+            if (order) {
+              const planId = appointments[0]?.planId;
+              if (planId) {
+                const plan = await Plan.findById(planId).lean();
 
-            if (plan?.name) {
-              const newMethod =
-                plan.name === "Local Plan"
-                  ? "Audio Call"
-                  : plan.name === "Premium Plan"
-                  ? "Video Call"
-                  : "Other";
+                if (plan?.name) {
+                  const newMethod =
+                    plan.name === "Local Plan"
+                      ? "Audio Call"
+                      : plan.name === "Premium Plan"
+                      ? "Video Call"
+                      : "Other";
 
-              for (let appt of appointments) {
-                if (appt.Method !== newMethod) {
-                  appt.Method = newMethod;
-                  await appt.save();
+                  // Update appointments' Method in bulk
+                  const appointmentUpdates = appointments.map((appt) => {
+                    if (appt.Method !== newMethod) {
+                      appt.Method = newMethod;
+                    }
+                    return appt;
+                  });
+
+                  // Use bulk operation to update appointments
+                  await Appointment.bulkWrite(
+                    appointmentUpdates.map((appt) => ({
+                      updateOne: {
+                        filter: { _id: appt._id },
+                        update: { $set: { Method: appt.Method } },
+                      },
+                    }))
+                  );
                 }
               }
+            } else {
+              // If order is null, set all appointments' Method to "Other"
+              const appointmentUpdates = appointments.map((appt) => {
+                if (appt.Method !== "Other") {
+                  appt.Method = "Other";
+                }
+                return appt;
+              });
+
+              // Use bulk operation to update appointments
+              await Appointment.bulkWrite(
+                appointmentUpdates.map((appt) => ({
+                  updateOne: {
+                    filter: { _id: appt._id },
+                    update: { $set: { Method: appt.Method } },
+                  },
+                }))
+              );
             }
           }
 
@@ -89,6 +123,7 @@ const getHairTest = asyncHandler(async (req, res) => {
             appointments: appointmentsData || [],
           };
         } catch (innerError) {
+          console.error(innerError); // Log detailed error for debugging
           return {
             ...test,
             orders: null,
