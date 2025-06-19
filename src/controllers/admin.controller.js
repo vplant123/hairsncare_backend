@@ -32,9 +32,11 @@ const Config = require("../models/config.model.js");
 const BlogPageModel = require("../models/BlogPage.model.js");
 const xml2js = require("xml2js");
 
-const LoginModel = require("../models/loginHistory.model.js");
 const FollowUpModel = require("../models/followUpAppointments.model.js");
 const LoginHistory = require("../models/loginHistory.model.js");
+const cartModel = require("../models/Cart.model.js");
+const paymentModel = require("../models/payment.model.js");
+const addressModel = require("../models/userAddresses.model.js");
 
 const addAdmin = asyncHandler(async (req, res) => {
   try {
@@ -2509,50 +2511,37 @@ const sendOrderPrescription = asyncHandler(async (req, res) => {
   }
 });
 
-//deletequery database clear
-// const deleteQuery = asyncHandler(async (req, res) => {
-//   const session = await mongoose.startSession(); // Start a transaction
-//   session.startTransaction();
-//   try {
-//     // Find all patients
-//     const users = await User.find({ role: "patient" });
+const deleteQuery = asyncHandler(async (req, res) => {
+  try {
+    // Find all patients
+    const users = await User.find({ role: "patient" });
 
-//     // Collect user IDs for bulk deletion
-//     const userIds = users.map((user) => user._id);
+    // Collect user IDs for bulk deletion
+    const userIds = users.map((user) => user._id);
 
-//     // Perform all deletions in bulk within a transaction
-//     await Promise.all([
-//       User.deleteMany({ _id: { $in: userIds } }, { session }),
-//       LoginHistory.deleteMany({ userId: { $in: userIds } }, { session }),
-//       Appointment.deleteMany({ userId: { $in: userIds } }, { session }),
-//       Prescription.deleteMany({ userId: { $in: userIds } }, { session }),
-//       orderModel.deleteMany({ userId: { $in: userIds } }, { session }),
-//       HairTest.deleteMany({ userId: { $in: userIds } }, { session }),
-//       CouponsMappingModel.deleteMany({ userId: { $in: userIds } }, { session }),
-//       // Uncomment if needed
-//       // cartModel.deleteMany({ userId: { $in: userIds } }, { session }),
-//       // paymentModel.deleteMany({ userId: { $in: userIds } }, { session }),
-//       // addressModel.deleteMany({ userId: { $in: userIds } }, { session }),
-//       // userotp.deleteMany({ userId: { $in: userIds } }, { session })
-//     ]);
+    // Perform all deletions without transactions
+    await Promise.all([
+      User.deleteMany({ _id: { $in: userIds } }),
+      LoginHistory.deleteMany({ userId: { $in: userIds } }),
+      Appointment.deleteMany({ userId: { $in: userIds } }),
+      Prescription.deleteMany({ userId: { $in: userIds } }),
+      orderModel.deleteMany({ userId: { $in: userIds } }),
+      HairTest.deleteMany({ userId: { $in: userIds } }),
+      CouponsMappingModel.deleteMany({ userId: { $in: userIds } }),
+      cartModel.deleteMany({ userId: { $in: userIds } }),
+      paymentModel.deleteMany({ userId: { $in: userIds } }),
+      addressModel.deleteMany({ userId: { $in: userIds } }),
+    ]);
 
-//     // Commit the transaction
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Query deleted successfully",
-//     });
-//   } catch (error) {
-//     // Rollback transaction if there's an error
-//     await session.abortTransaction();
-//     session.endSession();
-
-//     console.error("Error deleting query:", error);
-//     throw new ApiError(400, "Something went wrong", error.message);
-//   }
-// });
+    return res.status(200).json({
+      success: true,
+      message: "Query deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting query:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
 
 module.exports = {
   createDoctor,
@@ -2618,5 +2607,5 @@ module.exports = {
   sendReport,
   sendPrescription,
   sendOrderPrescription,
-  // deleteQuery,
+  deleteQuery,
 };
