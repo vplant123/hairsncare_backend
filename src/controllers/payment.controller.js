@@ -19,6 +19,9 @@ const zohoService = require("../services/zoho.service.js");
 const Config = require("../models/config.model.js");
 const Invoices = require("../models/invoice.model.js");
 const Product = require("../models/products.models.js");
+const Appointment = require("../models/Appointment.model.js");
+const Plan = require("../models/plan.model.js");
+const HairTest = require("../models/hairTest.model.js");
 
 const instance = new Razorpay({
   key_id: "rzp_test_IVOsFC0Bobcxcv",
@@ -814,6 +817,182 @@ const shipOrder = asyncHandler(async (req, res) => {
   }
 });
 
+const updateOrder = asyncHandler(async (req, res) => {
+  try {
+    const { userId, hairTestId, paymentMode, planType, paymentStatus, amount } =
+      req.body;
+
+    console.log("[DEBUG] Update Order Request:", {
+      userId,
+      hairTestId,
+      paymentMode,
+      planType,
+      paymentStatus,
+      amount,
+    });
+
+    // Validate required fields
+    if (
+      !userId ||
+      !hairTestId ||
+      !paymentMode ||
+      !planType ||
+      !paymentStatus ||
+      !amount
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "All fields are required: userId, hairTestId, paymentMode, planType, paymentStatus, amount",
+      });
+    }
+
+    // Find appointment using hairTestId
+    const appointment = await Appointment.findOne({ hairTestId });
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found for the given hairTestId",
+      });
+    }
+
+    console.log("[DEBUG] Found appointment:", {
+      appointmentId: appointment._id,
+      orderId: appointment.orderId,
+    });
+
+    // Find plan using planType
+    const plan = await Plan.findOne({
+      name: { $regex: new RegExp(planType, "i") },
+    });
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: `Plan not found for planType: ${planType}`,
+      });
+    }
+
+    console.log("[DEBUG] Found plan:", {
+      planId: plan._id,
+      planName: plan.name,
+      planPrice: plan.price,
+    });
+
+    // Find order using appointment's orderId
+    let order = null;
+    if (appointment.orderId) {
+      order = await Order.findOne({
+        _id: appointment.orderId,
+        orderType: "Appointment"
+      });
+    }
+
+    if (!order) {
+      // Create new order if it doesn't exist
+      order = new Order({
+        userId,
+        planId: plan._id,
+        amount: amount,
+        status: paymentStatus,
+        orderType: "Appointment",
+        mode: paymentMode,
+      });
+      console.log("[DEBUG] Creating new order");
+    } else {
+      // Update existing order
+      order.status = paymentStatus;
+      order.amount = amount;
+      order.mode = paymentMode;
+      order.planId = plan._id;
+      console.log("[DEBUG] Updating existing order");
+    }
+
+    await order.save();
+    console.log("[DEBUG] Order saved:", {
+      orderId: order._id,
+      status: order.status,
+      amount: order.amount,
+      mode: order.mode,
+      planId: order.planId,
+    });
+
+    // Update appointment with orderId and planId
+    appointment.orderId = order._id;
+    appointment.planId = plan._id;
+    appointment.amount = amount;
+    appointment.status = "booked";
+
+    // Set Method based on plan
+    if (plan.name === "Local Plan") {
+      appointment.Method = "Audio Call";
+    } else if (plan.name === "Premium Plan") {
+      appointment.Method = "Video Call";
+    } else {
+      appointment.Method = "Other";
+    }
+
+    await appointment.save();
+    console.log("[DEBUG] Appointment updated:", {
+      appointmentId: appointment._id,
+      orderId: appointment.orderId,
+      planId: appointment.planId,
+      amount: appointment.amount,
+      paymentStatus: appointment.paymentStatus,
+      Method: appointment.Method,
+    });
+
+    // Update progress in HairTest
+    if (hairTestId) {
+      const hairTest = await HairTest.findById(hairTestId);
+      if (hairTest) {
+        // Set progress to 100 when order is completed
+        hairTest.progress = 100;
+        hairTest.status = "completed";
+        await hairTest.save();
+        console.log("[DEBUG] HairTest progress updated:", {
+          hairTestId: hairTest._id,
+          progress: hairTest.progress,
+          status: hairTest.status,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order and appointment updated successfully",
+      data: {
+        order: {
+          id: order._id,
+          status: order.status,
+          amount: order.amount,
+          mode: order.mode,
+          planId: order.planId,
+        },
+        appointment: {
+          id: appointment._id,
+          orderId: appointment.orderId,
+          planId: appointment.planId,
+          amount: appointment.amount,
+          paymentStatus: appointment.paymentStatus,
+          Method: appointment.Method,
+        },
+        hairTest: hairTestId ? {
+          id: hairTestId,
+          progress: 100,
+          status: "completed",
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error("[ERROR] Update Order Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   placeOrder,
   generatePaymentLink,
@@ -821,4 +1000,6 @@ module.exports = {
   updatePaymentOrder,
   changeOrderStatus,
   shipOrder,
+
+  updateOrder,
 };

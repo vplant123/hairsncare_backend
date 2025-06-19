@@ -61,6 +61,9 @@ const {
   getMyProfile,
   deleteContactquery,
   sendReport,
+  sendPrescription,
+  sendOrderPrescription,
+  // deleteQuery,
 } = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -164,7 +167,13 @@ router.post("/order-details", verifyJwt, getOrderById);
 router.post("/delete-admin", verifyJwt, deleteAdmin);
 router.get("/my-profile", verifyJwt, getMyProfile);
 router.delete("/deleteContact", verifyJwt, deleteContactquery);
+
 router.post("/send-report", verifyJwt, sendReport);
+router.post("/send-prescription", verifyJwt, sendPrescription);
+
+router.post("/send-order-prescription", verifyJwt, sendOrderPrescription);
+// router.delete("/delete-query", verifyJwt, deleteQuery);
+
 // router.get("/doctors", alldoctors);
 
 module.exports = router;

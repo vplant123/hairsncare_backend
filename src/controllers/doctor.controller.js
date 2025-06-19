@@ -34,7 +34,6 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
     let appointments = await Appointment.find({
       doctorId: doctorObjectId,
       isDeleted: false,
-      status: { $in: ["assigned", "completed", "pending"] },
     })
       .populate("userId", "fullname email mobile registration_method")
       .sort({ createdAt: -1 })
@@ -55,7 +54,6 @@ const getAssignedAppointmentsForDoctor = asyncHandler(async (req, res) => {
           }
         }
 
-        // Identify the first appointment using hairTestId
         let firstAppointment = null;
         if (appointment.hairTestId || appointment.followupOf) {
           firstAppointment = await Appointment.findOne({
@@ -351,6 +349,7 @@ const prescriptionDetailForm = asyncHandler(async (req, res) => {
     }
     appointment.followUpDate = followUpDate;
     appointment.status = "completed";
+    appointment.isReportSent = false;
     await appointment.save();
 
     return res.status(201).json({
@@ -527,7 +526,7 @@ const getAllPrescription = asyncHandler(async (req, res) => {
       return res.status(404).send("Prescription not found for this user");
     }
 
-    // Extract all appointmentIds from prescriptions for a bulk query
+   
     const appointmentIds = prescriptions.map(
       (prescription) => prescription.appointmentId
     );

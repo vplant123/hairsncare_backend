@@ -2433,6 +2433,127 @@ const sendReport = asyncHandler(async (req, res) => {
   }
 });
 
+const sendPrescription = asyncHandler(async (req, res) => {
+  try {
+    const { appointmentId } = req.query;
+
+    if (!appointmentId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "appointmentId is required" });
+    }
+    console.log(appointmentId);
+    const appointment = await Appointment.findById(appointmentId);
+
+    if (!appointment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
+    appointment.isReportSent = true;
+    await appointment.save();
+    console.log(appointment);
+    return res.status(200).json({
+      success: true,
+      message: "prescription sent successfully",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error sending report:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+const sendOrderPrescription = asyncHandler(async (req, res) => {
+  try {
+    const { orderId } = req.query;
+
+    if (!orderId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "orderId is required" });
+    }
+
+    const appointment = await Appointment.findOne({
+      orderId: orderId,
+      appointmentType: "prescription_only",
+    });
+    console.log(appointment);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found for the given orderId",
+      });
+    }
+
+    appointment.isReportSent = true;
+    await appointment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order prescription sent successfully",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error sending order prescription:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+//deletequery database clear
+// const deleteQuery = asyncHandler(async (req, res) => {
+//   const session = await mongoose.startSession(); // Start a transaction
+//   session.startTransaction();
+//   try {
+//     // Find all patients
+//     const users = await User.find({ role: "patient" });
+
+//     // Collect user IDs for bulk deletion
+//     const userIds = users.map((user) => user._id);
+
+//     // Perform all deletions in bulk within a transaction
+//     await Promise.all([
+//       User.deleteMany({ _id: { $in: userIds } }, { session }),
+//       LoginHistory.deleteMany({ userId: { $in: userIds } }, { session }),
+//       Appointment.deleteMany({ userId: { $in: userIds } }, { session }),
+//       Prescription.deleteMany({ userId: { $in: userIds } }, { session }),
+//       orderModel.deleteMany({ userId: { $in: userIds } }, { session }),
+//       HairTest.deleteMany({ userId: { $in: userIds } }, { session }),
+//       CouponsMappingModel.deleteMany({ userId: { $in: userIds } }, { session }),
+//       // Uncomment if needed
+//       // cartModel.deleteMany({ userId: { $in: userIds } }, { session }),
+//       // paymentModel.deleteMany({ userId: { $in: userIds } }, { session }),
+//       // addressModel.deleteMany({ userId: { $in: userIds } }, { session }),
+//       // userotp.deleteMany({ userId: { $in: userIds } }, { session })
+//     ]);
+
+//     // Commit the transaction
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Query deleted successfully",
+//     });
+//   } catch (error) {
+//     // Rollback transaction if there's an error
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     console.error("Error deleting query:", error);
+//     throw new ApiError(400, "Something went wrong", error.message);
+//   }
+// });
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2493,5 +2614,9 @@ module.exports = {
   deleteAdmin,
   getMyProfile,
   deleteContactquery,
+
   sendReport,
+  sendPrescription,
+  sendOrderPrescription,
+  // deleteQuery,
 };
