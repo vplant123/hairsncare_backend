@@ -203,6 +203,24 @@ const getDoctor = asyncHandler(async (req, res) => {
 const deleteDoctor = asyncHandler(async (req, res) => {
   try {
     const { id } = req.body;
+
+    // Find the doctor by ID
+    const doctor = await Doctors.findById(id);
+    if (!doctor) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Doctor not found"));
+    }
+
+    // Delete the user associated with this doctor
+    const deletedUser = await User.findOneAndDelete({ _id: doctor.userId });
+    if (!deletedUser) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "User not found or already deleted"));
+    }
+
+    // Delete the doctor record
     const result = await Doctors.findByIdAndDelete(id);
 
     if (!result) {
@@ -211,10 +229,12 @@ const deleteDoctor = asyncHandler(async (req, res) => {
         .json(new ApiResponse(404, null, "Doctor not found"));
     }
 
+    // Return success response
     return res
       .status(200)
       .json(new ApiResponse(200, result, "Doctor deleted successfully"));
   } catch (error) {
+    console.error("Error deleting doctor:", error);
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
@@ -2516,26 +2536,29 @@ const deleteQuery = asyncHandler(async (req, res) => {
     // Find all patients
     const users = await User.find({ role: "patient" });
 
-    // Collect user IDs for bulk deletion
+    // Collect patient user IDs for deletion
     const userIds = users.map((user) => user._id);
 
-    // Perform all deletions without transactions
+    // Delete only patient data from the User collection
+    await User.deleteMany({ _id: { $in: userIds } });
+
+    // Empty all other collections (delete all records)
     await Promise.all([
-      User.deleteMany({ _id: { $in: userIds } }),
-      LoginHistory.deleteMany({ userId: { $in: userIds } }),
-      Appointment.deleteMany({ userId: { $in: userIds } }),
-      Prescription.deleteMany({ userId: { $in: userIds } }),
-      orderModel.deleteMany({ userId: { $in: userIds } }),
-      HairTest.deleteMany({ userId: { $in: userIds } }),
-      CouponsMappingModel.deleteMany({ userId: { $in: userIds } }),
-      cartModel.deleteMany({ userId: { $in: userIds } }),
-      paymentModel.deleteMany({ userId: { $in: userIds } }),
-      addressModel.deleteMany({ userId: { $in: userIds } }),
+      LoginHistory.deleteMany({}),
+      Appointment.deleteMany({}),
+      Prescription.deleteMany({}),
+      orderModel.deleteMany({}),
+      HairTest.deleteMany({}),
+      CouponsMappingModel.deleteMany({}),
+      cartModel.deleteMany({}),
+      paymentModel.deleteMany({}),
+      addressModel.deleteMany({}),
     ]);
 
     return res.status(200).json({
       success: true,
-      message: "Query deleted successfully",
+      message:
+        "Patient data deleted and all other collections emptied successfully.",
     });
   } catch (error) {
     console.error("Error deleting query:", error);
