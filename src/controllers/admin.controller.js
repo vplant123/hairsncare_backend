@@ -2566,6 +2566,23 @@ const deleteQuery = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteHairTests = asyncHandler(async (req, res) => {
+  try {
+    //elete only those HairTest records that do NOT have the 'createdAt' field
+    const result = await HairTest.deleteMany({
+      createdAt: { $exists: false },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} HairTest records deleted successfully.`,
+    });
+  } catch (error) {
+    console.error("Error deleting HairTest records:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2631,4 +2648,5 @@ module.exports = {
   sendPrescription,
   sendOrderPrescription,
   deleteQuery,
+  deleteHairTests,
 };

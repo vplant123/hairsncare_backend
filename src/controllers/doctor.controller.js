@@ -445,70 +445,80 @@ const getPrescription = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;
 
-    // If no prescription found, try fetching the follow-up appointment
+    // Fetch the current appointment by ID
     const appointment = await Appointment.findById(appointmentId);
-    console.log("appointment", appointment);
-
-    if (!appointment.hairTestId) {
-      const MyhairTestId = appointment?.followupOf;
-      const prevAppointment = await Appointment.findOne({
-        hairTestId: MyhairTestId,
-      });
-    } else {
-      const MyhairTestId = appointment?.hairTestId;
-      const prevAppointment = await Appointment.findOne({
-        hairTestId: MyhairTestId,
-      });
-
-      console.log("prevAppointment", prevAppointment);
-
-      if (prevAppointment) {
-        // Fetch the prescription for the previous appointment
-        prescription = await Prescription.findOne({
-          appointmentId: prevAppointment.id, // Use findOne() to get a single document
-        });
-
-        console.log("prescription", prescription);
-
-        if (prescription) {
-          // If prescription found, return success response
-          return res
-            .status(200)
-            .json(
-              new ApiResponse(
-                200,
-                prescription,
-                "Prescription detail fetched successfully"
-              )
-            );
-        }
-
-        if (prescription) {
-          return res
-            .status(200)
-            .json(
-              new ApiResponse(
-                200,
-                prescription,
-                "Prescription detail fetched successfully"
-              )
-            );
-        }
-      }
+    if (!appointment) {
+      return res.status(404).send("Appointment not found");
     }
 
-    // If prescription is still not found, send an error response
+    let prevAppointment = null;
+    let prescription = null;
+
+    // Check for follow-up appointment
+    if (appointment.hairTestId == null && appointment.followupOf != null) {
+      prevAppointment = await Appointment.findOne({
+        hairTestId: appointment.followupOf,
+      });
+
+      if (prevAppointment) {
+        prescription = await Prescription.findOne({
+          appointmentId: prevAppointment.id,
+        });
+      }
+
+      if (prescription) {
+        let newPrescription = await Prescription.findOne({
+          appointmentId,
+        });
+
+        if (newPrescription) {
+          if (prescription.test6 && newPrescription.test6) {
+            await Prescription.findOneAndUpdate(
+              { appointmentId: appointmentId }, // Use the appointmentId or other unique identifier
+              {
+                $set: {
+                  // Update the fields you want to update
+                  "personal.name": prescription.personal.name,
+                  "personal.phone": prescription.personal.phone,
+                  "personal.email": prescription.personal.email,
+                  "personal.addressId": prescription.personal.addressId,
+                },
+              }
+            );
+            prescription.test6.medicines = [...newPrescription.test6.medicines];
+          }
+
+          console.log(
+            "Prescription updated with new test6 data:",
+            newPrescription.test6
+          );
+        }
+      }
+    } else {
+      prescription = await Prescription.findOne({
+        appointmentId: appointmentId,
+      });
+    }
+
+    console.log("prescription", prescription);
+    if (prescription) {
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            prescription,
+            "Prescription fetched successfully"
+          )
+        );
+    }
+
     return res.status(404).send("Prescription not found for this user");
   } catch (error) {
-    // Catch any errors and return the error response
+    console.error("Error fetching prescription:", error);
     return res
       .status(400)
-      .json(
-        new ApiError(
-          400,
-          "Something went wrong while getting prescription details"
-        )
-      );
+      .json(new ApiError(400, "Error fetching prescription details"));
   }
 });
 
@@ -526,7 +536,6 @@ const getAllPrescription = asyncHandler(async (req, res) => {
       return res.status(404).send("Prescription not found for this user");
     }
 
-   
     const appointmentIds = prescriptions.map(
       (prescription) => prescription.appointmentId
     );
