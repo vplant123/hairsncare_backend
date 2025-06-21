@@ -883,7 +883,7 @@ const updateOrder = asyncHandler(async (req, res) => {
     if (appointment.orderId) {
       order = await Order.findOne({
         _id: appointment.orderId,
-        orderType: "Appointment"
+        orderType: "Appointment",
       });
     }
 
@@ -946,7 +946,6 @@ const updateOrder = asyncHandler(async (req, res) => {
       const hairTest = await HairTest.findById(hairTestId);
       if (hairTest) {
         // Set progress to 100 when order is completed
-        hairTest.progress = 100;
         hairTest.status = "completed";
         await hairTest.save();
         console.log("[DEBUG] HairTest progress updated:", {
@@ -976,11 +975,12 @@ const updateOrder = asyncHandler(async (req, res) => {
           paymentStatus: appointment.paymentStatus,
           Method: appointment.Method,
         },
-        hairTest: hairTestId ? {
-          id: hairTestId,
-          progress: 100,
-          status: "completed",
-        } : null,
+        hairTest: hairTestId
+          ? {
+              id: hairTestId,
+              status: "completed",
+            }
+          : null,
       },
     });
   } catch (error) {

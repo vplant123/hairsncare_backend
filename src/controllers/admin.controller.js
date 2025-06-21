@@ -978,8 +978,9 @@ const getOrders = asyncHandler(async (req, res) => {
     const orders = await orderModel
       .find({
         deliveryStatus: {
-          $in: ["processing", "shipped", "delivered", "canceled"],
+          $in: ["processing", "shipped", "delivered", "canceled", "pending"],
         },
+        orderType: "product Buy",
       })
       .populate({
         path: "userId",
