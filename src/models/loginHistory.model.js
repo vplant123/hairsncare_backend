@@ -5,9 +5,9 @@ const loginHistorySchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: function() {
-        return this.status === 'success'; // userId only required for successful logins
-      }
+      required: function () {
+        return this.status === "success"; // userId only required for successful logins
+      },
     },
     ipAddress: {
       type: String,
@@ -35,10 +35,26 @@ const loginHistorySchema = new mongoose.Schema(
       enum: ["success", "failed"],
       default: "success",
     },
+    // Additional fields for more detailed device information
+    deviceModel: {
+      type: String,
+      default: "Unknown",
+    },
+    os: {
+      type: String,
+      default: "Unknown",
+    },
+    browser: {
+      type: String,
+      default: "Unknown",
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields
   }
 );
+
+// Optional: Create index for performance on userId and loginTime
+loginHistorySchema.index({ userId: 1, loginTime: -1 });
 
 module.exports = mongoose.model("LoginHistory", loginHistorySchema);

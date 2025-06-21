@@ -41,14 +41,20 @@ const addressModel = require("../models/userAddresses.model.js");
 const addAdmin = asyncHandler(async (req, res) => {
   try {
     console.log(req.body);
+    // Call the service to add or update the admin user
     const adminResult = await AdminService.addAdmin(req.body);
+    // Send successful response
     return res
       .status(201)
       .json(new ApiResponse(201, adminResult, "Admin added successfully"));
   } catch (error) {
-    throw new ApiError(400, "Unable to add admin", error.message);
+    // If an error occurs, throw a custom ApiError
+    return res
+      .status(400)
+      .json(new ApiError(400, "Unable to add admin", error.message));
   }
 });
+
 
 const createDoctor = asyncHandler(async (req, res) => {
   try {
@@ -1930,7 +1936,7 @@ const getpatientData = asyncHandler(async (req, res) => {
 
     // Filter login history for the specific user
     const userLoginHistory = loginHistory.filter(
-      (entry) => entry.userId && entry.userId.toString() === userId
+      (entry) => entry.userId && entry.userId == userId
     );
     console.log(
       "[DEBUG] Filtered login history for user:",

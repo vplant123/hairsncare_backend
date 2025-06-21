@@ -114,8 +114,8 @@ const placeOrder = asyncHandler(async (req, res) => {
       subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge;
     console.log("Delivery Charge Calculated:", deliveryChargeCalc);
 
-    // Calculate final total amount
-    const totalAmount = subTotal - totalDiscount + deliveryChargeCalc;
+    const totalAmount =
+      Number(subTotal) - Number(totalDiscount) + Number(deliveryChargeCalc);
     console.log("Total Amount:", totalAmount);
 
     // Create order

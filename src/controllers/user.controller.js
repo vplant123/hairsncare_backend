@@ -12,7 +12,22 @@ const orderModel = require("../models/order.model.js");
 const CouponsModel = require("../models/Coupons.model.js");
 const CouponsMappingModel = require("../models/CouponsMapping.model.js");
 
+const axios = require("axios");
+const UAParser = require("ua-parser-js");
+
 const LoginModel = require("../models/loginHistory.model.js");
+
+const getLocationFromIP = async (ip) => {
+  try {
+    const response = await axios.get(`https://ipinfo.io/${ip}/json`);
+    console.log(response);
+    const { city, region, country } = response.data;
+    return `${city}, ${region}, ${country}`;
+  } catch (error) {
+    console.error("Error fetching location:", error.message);
+    return "Unknown";
+  }
+};
 
 const patientRegister = asyncHandler(async (req, res) => {
   try {
@@ -145,6 +160,7 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
       });
       await newUser.save();
     }
+
     return res
       .status(200)
       .json(new ApiResponse(200, user, "Otp send successfully"));
@@ -153,36 +169,64 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
+
 const verifyOtpAndLogin = asyncHandler(async (req, res) => {
   try {
     const { mobile, otp } = req.body;
 
+    // Check if user exists
     const user = await User.findOne({ mobile });
-
     if (!user) {
       throw new ApiError(401, "User does not exist");
     }
 
+    // Validate OTP
     const validOtp = CommonHelper.isValidOTP(user.otpCreatedAt);
-    console.log("..........", validOtp);
+    console.log("OTP Valid:", validOtp);
     if (!validOtp) {
       user.otpCreatedAt = null;
       user.otp = "";
       await user.save();
       return res.status(400).json(new ApiResponse(400, "Otp expired"));
     }
+
     if (user.otp !== otp) {
-      return res.status(400).json(new ApiResponse(400, "Invalid otp"));
-      // throw new ApiError(400, "Invalid OTP");
+      return res.status(400).json(new ApiResponse(400, "Invalid OTP"));
     }
 
+    // Reset OTP fields after successful validation
     user.otp = null;
     user.otpCreatedAt = null;
     user.lastLogin = new Date();
     await user.save();
 
+    // Fetch the location based on the user's IP address
+    const ip = req.ip || req.headers["x-forwarded-for"];
+    const location = (await getLocationFromIP(ip)) || "Unknown";
+
+    // Extract device information from the User-Agent header
+    const userAgent = req.headers["user-agent"];
+    const parser = new UAParser(userAgent);
+    const device = parser.getDevice();
+    const os = parser.getOS();
+    const browser = parser.getBrowser();
+
+    // Generate tokens
     const accessToken = await CommonHelper.generateAccessToken(user._id);
     const refreshToken = await CommonHelper.generateRefreshToken(user._id);
+
+    // Store login history with additional device information
+    await LoginModel.create({
+      userId: user._id,
+      ipAddress: ip,
+      userAgent,
+      deviceType: device.type || "other", // desktop, mobile, tablet, other
+      deviceModel: device.model || "Unknown", // Device model, e.g., iPhone, Galaxy
+      os: os.name || "Unknown", // OS name, e.g., iOS, Android, Windows
+      browser: browser.name || "Unknown", // Browser name, e.g., Chrome, Firefox
+      status: "success",
+      location, // Use the fetched location
+    });
 
     return res.status(200).json(
       new ApiResponse(
@@ -199,6 +243,7 @@ const verifyOtpAndLogin = asyncHandler(async (req, res) => {
       )
     );
   } catch (error) {
+    console.error(error);
     throw new ApiError(error.status || 400, error.message);
   }
 });

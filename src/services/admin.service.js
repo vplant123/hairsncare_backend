@@ -56,7 +56,9 @@ class AdminService {
 
       console.log("Sort object:", sort);
 
-      const patients = await User.find({ role: "patient" }).sort({ createdAt: -1 }).lean();
+      const patients = await User.find({ role: "patient" })
+        .sort({ createdAt: -1 })
+        .lean();
 
       const enrichedPatients = await Promise.all(
         patients.map(async (patient) => {
@@ -112,37 +114,45 @@ class AdminService {
   };
 
   addAdmin = async (data) => {
-    const existedUser = await User.findOne({ email: data.email });
-    console.log(data);
-
-    if (existedUser) {
+    // Check if a user with the given email already exists
+    const existingUser = await User.findOne({ email: data.email });
+    if (existingUser) {
       // If user exists but is not an admin, update their role and permissions
-      const updatedUser = await User.findOneAndUpdate(
-        { _id: existedUser._id },
-        {
-          role: data.role,
-          permission: data.permission,
-          fullname: data.fullname,
-          mobile: data.mobile,
-        },
-        { new: true }
-      );
-
-      return updatedUser;
+      if (existingUser.role !== "admin") {
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: existingUser._id },
+          {
+            role: "admin",
+            permission: data.permission,
+            fullname: data.fullname,
+            mobile: data.mobile,
+          },
+          { new: true }
+        );
+        return updatedUser;
+      } else {
+        throw new Error("Email is already registered");
+      }
     }
 
-    // If user doesn't exist, create new admin user
+    // If no user exists, check for unique mobile number
+    const existingMobile = await User.findOne({ mobile: data.mobile });
+    if (existingMobile) {
+      throw new Error("Mobile number is already registered");
+    }
+
+    // If user doesn't exist, create a new admin user
     const passwordHash = await CommonHelper.hashPassword(data.password);
-    const user = await User.create({
+    const newUser = await User.create({
       fullname: data.fullname,
       email: data.email,
       password: passwordHash,
       mobile: data.mobile,
-      role: data.role,
+      role: "admin",
       permission: data.permission,
     });
 
-    return user;
+    return newUser;
   };
 
   updateAdmin = async (req) => {
