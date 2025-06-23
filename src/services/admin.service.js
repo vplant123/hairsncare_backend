@@ -16,31 +16,61 @@ const mongoose = require("mongoose");
 
 class AdminService {
   createDoctor = async (data) => {
-    const hashPassword = await CommonHelper.hashPassword(data.password);
-    console.log("hh", hashPassword);
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    const createUser = {
-      fullname: data?.name,
-      email: data?.email,
-      mobile: data?.phone,
-      profileImage: data?.image,
-      speciality: data?.specialist,
-      description: data?.description,
-      location: data?.address,
-      password: hashPassword,
-      role: "doctor",
-    };
-    console.log("ccccccccccccc", createUser);
-    const doctor = await User.create(createUser);
-    const doctorCreate = await Doctors.create({ ...data, userId: doctor?._id });
+    try {
+      const existingUser = await User.findOne({ email: data.email }).session(
+        session
+      );
+      if (existingUser) throw new Error("Email already in use");
 
-    console.log("---", doctor);
-    await sendEmail(
-      data.email,
-      "Login Credentials for Doctor Dashboard",
-      `Your login credentials for the Doctor Dashboard are:\nEmail:
-          ${data.email}\nPassword: ${data.password}`
-    );
+      const hashPassword = await CommonHelper.hashPassword(data.password);
+
+      const doctorUser = await User.create(
+        [
+          {
+            fullname: data.name,
+            email: data.email,
+            mobile: data.phone,
+            profileImage: data.image,
+            speciality: data.specialist,
+            description: data.description,
+            location: data.address,
+            password: hashPassword,
+            role: "doctor",
+          },
+        ],
+        { session }
+      );
+
+      await Doctors.create(
+        [
+          {
+            ...data,
+            userId: doctorUser._id,
+          },
+        ],
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      await sendEmail(
+        data.email,
+        "Login Credentials for Doctor Dashboard",
+        `Your login credentials for the Doctor Dashboard are:\nEmail: ${data.email}\nPassword: ${data.password}`
+      );
+
+      return { success: true, message: "Doctor created successfully" };
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Transaction failed:", error);
+      return { success: false, message: error.message };
+    }
   };
 
   getAllPatient = async (data) => {

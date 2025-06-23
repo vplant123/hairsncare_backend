@@ -55,7 +55,6 @@ const addAdmin = asyncHandler(async (req, res) => {
   }
 });
 
-
 const createDoctor = asyncHandler(async (req, res) => {
   try {
     console.log(req.body);
@@ -2560,6 +2559,7 @@ const deleteQuery = asyncHandler(async (req, res) => {
       cartModel.deleteMany({}),
       paymentModel.deleteMany({}),
       addressModel.deleteMany({}),
+      Invoices.deleteMany({}),
     ]);
 
     return res.status(200).json({

@@ -173,6 +173,7 @@ router.post("/send-report", verifyJwt, sendReport);
 router.post("/send-prescription", verifyJwt, sendPrescription);
 
 router.post("/send-order-prescription", verifyJwt, sendOrderPrescription);
+
 router.post("/delete-query", verifyJwt, deleteQuery);
 router.post("/delete-hairtest", verifyJwt, deleteHairTests);
 
