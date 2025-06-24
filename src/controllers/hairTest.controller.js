@@ -47,6 +47,8 @@ const getHairTest = asyncHandler(async (req, res) => {
 
     const hairtests = reversedHairtests.reverse();
 
+    console.log("reversedHairtests", reversedHairtests);
+
     const hairtestsWithOrderData = await Promise.all(
       hairtests.map(async (test) => {
         try {
@@ -134,7 +136,7 @@ const getHairTest = asyncHandler(async (req, res) => {
         }
       })
     );
-
+    console.log("hairtestsWithOrderData", hairtestsWithOrderData);
     return res
       .status(200)
       .json(

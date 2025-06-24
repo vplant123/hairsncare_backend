@@ -16,59 +16,133 @@ const mongoose = require("mongoose");
 
 class AdminService {
   createDoctor = async (data) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const existingUser = await User.findOne({ email: data.email }).session(
-        session
-      );
-      if (existingUser) throw new Error("Email already in use");
+      console.log("Starting doctor creation...");
 
-      const hashPassword = await CommonHelper.hashPassword(data.password);
+      const existingDoctor = await User.findOne({
+        email: data.email,
+        role: "doctor",
+      });
 
-      const doctorUser = await User.create(
-        [
-          {
-            fullname: data.name,
-            email: data.email,
-            mobile: data.phone,
-            profileImage: data.image,
-            speciality: data.specialist,
-            description: data.description,
-            location: data.address,
-            password: hashPassword,
-            role: "doctor",
-          },
-        ],
-        { session }
-      );
+      if (existingDoctor) {
+        console.log(`Doctor found with email: ${data.email}`);
 
-      await Doctors.create(
-        [
+        // Check if the doctor exists in the Doctors collection
+        const existingDoctorInCollection = await Doctors.findOne({
+          userId: existingDoctor._id,
+        });
+
+        if (!existingDoctorInCollection) {
+          console.log(
+            "Doctor not found in Doctors collection, creating new profile..."
+          );
+          await Doctors.create([
+            {
+              ...data,
+              userId: existingDoctor._id,
+            },
+          ]);
+
+          console.log("Doctor profile created in Doctors collection");
+
+          await sendEmail(
+            existingDoctor.email,
+            "Doctor Profile Created",
+            `Your doctor profile has been successfully created.`
+          );
+
+          return {
+            success: true,
+            message: "Doctor profile created in the Doctors collection",
+          };
+        }
+
+        console.log("Doctor already exists in Doctors collection");
+        return {
+          success: false,
+          message: "Doctor already exists with this email",
+        };
+      }
+
+      console.log("No existing doctor found, checking for general user...");
+
+      const existingUser = await User.findOne({
+        email: data.email,
+      });
+
+      if (existingUser && existingUser.role !== "doctor") {
+        console.log(
+          "User found but role is not doctor, updating role to doctor..."
+        );
+        existingUser.role = "doctor";
+        await existingUser.save();
+
+        console.log("Creating doctor profile...");
+        await Doctors.create([
           {
             ...data,
-            userId: doctorUser._id,
+            userId: existingUser._id,
           },
-        ],
-        { session }
-      );
+        ]);
 
-      await session.commitTransaction();
-      session.endSession();
+        console.log("Doctor profile created and role updated");
 
+        await sendEmail(
+          existingUser.email,
+          "Doctor Role Updated and Profile Created",
+          `Your account role has been updated to Doctor, and your profile has been created in the Doctors collection.`
+        );
+
+        return {
+          success: true,
+          message: "User role updated to doctor and profile created",
+        };
+      }
+
+      console.log("No user found, creating new doctor...");
+
+      // If no user exists, create a new doctor
+      const hashPassword = await CommonHelper.hashPassword(data.password);
+
+      const doctorUser = await User.create([
+        {
+          fullname: data.name,
+          email: data.email,
+          mobile: data.phone,
+          profileImage: data.image,
+          speciality: data.specialist,
+          description: data.description,
+          location: data.address,
+          password: hashPassword,
+          role: "doctor",
+        },
+      ]);
+
+      console.log("Doctor user created with email:", data.email);
+
+      // Create the doctor entry in Doctors collection
+      await Doctors.create([
+        {
+          ...data,
+          userId: doctorUser._id,
+        },
+      ]);
+
+      console.log("Doctor entry created in Doctors collection");
+
+      // Send an email with login credentials
       await sendEmail(
         data.email,
         "Login Credentials for Doctor Dashboard",
-        `Your login credentials for the Doctor Dashboard are:\nEmail: ${data.email}\nPassword: ${data.password}`
+        `Your account has been created successfully. Please use the following link to set your password: [password-reset-link]`
       );
+
+      console.log("Login credentials email sent");
 
       return { success: true, message: "Doctor created successfully" };
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-
-      console.error("Transaction failed:", error);
+      console.log("Error occurred during doctor creation:", error);
+      console.error("Creation failed:", error);
       return { success: false, message: error.message };
     }
   };
@@ -144,15 +218,16 @@ class AdminService {
   };
 
   addAdmin = async (data) => {
+    console.log("data", data);
     // Check if a user with the given email already exists
     const existingUser = await User.findOne({ email: data.email });
     if (existingUser) {
       // If user exists but is not an admin, update their role and permissions
-      if (existingUser.role !== "admin") {
+      if (existingUser.role !== data.role) {
         const updatedUser = await User.findOneAndUpdate(
           { _id: existingUser._id },
           {
-            role: "admin",
+            role: data.role,
             permission: data.permission,
             fullname: data.fullname,
             mobile: data.mobile,
@@ -178,7 +253,7 @@ class AdminService {
       email: data.email,
       password: passwordHash,
       mobile: data.mobile,
-      role: "admin",
+      role: data.role,
       permission: data.permission,
     });
 

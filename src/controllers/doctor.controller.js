@@ -522,41 +522,116 @@ const getPrescription = asyncHandler(async (req, res) => {
   }
 });
 
+// const getAllPrescription = asyncHandler(async (req, res) => {
+//   try {
+//     const { userId } = req.query;
+//     console.log("Fetching prescriptions for userId:", userId);
+
+//     // Fetch prescriptions for the user
+//     const prescriptions = await Prescription.find({ userId })
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     if (!prescriptions || prescriptions.length === 0) {
+//       return res.status(404).send("Prescription not found for this user");
+//     }
+
+//     const appointmentIds = prescriptions.map(
+//       (prescription) => prescription.appointmentId
+//     );
+
+//     // Fetch all relevant appointments in a single query
+//     const appointments = await Appointment.find({
+//       _id: { $in: appointmentIds },
+//       isReportSent: true,
+//     }).lean();
+
+//     // Map appointments to prescriptions
+//     const result = prescriptions.map((prescription) => {
+//       // Find corresponding appointment for each prescription
+//       const appointmentData = appointments.find(
+//         (appointment) =>
+//           appointment._id.toString() === prescription.appointmentId.toString()
+//       );
+//       return { ...prescription, appointmentData: appointmentData || null };
+//     });
+
+//     console.log("Prescription data with appointments:", result);
+
+//     return res
+//       .status(200)
+//       .json(
+//         new ApiResponse(
+//           200,
+//           result,
+//           "Prescription details fetched successfully"
+//         )
+//       );
+//   } catch (error) {
+//     console.error("Error fetching prescriptions:", error);
+//     return res
+//       .status(400)
+//       .json(
+//         new ApiError(
+//           400,
+//           "Something went wrong while getting prescription details",
+//           error.message
+//         )
+//       );
+//   }
+// });
+
 const getAllPrescription = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.query;
     console.log("Fetching prescriptions for userId:", userId);
 
+    // Fetch appointments where 'isReportSent' is true for the given user
+    const appointments = await Appointment.find({
+      userId: userId,
+      isReportSent: true,
+    }).lean();
+
+    console.log("appointments", appointments);
+
+    if (!appointments || appointments.length === 0) {
+      return res
+        .status(404)
+        .send("No appointments found for this user with a report sent");
+    }
+
     // Fetch prescriptions for the user
-    const prescriptions = await Prescription.find({ userId })
+    const prescriptions = await Prescription.find({
+      userId,
+    })
       .sort({ createdAt: -1 })
       .lean();
 
     if (!prescriptions || prescriptions.length === 0) {
-      return res.status(404).send("Prescription not found for this user");
+      return res.status(404).send("No prescriptions found for this user");
     }
 
-    const appointmentIds = prescriptions.map(
-      (prescription) => prescription.appointmentId
-    );
+    // Filter prescriptions that have a matching appointment with a report sent
+    const result = prescriptions
+      .filter((prescription) => {
+        // Find the appointment corresponding to the prescription
+        const appointmentData = appointments.find(
+          (appointment) =>
+            appointment._id.toString() === prescription.appointmentId.toString()
+        );
+        // Only include prescriptions if there is a matching appointment with a report sent
+        return appointmentData !== undefined;
+      })
+      .map((prescription) => {
+        // Get the appointment data corresponding to the prescription
+        const appointmentData = appointments.find(
+          (appointment) =>
+            appointment._id.toString() === prescription.appointmentId.toString()
+        );
+        return { ...prescription, appointmentData };
+      });
 
-    // Fetch all relevant appointments in a single query
-    const appointments = await Appointment.find({
-      _id: { $in: appointmentIds },
-      isReportSent: true,
-    }).lean();
-
-    // Map appointments to prescriptions
-    const result = prescriptions.map((prescription) => {
-      // Find corresponding appointment for each prescription
-      const appointmentData = appointments.find(
-        (appointment) =>
-          appointment._id.toString() === prescription.appointmentId.toString()
-      );
-      return { ...prescription, appointmentData: appointmentData || null };
-    });
-
-    console.log("Prescription data with appointments:", result);
+    // console.log("Prescription data with appointments:", result);
 
     return res
       .status(200)
