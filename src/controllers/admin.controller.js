@@ -59,21 +59,11 @@ const createDoctor = asyncHandler(async (req, res) => {
   try {
     console.log(req.body);
     const resultDoctor = await AdminService.createDoctor(req.body);
-    
-    // Check if the service returned success or failure
-    if (resultDoctor.success) {
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(200, resultDoctor, resultDoctor.message)
-        );
-    } else {
-      return res
-        .status(400)
-        .json(
-          new ApiError(400, resultDoctor.message, resultDoctor.message)
-        );
-    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, "Doctor created succesffully and send credential")
+      );
   } catch (error) {
     throw new ApiError(400, "Something error ", error.message);
   }
@@ -177,21 +167,22 @@ const editDoctor = asyncHandler(async (req, res) => {
     if (req.body?.phone) result.phone = req.body?.phone;
     if (req.body?.specialist) result.specialist = req.body?.specialist;
     if (req.body?.address) result.address = req.body?.address;
-    if (req.body?.image) result.image = req.body?.image;
+
     if (req.body?.degree) result.degree = req.body?.degree;
     if (req.body?.experience) result.experience = req.body?.experience;
     if (req.body?.language) result.language = req.body?.language;
     if (req.body?.expertise) result.expertise = req.body?.expertise;
     if (req.body?.description) result.description = req.body?.description;
     if (req.body?.qualification) result.qualification = req.body?.qualification;
-    if (req.body?.awards) result.awards = req.body?.awards;
     if (req.body?.isSpec == false || req.body?.isSpec) {
       console.log("sjeojfoer", result.isSpec, req.body?.isSpec);
       result.isSpec = req.body?.isSpec;
     }
     if (req.body?.showOnDashboard)
       result.showOnDashboard = req.body?.showOnDashboard;
-
+    
+    result.awards = req.body?.awards;
+    result.image = req.body?.image;
     await result.save();
     return res
       .status(200)
@@ -232,7 +223,7 @@ const deleteDoctor = asyncHandler(async (req, res) => {
       id: doctor._id,
       name: doctor.name,
       email: doctor.email,
-      userId: doctor.userId
+      userId: doctor.userId,
     });
 
     // Delete the user associated with this doctor
@@ -240,13 +231,19 @@ const deleteDoctor = asyncHandler(async (req, res) => {
     if (doctor.userId) {
       // Try to delete by userId first
       deletedUser = await User.findByIdAndDelete(doctor.userId);
-      console.log("Deleted user by userId:", deletedUser ? "success" : "not found");
+      console.log(
+        "Deleted user by userId:",
+        deletedUser ? "success" : "not found"
+      );
     }
-    
+
     // If user not found by userId, try by email
     if (!deletedUser && doctor.email) {
       deletedUser = await User.findOneAndDelete({ email: doctor.email });
-      console.log("Deleted user by email:", deletedUser ? "success" : "not found");
+      console.log(
+        "Deleted user by email:",
+        deletedUser ? "success" : "not found"
+      );
     }
 
     // Delete the doctor record
