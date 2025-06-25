@@ -59,11 +59,21 @@ const createDoctor = asyncHandler(async (req, res) => {
   try {
     console.log(req.body);
     const resultDoctor = await AdminService.createDoctor(req.body);
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(200, "Doctor created succesffully and send credential")
-      );
+    
+    // Check if the service returned success or failure
+    if (resultDoctor.success) {
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(200, resultDoctor, resultDoctor.message)
+        );
+    } else {
+      return res
+        .status(400)
+        .json(
+          new ApiError(400, resultDoctor.message, resultDoctor.message)
+        );
+    }
   } catch (error) {
     throw new ApiError(400, "Something error ", error.message);
   }
@@ -208,8 +218,9 @@ const getDoctor = asyncHandler(async (req, res) => {
 const deleteDoctor = asyncHandler(async (req, res) => {
   try {
     const { id } = req.body;
+    console.log("Deleting doctor with ID:", id);
 
-    // Find the doctor by ID
+    // Find the doctor by ID first
     const doctor = await Doctors.findById(id);
     if (!doctor) {
       return res
@@ -217,22 +228,36 @@ const deleteDoctor = asyncHandler(async (req, res) => {
         .json(new ApiResponse(404, null, "Doctor not found"));
     }
 
+    console.log("Found doctor:", {
+      id: doctor._id,
+      name: doctor.name,
+      email: doctor.email,
+      userId: doctor.userId
+    });
+
     // Delete the user associated with this doctor
-    const deletedUser = await User.findOneAndDelete({ _id: doctor.userId });
-    if (!deletedUser) {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, null, "User not found or already deleted"));
+    let deletedUser;
+    if (doctor.userId) {
+      // Try to delete by userId first
+      deletedUser = await User.findByIdAndDelete(doctor.userId);
+      console.log("Deleted user by userId:", deletedUser ? "success" : "not found");
+    }
+    
+    // If user not found by userId, try by email
+    if (!deletedUser && doctor.email) {
+      deletedUser = await User.findOneAndDelete({ email: doctor.email });
+      console.log("Deleted user by email:", deletedUser ? "success" : "not found");
     }
 
     // Delete the doctor record
     const result = await Doctors.findByIdAndDelete(id);
-
     if (!result) {
       return res
         .status(404)
         .json(new ApiResponse(404, null, "Doctor not found"));
     }
+
+    console.log("Doctor deleted successfully");
 
     // Return success response
     return res

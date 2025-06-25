@@ -24,24 +24,26 @@ class AdminService {
         role: "doctor",
       });
 
+      console.log("existingDoctor", existingDoctor);
+
       if (existingDoctor) {
         console.log(`Doctor found with email: ${data.email}`);
 
         // Check if the doctor exists in the Doctors collection
         const existingDoctorInCollection = await Doctors.findOne({
-          userId: existingDoctor._id,
+          $or: [{ userId: existingDoctor._id }, { email: data.email }],
         });
+
+        console.log("existingDoctorInCollection", existingDoctorInCollection);
 
         if (!existingDoctorInCollection) {
           console.log(
             "Doctor not found in Doctors collection, creating new profile..."
           );
-          await Doctors.create([
-            {
-              ...data,
-              userId: existingDoctor._id,
-            },
-          ]);
+          await Doctors.create({
+            ...data,
+            userId: existingDoctor._id,
+          });
 
           console.log("Doctor profile created in Doctors collection");
 
@@ -57,7 +59,7 @@ class AdminService {
           };
         }
 
-        console.log("Doctor already exists in Doctors collection");
+        console.log("Doctor already exists in Doctors collection with this email");
         return {
           success: false,
           message: "Doctor already exists with this email",
@@ -78,12 +80,10 @@ class AdminService {
         await existingUser.save();
 
         console.log("Creating doctor profile...");
-        await Doctors.create([
-          {
-            ...data,
-            userId: existingUser._id,
-          },
-        ]);
+        await Doctors.create({
+          ...data,
+          userId: existingUser._id,
+        });
 
         console.log("Doctor profile created and role updated");
 
@@ -104,29 +104,25 @@ class AdminService {
       // If no user exists, create a new doctor
       const hashPassword = await CommonHelper.hashPassword(data.password);
 
-      const doctorUser = await User.create([
-        {
-          fullname: data.name,
-          email: data.email,
-          mobile: data.phone,
-          profileImage: data.image,
-          speciality: data.specialist,
-          description: data.description,
-          location: data.address,
-          password: hashPassword,
-          role: "doctor",
-        },
-      ]);
+      const doctorUser = await User.create({
+        fullname: data.name,
+        email: data.email,
+        mobile: data.phone,
+        profileImage: data.image,
+        speciality: data.specialist,
+        description: data.description,
+        location: data.address,
+        password: hashPassword,
+        role: "doctor",
+      });
 
-      console.log("Doctor user created with email:", data.email);
+      console.log("Doctor user created with email:", data.email, "userId:", doctorUser._id);
 
       // Create the doctor entry in Doctors collection
-      await Doctors.create([
-        {
-          ...data,
-          userId: doctorUser._id,
-        },
-      ]);
+      await Doctors.create({
+        ...data,
+        userId: doctorUser._id,
+      });
 
       console.log("Doctor entry created in Doctors collection");
 
