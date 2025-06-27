@@ -63,6 +63,8 @@ const {
   sendReport,
   sendPrescription,
   sendOrderPrescription,
+  updateFollowupdate,
+
   deleteQuery,
   deleteHairTests,
 } = require("../controllers/admin.controller.js");
@@ -173,6 +175,7 @@ router.post("/send-report", verifyJwt, sendReport);
 router.post("/send-prescription", verifyJwt, sendPrescription);
 
 router.post("/send-order-prescription", verifyJwt, sendOrderPrescription);
+router.post("/update-followup-date", verifyJwt, updateFollowupdate);
 
 router.post("/delete-query", verifyJwt, deleteQuery);
 router.post("/delete-hairtest", verifyJwt, deleteHairTests);

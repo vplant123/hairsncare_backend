@@ -180,7 +180,7 @@ const editDoctor = asyncHandler(async (req, res) => {
     }
     if (req.body?.showOnDashboard)
       result.showOnDashboard = req.body?.showOnDashboard;
-    
+
     result.awards = req.body?.awards;
     result.image = req.body?.image;
     await result.save();
@@ -2559,6 +2559,43 @@ const sendOrderPrescription = asyncHandler(async (req, res) => {
   }
 });
 
+const updateFollowupdate = asyncHandler(async (req, res) => {
+  try {
+    const { appointmentId } = req.query;
+    const { followUpDate } = req.body;
+
+    if (!appointmentId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "appointmentId is required" });
+    }
+    console.log(appointmentId);
+    const appointment = await Appointment.findById(appointmentId);
+
+    if (!appointment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
+    appointment.followUpDate = followUpDate;
+    await appointment.save();
+    console.log(appointment);
+    return res.status(200).json({
+      success: true,
+      message: "followUpDate updated successfully",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error sending report:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
 const deleteQuery = asyncHandler(async (req, res) => {
   try {
     // Find all patients
@@ -2676,6 +2713,7 @@ module.exports = {
   sendReport,
   sendPrescription,
   sendOrderPrescription,
+  updateFollowupdate,
   deleteQuery,
   deleteHairTests,
 };
