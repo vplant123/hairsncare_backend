@@ -499,6 +499,7 @@ const addProductToCategory = asyncHandler(async (req, res) => {
     metaDesc,
     metaSlug,
     metaCanonical,
+    hsn,
   } = req.body;
 
   // Validation
@@ -566,6 +567,7 @@ const addProductToCategory = asyncHandler(async (req, res) => {
       metaDesc,
       metaSlug,
       metaCanonical,
+      hsn,
     };
     let productCreate = await Product.create(newProduct);
 
@@ -651,6 +653,8 @@ const updateProductDetails = asyncHandler(async (req, res) => {
     metaDesc,
     metaSlug,
     metaCanonical,
+    hsn,
+    faq,
   } = req.body;
 
   // Validation
@@ -729,9 +733,10 @@ const updateProductDetails = asyncHandler(async (req, res) => {
     if (width !== undefined) product.width = Number(width);
     if (metaTitle !== undefined) product.metaTitle = metaTitle;
     if (metaDesc !== undefined) product.metaDesc = metaDesc;
-    if (metaSlug !== undefined) product.metaSlug = metaSlug; // Use metaSlug only
+    if (metaSlug !== undefined) product.metaSlug = metaSlug;
     if (metaCanonical !== undefined) product.metaCanonical = metaCanonical;
-
+    if (hsn !== undefined) product.hsn = hsn;
+    if (faq !== undefined) product.faq = faq;
     await product.save();
 
     res
