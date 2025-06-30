@@ -15,7 +15,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     timeSlot: {
       type: String,
-      enum: ["morning", "noon", "evening"],
+      enum: ["morning", "noon", "evening", ""],
     },
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,

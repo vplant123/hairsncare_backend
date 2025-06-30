@@ -740,7 +740,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       const appointment = new Appointment({
         userId: data?.userId,
         appointmentDate: "",
-        timeSlot: "noon",
+        timeSlot: "",
         status: "pending",
         paymentStatus: "pending",
         hairTestId: newHairTest?._id,
