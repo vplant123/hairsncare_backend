@@ -19,6 +19,7 @@ const CouponsMappingModel = require("../models/CouponsMapping.model.js");
 const { ObjectId } = require("mongodb");
 const { default: mongoose } = require("mongoose");
 const zohoService = require("./zoho.service.js");
+const { generateOrderNumber } = require("../utils/orderNumberGenerator.js");
 
 const LoginModel = require("../models/loginHistory.model.js");
 
@@ -278,9 +279,13 @@ class UserService {
       throw new Error("Selected plan not found");
     }
 
+    // Generate order number
+    const orderNumber = await generateOrderNumber();
+    
     // Create the order
     const order = new Order({
       userId: user._id,
+      orderNumber: orderNumber,
       planId: data.planId,
       amount:
         parseFloat(selectedPlan.price) -

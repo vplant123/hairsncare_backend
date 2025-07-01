@@ -28,6 +28,8 @@ const instance = new Razorpay({
   key_secret: "jrLluVVj1fpEiMNwR7QyBUDZ",
 });
 
+const { generateOrderNumber } = require("../utils/orderNumberGenerator");
+
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
@@ -118,9 +120,13 @@ const placeOrder = asyncHandler(async (req, res) => {
       Number(subTotal) - Number(totalDiscount) + Number(deliveryChargeCalc);
     console.log("Total Amount:", totalAmount);
 
+    // Generate order number
+    const orderNumber = await generateOrderNumber();
+
     // Create order
     const order = new Order({
       userId: user._id,
+      orderNumber: orderNumber,
       currency: "INR",
       amount: amount,
       subTotal,
@@ -137,6 +143,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           gst: item.item.gst || 0,
           hsn: item.item.hsn || "",
           src: item.item.src,
+          expiryDate: item.item.expiryDate,
           zohoProductId: item.item.zohoProductId,
         },
         quantity: item.quantity,
@@ -888,9 +895,13 @@ const updateOrder = asyncHandler(async (req, res) => {
     }
 
     if (!order) {
+      // Generate order number for new order
+      const orderNumber = await generateOrderNumber();
+
       // Create new order if it doesn't exist
       order = new Order({
         userId,
+        orderNumber: orderNumber,
         planId: plan._id,
         amount: amount,
         status: paymentStatus,

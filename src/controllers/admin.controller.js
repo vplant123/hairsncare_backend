@@ -1393,16 +1393,220 @@ const contactDetails = asyncHandler(async (req, res) => {
 
 const addInvoice = asyncHandler(async (req, res) => {
   try {
-    let data = req.body;
-    let squence = await Invoices.countDocuments();
-    data["invoiceNo"] = squence + 1;
-    let invoice = await Invoices.create(data);
+    const data = req.body;
+    console.log("Invoice Data:", data);
+
+    let order = null;
+    if (data.orderNumber) {
+      const Order = require("../models/order.model");
+      const userAddresses = require("../models/userAddresses.model");
+      const CouponsModel = require("../models/Coupons.model");
+
+      order = await Order.findOne({ orderNumber: data.orderNumber });
+
+      if (order) {
+        // Get address if missing
+        if (!data.address || data.address === "") {
+          if (order.addressId) {
+            const addressDoc = await userAddresses.findById(order.addressId);
+            if (addressDoc) {
+              data.address = `${addressDoc.fullAdress} , ${addressDoc.city} , ${addressDoc.state} , ${addressDoc.pin}`;
+            }
+          }
+        }
+
+        // Get coupon discount from order if not provided in request
+        if (!data.couponDiscount && order.coupon) {
+          const coupon = await CouponsModel.findById(order.coupon);
+          if (coupon && coupon.percent) {
+            data.couponDiscount = coupon.percent;
+          }
+        }
+
+        // Set userId from order
+        if (order.userId) {
+          data.userId = order.userId;
+        }
+      }
+    }
+
+    // Allowed fields at invoice level (updated for new model)
+    const allowedInvoiceFields = [
+      "name",
+      "mobile",
+      "email",
+      "address",
+      "date",
+      "userId",
+      "doctor",
+      "paid",
+      "paidAmt",
+      "dues",
+      "isActive",
+      "orderId",
+      "orderNumber",
+      "orderDate",
+      "couponDiscount",
+      "paymentMode",
+      "deliveryCharges",
+      "notes",
+      "adminNotes",
+      "source",
+      "currency",
+      "exchangeRate",
+    ];
+
+    // Allowed fields at item level (updated for new model)
+    const allowedItemFields = [
+      "item",
+      "quantity",
+      "rate",
+      "gst",
+      "discount",
+      "discountPercent",
+      "batchNo",
+      "stock",
+      "expiryDate",
+      "hsn",
+      "mfgName",
+      "sku",
+      "productName",
+      "weight",
+      "dimensions",
+    ];
+
+    // Prepare invoice data by filtering allowed fields
+    let invoiceData = allowedInvoiceFields.reduce((acc, key) => {
+      if (data[key] !== undefined) acc[key] = data[key];
+      return acc;
+    }, {});
+
+    let total = 0;
+    let totalDiscount = 0;
+    let totalGST = 0;
+    let subtotal = 0;
+
+    // Process each item
+    invoiceData.items = (Array.isArray(data.items) ? data.items : []).map(
+      (item) => {
+        let cleanItem = allowedItemFields.reduce((acc, key) => {
+          if (item[key] !== undefined) acc[key] = item[key];
+          return acc;
+        }, {});
+
+        const rate = parseFloat(item.rate) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const discountPercent = parseFloat(item.discount) || 0;
+        const gstPercent = parseFloat(item.gst) || 0;
+
+        // Calculate item totals
+        const discountAmount = (rate * discountPercent) / 100;
+        const rateAfterDiscount = rate - discountAmount;
+        const gstAmount = (rateAfterDiscount * gstPercent) / 100;
+        const itemTotal = (rateAfterDiscount + gstAmount) * quantity;
+
+        // Save item calculations
+        cleanItem.total = itemTotal;
+        cleanItem.discountAmount = discountAmount * quantity;
+        cleanItem.gstAmount = gstAmount * quantity;
+
+        // Accumulate totals
+        subtotal += rate * quantity;
+        total += itemTotal;
+        totalDiscount += discountAmount * quantity;
+        totalGST += gstAmount * quantity;
+
+        return cleanItem;
+      }
+    );
+
+    // Calculate delivery charge
+    let deliveryCharge = total < 2000 ? 200 : 0;
+
+    // Apply coupon discount
+
+    // Set financial calculations
+    invoiceData.subtotal = subtotal;
+    invoiceData.total = total;
+    invoiceData.totalGST = totalGST;
+    invoiceData.totalDiscount = totalDiscount;
+    invoiceData.deliveryCharges = deliveryCharge;
+    let couponDiscountAmount = 0;
+    if (data.couponDiscount) {
+      couponDiscountAmount = (subtotal * data.couponDiscount) / 100;
+    }
+    invoiceData.couponDiscount = data.couponDiscountAmount || 0;
+    invoiceData.totalAmount = total + deliveryCharge - couponDiscountAmount;
+    invoiceData.paidAmt = invoiceData.totalAmount;
+
+    // Set payment information
+    invoiceData.paymentStatus = data.paymentStatus || "pending";
+    if (data.paid) {
+      invoiceData.paymentStatus = "paid";
+      invoiceData.paymentDate = new Date();
+    }
+    invoiceData.transactionId = data.transactionId;
+
+    // Set order status
+    invoiceData.orderStatus = data.orderStatus || "pending";
+
+    // Set shipping information
+    if (data.shippingAddress) {
+      invoiceData.shippingAddress = data.shippingAddress;
+    } else if (data.address) {
+      // Parse address string into shipping address object
+      const addressParts = data.address.split(",").map((part) => part.trim());
+      invoiceData.shippingAddress = {
+        street: addressParts[0] || "",
+        city: addressParts[1] || "",
+        state: addressParts[2] || "",
+        pincode: addressParts[3] || "",
+        country: "India",
+      };
+    }
+
+    // Set tax details
+    // invoiceData.taxDetails = {
+    //   cgst: totalGST / 2, // Assuming 50% CGST, 50% SGST
+    //   sgst: totalGST / 2,
+    //   igst: 0,
+    //   totalTax: totalGST,
+    // };
+
+    // Set business information
+    // invoiceData.gstNumber = data.gstNumber || "";
+    // invoiceData.panNumber = data.panNumber || "";
+    // invoiceData.shippingMethod = data.shippingMethod || "Standard Delivery";
+    // invoiceData.trackingNumber = data.trackingNumber || "";
+
+    // Set status history
+    invoiceData.statusHistory = [
+      {
+        status: invoiceData.orderStatus,
+        timestamp: new Date(),
+        note: "Invoice created",
+      },
+    ];
+
+    // Set default values for new fields
+    invoiceData.source = data.source || "admin";
+    invoiceData.currency = data.currency || "INR";
+    invoiceData.exchangeRate = data.exchangeRate || 1;
+    invoiceData.isDeleted = false;
+
+    // Generate invoice number
+    const sequence = await Invoices.countDocuments();
+    invoiceData.invoiceNo = sequence + 1;
+
+    // Save invoice to the database
+    const invoice = await Invoices.create(invoiceData);
 
     return res
       .status(200)
-      .json(new ApiResponse(200, invoice, "invoice create successfully"));
+      .json(new ApiResponse(200, invoice, "Invoice created successfully"));
   } catch (error) {
-    throw new ApiError(400, "something error", error.message);
+    console.error("Error creating invoice:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
   }
 });
 

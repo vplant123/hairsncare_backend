@@ -127,7 +127,7 @@ const productSchema = new mongoose.Schema(
         },
         message: "Expiry date must be at least tomorrow",
       },
-    }, // Added validation
+    },
     batchNo: { type: String },
     mfgName: { type: String },
     weight: { type: Number, min: 0 }, // Changed to Number, added min
