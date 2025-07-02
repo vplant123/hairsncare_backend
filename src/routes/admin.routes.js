@@ -67,6 +67,8 @@ const {
 
   deleteQuery,
   deleteHairTests,
+  getCouponRelateddata,
+
 } = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -179,6 +181,8 @@ router.post("/update-followup-date", verifyJwt, updateFollowupdate);
 
 router.post("/delete-query", verifyJwt, deleteQuery);
 router.post("/delete-hairtest", verifyJwt, deleteHairTests);
+
+router.post("/check-coupon", verifyJwt, getCouponRelateddata);
 
 // router.get("/doctors", alldoctors);
 

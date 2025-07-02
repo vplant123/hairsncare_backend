@@ -1021,7 +1021,6 @@ const getOrders = asyncHandler(async (req, res) => {
       })
       .populate({
         path: "addressId",
-        select: "fullAddress",
         options: { strictPopulate: false },
       })
       .sort({ createdAt: -1 })
@@ -2858,6 +2857,56 @@ const deleteHairTests = asyncHandler(async (req, res) => {
   }
 });
 
+const getCouponRelateddata = asyncHandler(async (req, res) => {
+  try {
+    const { orderId } = req.query;
+    const order = await orderModel
+      .findOne({ orderNumber: orderId })
+      .populate("addressId")
+      .populate("coupon"); // Correct field
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    // Get coupon percent if coupon exists
+    let couponPercent = null;
+    if (order.coupon && order.coupon.percent) {
+      couponPercent = order.coupon.percent;
+    }
+
+    let address = "";
+    if (order.addressId) {
+      const addr = order.addressId;
+      address = [
+        addr.name,
+        addr.phone,
+        addr.fullAdress,
+        addr.city,
+        addr.state,
+        addr.pin,
+        addr.email,
+      ]
+        .filter(Boolean)
+        .join(", ");
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Coupon related data fetched successfully",
+      data: {
+        couponPercent,
+        address,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting coupon related data:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -2925,4 +2974,5 @@ module.exports = {
   updateFollowupdate,
   deleteQuery,
   deleteHairTests,
+  getCouponRelateddata,
 };
