@@ -2815,7 +2815,7 @@ const deleteQuery = asyncHandler(async (req, res) => {
     // Delete only patient data from the User collection
     await User.deleteMany({ _id: { $in: userIds } });
 
-    // Empty all other collections (delete all records)
+ 
     await Promise.all([
       LoginHistory.deleteMany({}),
       Appointment.deleteMany({}),

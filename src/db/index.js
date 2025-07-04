@@ -3,13 +3,11 @@ const mongoose = require("mongoose");
 // Prevent accidental database operations in production
 const isProd = process.env.NODE_ENV === "production";
 
-// Safety middleware to prevent dangerous operations in production
 mongoose.set("runValidators", true);
 
 // Prevent accidental collection drops
 if (isProd) {
   mongoose.plugin((schema) => {
-    // Block deleteMany in production
     schema.pre("deleteMany", function (next) {
       console.error("DELETE_MANY blocked in production");
       next(new Error("DELETE_MANY operations are not allowed in production"));
@@ -27,18 +25,17 @@ if (isProd) {
 }
 
 const connectDB = async () => {
-  const dbUri =
-    process.env.MONGODB_URI ||
-    "mongodb://develop:911Admin007@147.79.68.31:27017/myappdb?authSource=myappdb";
+  // const dbUri =
+  //   process.env.MONGODB_URI ||
+  //   "mongodb+srv://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares.d3wpd.mongodb.net/HairsNCare";
 
   // const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
 
-  // Retry connection for a few attempts if it fails
   const connectWithRetry = async () => {
     try {
       const connectionInstance = await mongoose.connect(dbUri, {
-        serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
-        directConnection: true, // Skip replica set discovery, connect directly to the MongoDB server
+        serverSelectionTimeoutMS: 5000,
+        directConnection: true,
       });
 
       console.log(
@@ -46,7 +43,7 @@ const connectDB = async () => {
       );
     } catch (error) {
       console.error("MongoDB connection error:", error);
-      setTimeout(connectWithRetry, 5000); // Retry after 5 seconds
+      setTimeout(connectWithRetry, 5000);
     }
   };
 
