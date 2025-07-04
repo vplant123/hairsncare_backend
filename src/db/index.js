@@ -1,7 +1,7 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
 
 // MongoDB connection URI
-const uri = "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/?retryWrites=true&w=majority&appName=HairsNcares";
+const uri = "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/?retryWrites=true&w=majority&appName=HairsNcare";
 
 // Create a MongoClient instance with MongoClientOptions
 const client = new MongoClient(uri, {
