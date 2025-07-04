@@ -29,6 +29,7 @@
     "joi": "^17.12.2",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
+    "mongodb": "^6.17.0",
     "mongoose": "^8.2.3",
     "mongoose-aggregate-paginate-v2": "^1.0.7",
     "morgan": "^1.10.0",

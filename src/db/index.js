@@ -1,74 +1,32 @@
-const mongoose = require("mongoose");
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
-// Prevent accidental database operations in production
-const isProd = process.env.NODE_ENV === "production";
+// MongoDB connection URI
+const uri = "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/?retryWrites=true&w=majority&appName=HairsNcares";
 
-mongoose.set("runValidators", true);
+// Create a MongoClient instance with MongoClientOptions
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
 
-// Prevent accidental collection drops
-if (isProd) {
-  mongoose.plugin((schema) => {
-    schema.pre("deleteMany", function (next) {
-      console.error("DELETE_MANY blocked in production");
-      next(new Error("DELETE_MANY operations are not allowed in production"));
-    });
+async function connectDB() {
+  try {
+    // Connect the client to the server
+    await client.connect();
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
-    // Block deleteOne without an ID in production
-    schema.pre("deleteOne", function (next) {
-      if (!this._conditions._id) {
-        console.error("Attempted DELETE without ID specification");
-        next(new Error("DELETE requires specific document ID"));
-      }
-      next();
-    });
-  });
-}
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    setTimeout(connectDB, 5000); // Retry connection after 5 seconds if failed
+  }
 
-const connectDB = async () => {
-  const dbUri =
-    process.env.MONGODB_URI ||
-    "mongodb://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares-shard-00-00.d3wpd.mongodb.net:27017,hairsncares-shard-00-01.d3wpd.mongodb.net:27017,hairsncares-shard-00-02.d3wpd.mongodb.net:27017/HairsNCare?ssl=true&replicaSet=atlas-tn0h8u-shard-0&authSource=admin&retryWrites=true&w=majority";
-
-  // const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
-
-  const connectWithRetry = async () => {
-    try {
-      const connectionInstance = await mongoose.connect(dbUri, {
-        serverSelectionTimeoutMS: 5000,
-        directConnection: true,
-      });
-
-      console.log(
-        `MongoDB connected! DB Host: ${connectionInstance.connection.host}`
-      );
-    } catch (error) {
-      console.error("MongoDB connection error:", error);
-      setTimeout(connectWithRetry, 5000);
-    }
-  };
-
-  await connectWithRetry();
-
-  // Add connection event handlers
-  mongoose.connection.on("error", (err) => {
+  // Add connection event handlers if needed
+  client.on('error', (err) => {
     console.error("MongoDB connection error:", err);
   });
-
-  mongoose.connection.on("disconnected", () => {
-    console.warn("MongoDB disconnected! Attempting to reconnect...");
-  });
-
-  // Graceful shutdown
-  process.on("SIGINT", async () => {
-    try {
-      await mongoose.connection.close();
-      console.log("MongoDB connection closed through app termination");
-      process.exit(0);
-    } catch (err) {
-      console.error("Error during MongoDB shutdown:", err);
-      process.exit(1);
-    }
-  });
-};
+}
 
 module.exports = connectDB;
