@@ -27,7 +27,7 @@ if (isProd) {
 const connectDB = async () => {
   const dbUri =
     process.env.MONGODB_URI ||
-    "mongodb+srv://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares.d3wpd.mongodb.net/HairsNCare";
+    "mongodb://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares-shard-00-00.d3wpd.mongodb.net:27017,hairsncares-shard-00-01.d3wpd.mongodb.net:27017,hairsncares-shard-00-02.d3wpd.mongodb.net:27017/HairsNCare?ssl=true&replicaSet=atlas-tn0h8u-shard-0&authSource=admin&retryWrites=true&w=majority";
 
   // const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
 
