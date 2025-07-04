@@ -25,9 +25,9 @@ if (isProd) {
 }
 
 const connectDB = async () => {
-  // const dbUri =
-  //   process.env.MONGODB_URI ||
-  //   "mongodb+srv://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares.d3wpd.mongodb.net/HairsNCare";
+  const dbUri =
+    process.env.MONGODB_URI ||
+    "mongodb+srv://hairsncares:Kz3o8JfxuxxQFHj7@hairsncares.d3wpd.mongodb.net/HairsNCare";
 
   // const dbUri = "mongodb://127.0.0.1:27017/HairsNCare?";
 
