@@ -8,8 +8,6 @@ const invoiceSchema = new mongoose.Schema(
     email: { type: String },
     address: { type: String, required: true },
     date: { type: Date },
-
-    // Customer reference
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -103,10 +101,13 @@ const invoiceSchema = new mongoose.Schema(
       },
     ],
 
+    consultationFee: { type: Number },
+    consultationGST: { type: Number },
+
     // Invoice and order references
     invoiceNo: { type: Number },
-    orderId: { type: String },
-    orderNumber: { type: String },
+      orderId: { type: String },
+      orderNumber: { type: String },
     orderDate: { type: Date },
 
     // Tax and compliance

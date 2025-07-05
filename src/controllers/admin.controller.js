@@ -1453,6 +1453,8 @@ const addInvoice = asyncHandler(async (req, res) => {
       "source",
       "currency",
       "exchangeRate",
+      "consultationFee",
+      "consultationGST",
     ];
 
     // Allowed fields at item level (updated for new model)
@@ -1523,6 +1525,10 @@ const addInvoice = asyncHandler(async (req, res) => {
     let deliveryCharge = total < 2000 ? 200 : 0;
 
     // Apply coupon discount
+    let couponDiscountAmount = 0;
+    if (data.couponDiscount) {
+      couponDiscountAmount = (total * data.couponDiscount) / 100;
+    }
 
     // Set financial calculations
     invoiceData.subtotal = subtotal;
@@ -1530,12 +1536,16 @@ const addInvoice = asyncHandler(async (req, res) => {
     invoiceData.totalGST = totalGST;
     invoiceData.totalDiscount = totalDiscount;
     invoiceData.deliveryCharges = deliveryCharge;
-    let couponDiscountAmount = 0;
-    if (data.couponDiscount) {
-      couponDiscountAmount = (subtotal * data.couponDiscount) / 100;
-    }
-    invoiceData.couponDiscount = data.couponDiscountAmount || 0;
-    invoiceData.totalAmount = total + deliveryCharge - couponDiscountAmount;
+    invoiceData.couponDiscount = couponDiscountAmount || 0;
+
+    // Calculate final total amount, including consultation fee if provided
+    invoiceData.totalAmount =
+      total +
+      deliveryCharge -
+      couponDiscountAmount +
+      (invoiceData.consultationFee || 0);
+
+    // Set paid amount
     invoiceData.paidAmt = invoiceData.totalAmount;
 
     // Set payment information
@@ -1564,20 +1574,6 @@ const addInvoice = asyncHandler(async (req, res) => {
       };
     }
 
-    // Set tax details
-    // invoiceData.taxDetails = {
-    //   cgst: totalGST / 2, // Assuming 50% CGST, 50% SGST
-    //   sgst: totalGST / 2,
-    //   igst: 0,
-    //   totalTax: totalGST,
-    // };
-
-    // Set business information
-    // invoiceData.gstNumber = data.gstNumber || "";
-    // invoiceData.panNumber = data.panNumber || "";
-    // invoiceData.shippingMethod = data.shippingMethod || "Standard Delivery";
-    // invoiceData.trackingNumber = data.trackingNumber || "";
-
     // Set status history
     invoiceData.statusHistory = [
       {
@@ -1597,7 +1593,6 @@ const addInvoice = asyncHandler(async (req, res) => {
     const sequence = await Invoices.countDocuments();
     invoiceData.invoiceNo = sequence + 1;
 
-    // Save invoice to the database
     const invoice = await Invoices.create(invoiceData);
 
     return res
@@ -2815,7 +2810,6 @@ const deleteQuery = asyncHandler(async (req, res) => {
     // Delete only patient data from the User collection
     await User.deleteMany({ _id: { $in: userIds } });
 
- 
     await Promise.all([
       LoginHistory.deleteMany({}),
       Appointment.deleteMany({}),
@@ -2942,8 +2936,11 @@ module.exports = {
   deleteReview,
   AllUserData,
   contactDetails,
+
   getAdmin,
+
   addInvoice,
+
   getInvoices,
   getInvoiceById,
   syncProduct,
