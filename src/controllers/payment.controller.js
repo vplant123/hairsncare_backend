@@ -319,6 +319,8 @@ const placeOrder = asyncHandler(async (req, res) => {
     await userToUpdate.save();
     console.log("User order count updated:", userToUpdate.orders);
 
+    await Cart.findOneAndDelete({ userId: user._id });
+
     return res
       .status(200)
       .json(new ApiResponse(200, order._id, "Order created successfully"));

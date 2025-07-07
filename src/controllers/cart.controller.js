@@ -11,9 +11,6 @@ const { exist } = require('joi');
 
 
 
-
-
-
 const getCartDetail = asyncHandler(async (req, res) => {
     try {
         const { userId, cartId } = req.query
@@ -131,9 +128,6 @@ const deleteCartItems = asyncHandler(async (req, res) => {
         return res.status(400).json(new ApiError(400, "Something went wrong while getting cart details"));
     }
 })
-
-
-
 
 
 module.exports = {
