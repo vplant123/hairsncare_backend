@@ -1507,9 +1507,9 @@ const addInvoice = asyncHandler(async (req, res) => {
         const itemTotal = (rateAfterDiscount + gstAmount) * quantity;
 
         // Save item calculations
-        cleanItem.total = itemTotal;
-        cleanItem.discountAmount = discountAmount * quantity;
-        cleanItem.gstAmount = gstAmount * quantity;
+        cleanItem.total = Math.round(itemTotal); // Round total to nearest integer
+        cleanItem.discountAmount = Math.round(discountAmount * quantity); // Round discount amount
+        cleanItem.gstAmount = Math.round(gstAmount * quantity); // Round GST amount
 
         // Accumulate totals
         subtotal += rate * quantity;
@@ -1531,19 +1531,16 @@ const addInvoice = asyncHandler(async (req, res) => {
     }
 
     // Set financial calculations
-    invoiceData.subtotal = subtotal;
-    invoiceData.total = total;
-    invoiceData.totalGST = totalGST;
-    invoiceData.totalDiscount = totalDiscount;
-    invoiceData.deliveryCharges = deliveryCharge;
-    invoiceData.couponDiscount = couponDiscountAmount || 0;
+    invoiceData.subtotal = Math.round(subtotal); // Round subtotal
+    invoiceData.total = Math.round(total); // Round total
+    invoiceData.totalGST = Math.round(totalGST); // Round GST total
+    invoiceData.totalDiscount = Math.round(totalDiscount + couponDiscountAmount); // Round discount total
+    invoiceData.deliveryCharges = Math.round(deliveryCharge); // Round delivery charges
+    invoiceData.couponDiscount = Math.round(couponDiscountAmount); // Round coupon discount
 
     // Calculate final total amount, including consultation fee if provided
     invoiceData.totalAmount =
-      total +
-      deliveryCharge -
-      couponDiscountAmount +
-      (invoiceData.consultationFee || 0);
+      Math.round(total + deliveryCharge - couponDiscountAmount + (invoiceData.consultationFee || 0));
 
     // Set paid amount
     invoiceData.paidAmt = invoiceData.totalAmount;
@@ -1603,6 +1600,7 @@ const addInvoice = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
+
 
 const getInvoices = asyncHandler(async (req, res) => {
   try {

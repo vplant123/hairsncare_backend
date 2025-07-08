@@ -31,7 +31,6 @@ const invoiceSchema = new mongoose.Schema(
         rate: { type: String },
         gst: { type: String },
         discount: { type: String },
-        discountPercent: { type: String },
         total: { type: String },
         batchNo: { type: String },
         stock: { type: Number },

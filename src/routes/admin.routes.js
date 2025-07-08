@@ -68,7 +68,6 @@ const {
   deleteQuery,
   deleteHairTests,
   getCouponRelateddata,
-
 } = require("../controllers/admin.controller.js");
 const adminValidation = require("../validations/admin.validations.js");
 const { verifyJwt } = require("../middlewares/auth.middleware.js");
@@ -139,6 +138,8 @@ router.post("/contactDetails", verifyJwt, contactDetails);
 router.post("/addInvoice", verifyJwt, addInvoice);
 router.post("/getInvoices", verifyJwt, getInvoices);
 router.post("/getInvoiceById", verifyJwt, getInvoiceById);
+
+// router.post("/getInvoices", getInvoices);
 
 router.post("/syncProduct", syncProduct);
 router.post("/addBlog", addBlog);
