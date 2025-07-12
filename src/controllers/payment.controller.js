@@ -30,15 +30,366 @@ const instance = new Razorpay({
 
 const { generateOrderNumber } = require("../utils/orderNumberGenerator");
 
+// Pure function: only calculates and returns invoice data, no DB calls
+const createInvoiceFromOrder = (order, user, address, couponPercent = 0) => {
+  // Calculate invoice items from order products
+  const invoiceItems = order.products.map((product) => {
+    const rate = Math.round(Number(product.item.price) || 0); // Price already includes GST
+    const quantity = Math.round(Number(product.quantity) || 0);
+    const discount = Math.round(Number(product.item.discount) || 0);
+    const gst = Math.round(Number(product.item.gst) || 0);
+
+    // Calculate discount on the full rate (including GST)
+    const discountAmount = Math.round((rate * discount) / 100);
+    const rateAfterDiscount = Math.round(rate - discountAmount);
+
+    // Calculate GST amount for display purposes only (from original rate)
+    const gstAmount = Math.round((rate * gst) / (100 + gst)); // Extract GST from original price
+
+    // Final item total (rate after discount)
+    const itemTotal = Math.round(rateAfterDiscount * quantity);
+
+    return {
+      item: product.item._id,
+      quantity: quantity.toString(),
+      rate: rate.toString(), // Original price (includes GST)
+      gst: gst.toString(),
+      discount: discount.toString(),
+      total: itemTotal.toString(),
+      discountAmount: Math.round(discountAmount * quantity),
+      gstAmount: Math.round(gstAmount * quantity), // GST amount for display only
+      hsn: product.item.hsn || "",
+      productName: product.item.name,
+    };
+  });
+
+  // Calculate subtotal (rate after discount)
+  let subtotal = 0;
+  let totalGST = 0;
+  let totalDiscount = 0;
+
+  invoiceItems.forEach((item) => {
+    const itemTotal = parseFloat(item.total);
+    subtotal += itemTotal;
+    totalGST += item.gstAmount; // For display purposes only
+    totalDiscount += item.discountAmount;
+  });
+
+  // Round subtotal
+  subtotal = Math.round(subtotal);
+
+  // Calculate delivery charge based on subtotal
+  const deliveryCharge = Math.round(subtotal < 2000 ? 200 : 0);
+
+  // Calculate coupon discount on subtotal
+  let couponDiscountAmount = 0;
+  if (couponPercent) {
+    couponDiscountAmount = Math.round((subtotal * couponPercent) / 100);
+  }
+
+  // Calculate final total: subtotal + delivery charge - coupon discount
+  const totalAmount = Math.round(
+    subtotal + deliveryCharge - couponDiscountAmount
+  );
+
+  // Prepare invoice data
+  const invoiceData = {
+    name: user?.fullname,
+    mobile: user?.mobile,
+    email: address?.email,
+    address: `${address?.fullAdress}, ${address?.city}, ${address?.state}, ${address?.pin}`,
+    date: new Date(),
+    userId: user._id,
+    items: invoiceItems,
+    subtotal: Math.round(subtotal), // Rate after discount
+    total: Math.round(subtotal), // Same as subtotal
+    totalGST: Math.round(totalGST), // GST amount for display only
+    totalDiscount: Math.round(totalDiscount + couponDiscountAmount), // Product discount + coupon discount
+    couponDiscount: Math.round(couponDiscountAmount),
+    deliveryCharges: Math.round(deliveryCharge),
+    totalAmount: Math.round(totalAmount), // Final amount after all calculations
+    paid: order.mode === "cash",
+    paidAmt: Math.round(totalAmount),
+    dues: 0,
+    paymentMode: order.mode,
+    paymentStatus: order.mode === "cash" ? "paid" : "pending",
+    orderStatus: order.deliveryStatus,
+    orderId: order._id.toString(),
+    orderNumber: order.orderNumber,
+    orderDate: order.createdAt,
+    source: "order_placement",
+    currency: "INR",
+    exchangeRate: 1,
+    isDeleted: false,
+    statusHistory: [
+      {
+        status: order.deliveryStatus,
+        timestamp: new Date(),
+        note: "Invoice created from order placement",
+      },
+    ],
+  };
+
+  // Set shipping address
+  if (address) {
+    invoiceData.shippingAddress = {
+      street: address.fullAdress || "",
+      city: address.city || "",
+      state: address.state || "",
+      pincode: address.pin || "",
+      country: "India",
+    };
+  }
+
+  return invoiceData;
+};
+
+const createInvoiceFromExistingOrder = asyncHandler(async (req, res) => {
+  try {
+    const { orderNumber } = req.body;
+    const { user } = req;
+
+    if (!orderNumber) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Order Number is required"));
+    }
+
+    // Find the order
+    const order = await Order.findOne({ orderNumber });
+    if (!order) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Order not found"));
+    }
+
+    // Check if invoice already exists
+    if (order.invoiceId) {
+      return res
+        .status(400)
+        .json(
+          new ApiResponse(400, null, "Invoice already exists for this order")
+        );
+    }
+
+    // Get user details
+    const userDetails = await User.findById(order.userId);
+    if (!userDetails) {
+      return res.status(404).json(new ApiResponse(404, null, "User not found"));
+    }
+
+    // Get address details
+    const address = await userAddresses.findById(order.addressId);
+    if (!address) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Address not found"));
+    }
+
+    // Create invoice
+    const invoiceData = createInvoiceFromOrder(order, userDetails, address);
+
+    // Save the invoice to database
+    const invoice = new Invoices(invoiceData);
+    await invoice.save();
+
+    // Update order with invoice ID
+    order.invoiceId = invoice._id;
+    await order.save();
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, invoice, "Invoice created successfully"));
+  } catch (error) {
+    console.error("Error creating invoice from existing order:", error);
+    return res
+      .status(400)
+      .json(
+        new ApiResponse(400, null, error.message || "Failed to create invoice")
+      );
+  }
+});
+
+const getInvoiceByOrderNumber = asyncHandler(async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+
+    if (!orderNumber) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Order Number is required"));
+    }
+
+    // Find the order first
+    const order = await Order.findOne({ orderNumber });
+    if (!order) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Order not found"));
+    }
+
+    // Find the invoice using the order's invoiceId
+    if (!order.invoiceId) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "No invoice found for this order"));
+    }
+
+    const invoice = await Invoices.findById(order.invoiceId)
+      .populate("items.item")
+      .populate("userId", "fullname mobile email");
+
+    if (!invoice) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Invoice not found"));
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, invoice, "Invoice fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching invoice by order number:", error);
+    return res
+      .status(400)
+      .json(
+        new ApiResponse(400, null, error.message || "Failed to fetch invoice")
+      );
+  }
+});
+
+const testInvoiceCreation = asyncHandler(async (req, res) => {
+  try {
+    const { orderNumber } = req.body;
+
+    if (!orderNumber) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Order Number is required"));
+    }
+
+    // Find the order
+    const order = await Order.findOne({ orderNumber });
+    if (!order) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Order not found"));
+    }
+
+    // Check if invoice already exists
+    if (order.invoiceId) {
+      return res
+        .status(400)
+        .json(
+          new ApiResponse(400, null, "Invoice already exists for this order")
+        );
+    }
+
+    // Get user details
+    const userDetails = await User.findById(order.userId);
+    if (!userDetails) {
+      return res.status(404).json(new ApiResponse(404, null, "User not found"));
+    }
+
+    // Get address details
+    const address = await userAddresses.findById(order.addressId);
+    if (!address) {
+      return res
+        .status(404)
+        .json(new ApiResponse(404, null, "Address not found"));
+    }
+
+    // Create invoice
+    const invoice = await createInvoiceFromOrder(order, userDetails, address);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, invoice, "Test invoice created successfully"));
+  } catch (error) {
+    console.error("Error in test invoice creation:", error);
+      return res
+        .status(400)
+      .json(
+        new ApiResponse(
+          400,
+          null,
+          error.message || "Failed to create test invoice"
+        )
+      );
+  }
+});
+
+function calculateOrderSummary({ products, couponPercent = 0, config }) {
+    // Calculate order items and subtotal
+    let subTotal = 0;
+    const orderItems = products.map((item) => {
+    const rate = Math.round(Number(item.item.price) || 0); // Price already includes GST
+    const quantity = Math.round(Number(item.quantity) || 0);
+    const discount = Math.round(Number(item.item.discount) || 0);
+    const gst = Math.round(Number(item.item.gst) || 0);
+
+    // Calculate discount on the full rate (including GST)
+    const discountAmount = Math.round((rate * discount) / 100);
+    const rateAfterDiscount = Math.round(rate - discountAmount);
+
+    // Calculate GST amount for display purposes only (from original rate)
+    const gstAmount = Math.round((rate * gst) / (100 + gst)); // Extract GST from original price
+
+    // Final item total (rate after discount)
+    const itemTotal = Math.round(rateAfterDiscount * quantity);
+
+      subTotal += itemTotal;
+
+      return {
+        name: item.item.name,
+        sku: item.item._id,
+        units: item.quantity,
+      selling_price: Math.round(item.item.price), // Original price (includes GST)
+      discount: Math.round(item.item.discount || 0),
+      tax: Math.round(item.item.gst || 0),
+        hsn: item.item.hsn || "",
+      };
+    });
+
+  // Round subtotal
+  subTotal = Math.round(subTotal);
+
+  // Coupon discount on subtotal
+  let totalDiscount = Math.round((Number(couponPercent || 0) * subTotal) / 100);
+
+  // Delivery charge
+  const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
+  const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
+  const deliveryChargeCalc = Math.round(
+    subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge
+  );
+
+  // Total amount: subtotal - coupon discount + delivery charge
+  const totalAmount = Math.round(
+    Number(subTotal) - Number(totalDiscount) + Number(deliveryChargeCalc)
+  );
+
+  return {
+    orderItems,
+    subTotal: Math.round(subTotal),
+    totalDiscount: Math.round(totalDiscount),
+    deliveryCharge: Math.round(deliveryChargeCalc),
+    totalAmount: Math.round(totalAmount),
+  };
+}
+
+//OLD APIs
 const placeOrder = asyncHandler(async (req, res) => {
   try {
-    const { amount, products, addressId, mode, htmls, couponId } = req.body;
+    const { amount,products, addressId, mode, htmls, couponId } = req.body;
+    console.log("place order", req.header);
     console.log("Request Body:", req.body);
+
     const { user } = req;
 
     if (!user || !user._id || !products?.length) {
       console.log("User not found or no products provided");
-      return res
+        return res
         .status(404)
         .json(
           new ApiResponse(404, null, "User not found or no products provided")
@@ -47,78 +398,58 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     // Fetch config
     let config = await Config.findOne({});
-    const { deliveryCharge = 200.0, deliveryAmt = 2000 } = config || {};
+    const { deliveryCharge: configDeliveryCharge = 200.0, deliveryAmt = 2000 } =
+      config || {};
     console.log("Config fetched:", config);
 
     // Validate address
     const address = await userAddresses.findOne({
       _id: addressId,
-      userId: user._id,
-    });
+        userId: user._id,
+      });
     if (!address) {
       console.log("Invalid or unauthorized address:", addressId);
-      return res
-        .status(400)
+        return res
+          .status(400)
         .json(new ApiResponse(400, null, "Invalid or unauthorized address"));
     }
 
-    // Calculate order items and subtotal
-    let subTotal = 0;
-    const orderItems = products.map((item) => {
-      const itemPrice = item.item.price - (parseFloat(item.item.discount) || 0);
-      const itemTotal = itemPrice * item.quantity;
-      subTotal += itemTotal;
-
-      return {
-        name: item.item.name,
-        sku: item.item._id,
-        units: item.quantity,
-        selling_price: item.item.price,
-        discount: item.item.discount || 0,
-        tax: item.item.gst || 0,
-        hsn: item.item.hsn || "",
-      };
-    });
-    console.log("Subtotal:", subTotal);
-
-    // Apply coupon discount
-    let totalDiscount = 0;
-    let coupon = null;
-    if (couponId) {
-      coupon = await CouponsModel.findOne({
-        _id: couponId,
-        isActive: true,
-      });
-      if (!coupon || (coupon.validity && coupon.validity < new Date())) {
-        console.log("Invalid or expired coupon:", couponId);
+    for (const item of products) {
+      const dbProduct = await Product.findById(item.item._id);
+      if (!dbProduct || Number(dbProduct.stock) < item.quantity) {
         return res
           .status(400)
-          .json(new ApiResponse(400, null, "Invalid or expired coupon"));
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              `Insufficient stock for product: ${item.item.name}`
+            )
+          );
       }
-      const couponMapping = await CouponsMappingModel.findOne({
-        userId: user._id,
-        coupon: couponId,
-        status: 1,
-        type: 2,
-      });
-      if (!couponMapping) {
-        console.log("Coupon not applicable:", couponId);
-        return res
-          .status(400)
-          .json(new ApiResponse(400, null, "Coupon not applicable"));
-      }
-      totalDiscount = (parseFloat(coupon.percent || 0) * subTotal) / 100;
-      console.log("Total Discount Applied:", totalDiscount);
     }
 
-    // Calculate delivery charge
-    const deliveryChargeCalc =
-      subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge;
-    console.log("Delivery Charge Calculated:", deliveryChargeCalc);
+    // Get coupon details if couponId is provided
+    let couponPercent = 0;
+    if (couponId) {
+      const coupon = await CouponsModel.findById(couponId);
+      if (coupon) {
+        couponPercent = coupon.percent || 0;
+      }
+    }
 
-    const totalAmount =
-      Number(subTotal) - Number(totalDiscount) + Number(deliveryChargeCalc);
-    console.log("Total Amount:", totalAmount);
+    const {
+      orderItems,
+      subTotal,
+      totalDiscount,
+      deliveryCharge: calculatedDeliveryCharge,
+      totalAmount,
+    } = calculateOrderSummary({
+      products,
+      couponPercent,
+      config: { deliveryCharge: configDeliveryCharge, deliveryAmt },
+    });
+    console.log("Subtotal:", subTotal);
 
     // Generate order number
     const orderNumber = await generateOrderNumber();
@@ -128,8 +459,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       userId: user._id,
       orderNumber: orderNumber,
       currency: "INR",
-      amount: amount,
-      subTotal,
+      amount: subTotal,
       totalAmount,
       status: "pending",
       orderType: "product Buy",
@@ -152,13 +482,82 @@ const placeOrder = asyncHandler(async (req, res) => {
       mode,
       deliveryStatus: mode === "cash" ? "processing" : "pending",
       coupon: couponId || null,
-      deliveryCharges: deliveryChargeCalc,
+      deliveryCharges: calculatedDeliveryCharge,
       totalDiscount,
     });
 
     console.log("Order created:", order);
 
     await order.save();
+
+    // Reduce stock for each product in the order
+    console.log("Reducing stock for products...");
+    for (const orderedProduct of order.products) {
+      const productId = orderedProduct.item._id;
+      const quantityOrdered = orderedProduct.quantity;
+
+      console.log(
+        `Reducing stock for product ${productId}, quantity: ${quantityOrdered}`
+      );
+
+      try {
+        // Fetch the product first
+        const dbProduct = await Product.findById(productId);
+
+        if (dbProduct) {
+          // Convert stock to number, perform calculation, then back to string
+          const currentStock = Number(dbProduct.stock) || 0;
+          const newStock = Math.max(currentStock - quantityOrdered, 0); // Prevent negative stock
+
+          console.log(
+            `Product: ${dbProduct.name}, Current stock: ${currentStock}, New stock: ${newStock}`
+          );
+
+          // Update the stock field only
+          await Product.findByIdAndUpdate(
+            productId,
+            { stock: newStock.toString() }, // Save as string
+            { runValidators: false } // Skip validation
+          );
+
+          console.log(
+            `✅ Stock reduced for product: ${dbProduct.name}, new stock: ${newStock}`
+          );
+        } else {
+          console.log(`❌ Product not found: ${productId}`);
+        }
+      } catch (stockError) {
+        console.error(
+          `❌ Error reducing stock for product ${productId}:`,
+          stockError
+        );
+        // Continue with other products even if one fails
+      }
+    }
+    console.log("✅ Stock reduction completed");
+
+    // Create invoice automatically after order is saved
+    try {
+      const invoiceData = createInvoiceFromOrder(
+        order,
+        user,
+        address,
+        couponPercent
+      );
+
+      // Save the invoice to database
+      const invoice = new Invoices(invoiceData);
+      await invoice.save();
+
+      // Update order with invoice ID
+      order.invoiceId = invoice._id;
+      await order.save();
+
+      console.log("Invoice created automatically:", invoice._id);
+    } catch (invoiceError) {
+      console.error("Failed to create invoice:", invoiceError);
+      // Don't fail the order creation if invoice creation fails
+    }
 
     if (mode === "cash") {
       // Clear cart
@@ -188,7 +587,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         shipping_is_billing: true,
         order_items: orderItems,
         payment_method: "COD",
-        shipping_charges: deliveryChargeCalc,
+        shipping_charges: calculatedDeliveryCharge,
         giftwrap_charges: 0,
         transaction_charges: 0,
         total_discount: totalDiscount,
@@ -238,7 +637,7 @@ const placeOrder = asyncHandler(async (req, res) => {
             Billing_Street: address?.city,
             Billing_City: address?.city,
             Billing_State: address?.state,
-            Adjustment: deliveryChargeCalc,
+            Adjustment: calculatedDeliveryCharge,
             Product_Details,
             Subject: `Order ${order._id}`,
             Shipping_City: address?.city,
@@ -325,7 +724,34 @@ const placeOrder = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, order._id, "Order created successfully"));
   } catch (error) {
-    console.error("Order creation error:", error);
+    console.error("=== PLACE ORDER API ERROR ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+
+    // Handle validation errors specifically
+    if (error.name === "ValidationError") {
+      console.error("Validation error details:", error.errors);
+      const validationMessages = Object.values(error.errors)
+        .map((err) => err.message)
+        .join(", ");
+      return res
+        .status(400)
+        .json(
+          new ApiResponse(400, null, `Validation failed: ${validationMessages}`)
+        );
+    }
+
+    // Handle other specific errors
+    if (error.name === "CastError") {
+      console.error("Cast error details:", error);
+      return res
+        .status(400)
+        .json(
+          new ApiResponse(400, null, `Invalid data format: ${error.message}`)
+        );
+    }
+
+    console.error("Full error stack:", error.stack);
     return res
       .status(400)
       .json(
@@ -454,6 +880,31 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     order.deliveryStatus = "processing";
     order.status = "paid";
     await order.save();
+
+    // Create invoice automatically after payment is successful
+    try {
+      const address = await userAddresses.findOne({ _id: order?.addressId });
+      const invoiceData = createInvoiceFromOrder(
+        order,
+        user,
+        address,
+        order?.totalDiscount
+      );
+
+      // Save the invoice to database
+      const invoice = new Invoices(invoiceData);
+      await invoice.save();
+
+      // Update order with invoice ID
+      order.invoiceId = invoice._id;
+      await order.save();
+
+      console.log("Invoice created automatically after payment:", invoice._id);
+    } catch (invoiceError) {
+      console.error("Failed to create invoice after payment:", invoiceError);
+      // Don't fail the payment update if invoice creation fails
+    }
+
     if (order?.coupon) {
       let couponMexist = await CouponsMappingModel.findOne({
         userId: user._id,
@@ -1013,6 +1464,9 @@ module.exports = {
   updatePaymentOrder,
   changeOrderStatus,
   shipOrder,
-
+  createInvoiceFromExistingOrder,
+  createInvoiceFromOrder,
   updateOrder,
+  getInvoiceByOrderNumber,
+  testInvoiceCreation,
 };

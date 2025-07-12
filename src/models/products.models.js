@@ -130,6 +130,7 @@ const productSchema = new mongoose.Schema(
     },
     batchNo: { type: String },
     mfgName: { type: String },
+    
     weight: { type: Number, min: 0 }, // Changed to Number, added min
     height: { type: Number, min: 0 }, // Changed to Number, added min
     width: { type: Number, min: 0 }, // Changed to Number, added min

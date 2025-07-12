@@ -1400,35 +1400,72 @@ const addInvoice = asyncHandler(async (req, res) => {
       const Order = require("../models/order.model");
       const userAddresses = require("../models/userAddresses.model");
       const CouponsModel = require("../models/Coupons.model");
+      const User = require("../models/user.model");
 
       order = await Order.findOne({ orderNumber: data.orderNumber });
 
       if (order) {
-        // Get address if missing
-        if (!data.address || data.address === "") {
-          if (order.addressId) {
-            const addressDoc = await userAddresses.findById(order.addressId);
-            if (addressDoc) {
-              data.address = `${addressDoc.fullAdress} , ${addressDoc.city} , ${addressDoc.state} , ${addressDoc.pin}`;
-            }
-          }
+        if (order.invoiceId) {
+          return res
+            .status(400)
+            .json(
+              new ApiResponse(
+                400,
+                null,
+                "Invoice already exists for this order"
+              )
+            );
         }
 
-        // Get coupon discount from order if not provided in request
-        if (!data.couponDiscount && order.coupon) {
-          const coupon = await CouponsModel.findById(order.coupon);
-          if (coupon && coupon.percent) {
-            data.couponDiscount = coupon.percent;
-          }
+        // Get user details
+        const userDetails = await User.findById(order.userId);
+        if (!userDetails) {
+          return res
+            .status(404)
+            .json(new ApiResponse(404, null, "User not found"));
         }
 
-        // Set userId from order
-        if (order.userId) {
-          data.userId = order.userId;
+        // Get address details
+        const address = await userAddresses.findById(order.addressId);
+        if (!address) {
+          return res
+            .status(404)
+            .json(new ApiResponse(404, null, "Address not found"));
         }
+
+        // Use the standardized invoice creation function
+        const {
+          createInvoiceFromOrder,
+        } = require("../controllers/payment.controller");
+        const invoice = await createInvoiceFromOrder(
+          order,
+          userDetails,
+          address
+        );
+
+        return res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              invoice,
+              "Invoice created successfully from order"
+            )
+          );
+      } else {
+        return res
+          .status(404)
+          .json(
+            new ApiResponse(
+              404,
+              null,
+              "Order not found with provided order number"
+            )
+          );
       }
     }
 
+    // If no orderNumber provided, continue with manual invoice creation
     // Allowed fields at invoice level (updated for new model)
     const allowedInvoiceFields = [
       "name",
@@ -1534,13 +1571,19 @@ const addInvoice = asyncHandler(async (req, res) => {
     invoiceData.subtotal = Math.round(subtotal); // Round subtotal
     invoiceData.total = Math.round(total); // Round total
     invoiceData.totalGST = Math.round(totalGST); // Round GST total
-    invoiceData.totalDiscount = Math.round(totalDiscount + couponDiscountAmount); // Round discount total
+    invoiceData.totalDiscount = Math.round(
+      totalDiscount + couponDiscountAmount
+    ); // Round discount total
     invoiceData.deliveryCharges = Math.round(deliveryCharge); // Round delivery charges
     invoiceData.couponDiscount = Math.round(couponDiscountAmount); // Round coupon discount
 
     // Calculate final total amount, including consultation fee if provided
-    invoiceData.totalAmount =
-      Math.round(total + deliveryCharge - couponDiscountAmount + (invoiceData.consultationFee || 0));
+    invoiceData.totalAmount = Math.round(
+      total +
+        deliveryCharge -
+        couponDiscountAmount +
+        (invoiceData.consultationFee || 0)
+    );
 
     // Set paid amount
     invoiceData.paidAmt = invoiceData.totalAmount;
@@ -1600,7 +1643,6 @@ const addInvoice = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something went wrong", error.message);
   }
 });
-
 
 const getInvoices = asyncHandler(async (req, res) => {
   try {
@@ -2780,6 +2822,7 @@ const updateFollowupdate = asyncHandler(async (req, res) => {
     }
 
     appointment.followUpDate = followUpDate;
+    appointment.appointmentDate = followUpDate;
     await appointment.save();
     console.log(appointment);
     return res.status(200).json({

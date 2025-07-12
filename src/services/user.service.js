@@ -234,7 +234,7 @@ class UserService {
     await userToUpdate.save({ validateBeforeSave: false });
   };
 
-  bookAppointment = async (req, data) => {
+  bookAppointment = async (req, data) => {  
     const { user } = req;
 
     console.log("[DEBUG] Book Appointment Service - Request Data:", data);

@@ -29,128 +29,153 @@ const createHairTestForUser = asyncHandler(async (req, res) => {
   }
 });
 
-const getHairTest = asyncHandler(async (req, res) => {
-  try {
-    const reversedHairtests = await HairTest.find()
-      .populate({
-        path: "userId",
-        select: "email personal status mobile",
-      })
-      .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
-      .lean();
+// const getHairTest = asyncHandler(async (req, res) => {
+//   try {
+//     const reversedHairtests = await HairTest.find()
+//       .populate({
+//         path: "userId",
+//         select: "email personal status mobile",
+//       })
+//       .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
+//       .lean();
 
-    if (!reversedHairtests?.length) {
-      return res
-        .status(200)
-        .json(new ApiResponse(200, [], "No hair tests found", "Success"));
-    }
+//     if (!reversedHairtests?.length) {
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, [], "No hair tests found"));
+//     }
 
-    const hairtests = reversedHairtests.reverse();
+//     const hairtests = reversedHairtests.reverse();
 
-    console.log("reversedHairtests", reversedHairtests);
+//     console.log("reversedHairtests", reversedHairtests);
 
-    const hairtestsWithOrderData = await Promise.all(
-      hairtests.map(async (test) => {
-        try {
-          const order = await OrderModel.findOne({
-            userId: test.userId,
-            orderType: "Appointment",
-            status: "paid",
-          })
-            .select("amount")
-            .lean();
+//     const hairtestsWithOrderData = await Promise.all(
+//       hairtests.map(async (test) => {
+//         try {
+//           // Find order for this user with paid status
+//           const order = await OrderModel.findOne({
+//             userId: test.userId,
+//             orderType: "Appointment",
+//             status: "paid",
+//           })
+//             .select("amount")
+//             .lean();
 
-          let appointments = await Appointment.find({
-            isDeleted: false,
-            hairTestId: test._id,
-          }).populate("doctorId", "fullname");
+//           // Find appointments for this hair test
+//           let appointments = await Appointment.find({
+//             isDeleted: false,
+//             hairTestId: test._id,
+//           }).populate("doctorId", "fullname");
 
-          if (appointments?.length > 0) {
-            if (order) {
-              const planId = appointments[0]?.planId;
-              if (planId) {
-                const plan = await Plan.findById(planId).lean();
+//           if (appointments?.length > 0) {
+//             // Check if order is paid
+//             if (order && order.status === "paid") {
+//               // Order is paid - set Method based on plan
+//               const planId = appointments[0]?.planId;
+//               if (planId) {
+//                 const plan = await Plan.findById(planId).lean();
 
-                if (plan?.name) {
-                  const newMethod =
-                    plan.name === "Local Plan"
-                      ? "Audio Call"
-                      : plan.name === "Premium Plan"
-                      ? "Video Call"
-                      : "Other";
+//                 if (plan?.name) {
+//                   const newMethod =
+//                     plan.name === "Local Plan"
+//                       ? "Audio Call"
+//                       : plan.name === "Premium Plan"
+//                       ? "Video Call"
+//                       : "Other";
 
-                  // Update appointments' Method in bulk
-                  const appointmentUpdates = appointments.map((appt) => {
-                    if (appt.Method !== newMethod) {
-                      appt.Method = newMethod;
-                    }
-                    return appt;
-                  });
+//                   // Update appointments' Method in bulk
+//                   const appointmentUpdates = appointments.map((appt) => {
+//                     if (appt.Method !== newMethod) {
+//                       appt.Method = newMethod;
+//                     }
+//                     return appt;
+//                   });
 
-                  // Use bulk operation to update appointments
-                  await Appointment.bulkWrite(
-                    appointmentUpdates.map((appt) => ({
-                      updateOne: {
-                        filter: { _id: appt._id },
-                        update: { $set: { Method: appt.Method } },
-                      },
-                    }))
-                  );
-                }
-              }
-            } else {
-              // If order is null, set all appointments' Method to "Other"
-              const appointmentUpdates = appointments.map((appt) => {
-                if (appt.Method !== "Other") {
-                  appt.Method = "Other";
-                }
-                return appt;
-              });
+//                   // Use bulk operation to update appointments
+//                   await Appointment.bulkWrite(
+//                     appointmentUpdates.map((appt) => ({
+//                       updateOne: {
+//                         filter: { _id: appt._id },
+//                         update: { $set: { Method: appt.Method } },
+//                       },
+//                     }))
+//                   );
+//                 }
+//               }
+//             } else {
+//               // Order is not paid or doesn't exist - clear appointment date and time slot
+//               console.log(
+//                 `Order not paid for hair test ${test._id}, clearing appointment details`
+//               );
 
-              // Use bulk operation to update appointments
-              await Appointment.bulkWrite(
-                appointmentUpdates.map((appt) => ({
-                  updateOne: {
-                    filter: { _id: appt._id },
-                    update: { $set: { Method: appt.Method } },
-                  },
-                }))
-              );
-            }
-          }
+//               const appointmentUpdates = appointments.map((appt) => {
+//                 // Clear appointment date and time slot
+//                 appt.appointmentDate = "";
+//                 appt.timeSlot = "";
+//                 appt.Method = "Other";
+//                 console.log("appt updated", appt);
+//                 return appt;
+//               });
 
-          const appointmentsData = appointments.map((a) => a.toObject());
+//               // Use bulk operation to update appointments
+//               await Appointment.bulkWrite(
+//                 appointmentUpdates.map((appt) => ({
+//                   updateOne: {
+//                     filter: { _id: appt._id },
+//                     update: {
+//                       $set: {
+//                         Method: appt.Method,
+//                         appointmentDate: appt.appointmentDate,
+//                         timeSlot: appt.timeSlot,
+//                       },
+//                     },
+//                   },
+//                 }))
+//               );
+//             }
+//           }
 
-          return {
-            ...test,
-            orders: order || null,
-            appointments: appointmentsData || [],
-          };
-        } catch (innerError) {
-          console.error(innerError); // Log detailed error for debugging
-          return {
-            ...test,
-            orders: null,
-            appointments: [],
-          };
-        }
-      })
-    );
-    console.log("hairtestsWithOrderData", hairtestsWithOrderData);
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          hairtestsWithOrderData,
-          "All hair tests fetched successfully",
-          "Success"
-        )
-      );
-  } catch (error) {
-    throw new ApiError(400, null, "Something went wrong", error.message);
-  }
-});
+//           const appointmentsData = appointments.map((a) => a.toObject());
+
+//           return {
+//             ...test,
+//             orders: order || null,
+//             appointments: appointmentsData || [],
+//           };
+//         } catch (innerError) {
+//           console.error("Error processing hair test:", test._id, innerError);
+//           return {
+//             ...test,
+//             orders: null,
+//             appointments: [],
+//           };
+//         }
+//       })
+//     );
+
+//     console.log("hairtestsWithOrderData", hairtestsWithOrderData);
+//     return res
+//       .status(200)
+//       .json(
+//         new ApiResponse(
+//           200,
+//           hairtestsWithOrderData,
+//           "All hair tests fetched successfully"
+//         )
+//       );
+//   } catch (error) {
+//     console.error("getHairTest error:", error);
+//     return res
+//       .status(400)
+//       .json(
+//         new ApiResponse(
+//           400,
+//           null,
+//           "Something went wrong while fetching hair tests"
+//         )
+//       );
+//   }
+// });
 
 // const getFollowupApointment = asyncHandler(async (req, res) => {
 //   try {
@@ -227,6 +252,148 @@ const getHairTest = asyncHandler(async (req, res) => {
 //   }
 // });
 
+const getHairTest = asyncHandler(async (req, res) => {
+  try {
+    const reversedHairtests = await HairTest.find()
+      .populate({
+        path: "userId",
+        select: "email personal status mobile",
+      })
+      .select("-Nutritional -LifeStyle -Stress -HairAndScalp -UploadedImage")
+      .lean();
+
+    if (!reversedHairtests?.length) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, [], "No hair tests found"));
+    }
+
+    const hairtests = reversedHairtests.reverse();
+
+    console.log("reversedHairtests", reversedHairtests);
+
+    const hairtestsWithOrderData = await Promise.all(
+      hairtests.map(async (test) => {
+        try {
+          // Find order for this user with paid status
+          const order = await OrderModel.findOne({
+            userId: test.userId,
+            orderType: "Appointment",
+            status: "paid",
+          })
+            .select("amount status")
+            .lean();
+
+          // Find appointments for this hair test
+          let appointments = await Appointment.find({
+            isDeleted: false,
+            hairTestId: test._id,
+          }).populate("doctorId", "fullname");
+
+          if (appointments?.length > 0) {
+            // Check if order is paid
+            if (order && order.status === "paid") {
+              // Order is paid - set Method based on plan
+              const planId = appointments[0]?.planId;
+              if (planId) {
+                const plan = await Plan.findById(planId).lean();
+
+                if (plan?.name) {
+                  const newMethod =
+                    plan.name === "Local Plan"
+                      ? "Audio Call"
+                      : plan.name === "Premium Plan"
+                      ? "Video Call"
+                      : "Other";
+
+                  // Update appointments' Method in bulk
+                  const appointmentUpdates = appointments.map((appt) => {
+                    if (appt.Method !== newMethod) {
+                      appt.Method = newMethod;
+                    }
+                    return appt;
+                  });
+
+                  // Use bulk operation to update appointments
+                  await Appointment.bulkWrite(
+                    appointmentUpdates.map((appt) => ({
+                      updateOne: {
+                        filter: { _id: appt._id },
+                        update: { $set: { Method: appt.Method } },
+                      },
+                    }))
+                  );
+                }
+              }
+            } else {
+              // Order is not paid or doesn't exist - clear appointment data
+              const appointmentUpdates = appointments.map((appt) => {
+                appt.appointmentDate = "";
+                appt.timeSlot = "";
+                appt.Method = "Other"; // Clear Method
+                return appt;
+              });
+
+              // Use bulk operation to update appointments
+              await Appointment.bulkWrite(
+                appointmentUpdates.map((appt) => ({
+                  updateOne: {
+                    filter: { _id: appt._id },
+                    update: {
+                      $set: {
+                        Method: appt.Method,
+                        appointmentDate: appt.appointmentDate,
+                        timeSlot: appt.timeSlot,
+                      },
+                    },
+                  },
+                }))
+              );
+            }
+          }
+
+          const appointmentsData = appointments.map((a) => a.toObject());
+
+          return {
+            ...test,
+            orders: order || null,
+            appointments: appointmentsData || [],
+          };
+        } catch (innerError) {
+          console.error("Error processing hair test:", test._id, innerError);
+          return {
+            ...test,
+            orders: null,
+            appointments: [],
+          };
+        }
+      })
+    );
+
+    console.log("hairtestsWithOrderData", hairtestsWithOrderData);
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          hairtestsWithOrderData,
+          "All hair tests fetched successfully"
+        )
+      );
+  } catch (error) {
+    console.error("getHairTest error:", error);
+    return res
+      .status(400)
+      .json(
+        new ApiResponse(
+          400,
+          null,
+          "Something went wrong while fetching hair tests"
+        )
+      );
+  }
+});
+
 const getFollowupApointment = asyncHandler(async (req, res) => {
   try {
     const appointments = await Appointment.find({
@@ -250,24 +417,34 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
 
     // Optional: Sort so that followupOf appointments come first, then by createdAt
     filteredAppointments.sort((a, b) => {
-      // If both have or don't have followupOf, sort by createdAt desc
-      if (!!b.followupOf === !!a.followupOf) {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-      // Appointments with followupOf come first
-      return b.followupOf ? 1 : -1;
+      return (
+        (b.followupOf ? 1 : 0) - (a.followupOf ? 1 : 0) ||
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
     });
 
-    const hairtestsWithOrderData = await Promise.all(
+    console.log("filteredAppointments", filteredAppointments);
+
+    const appointmentsWithOrderAndPrescriptionData = await Promise.all(
       filteredAppointments.map(async (appoint) => {
         try {
+          console.log("id", appoint._id);
           // Fetch the associated order data for the appointment
           const order = await OrderModel.findOne({
             userId: appoint.userId?._id || appoint.userId,
             orderType: "Appointment",
           })
-            .select("amount")
+            .select("amount status")
             .lean();
+
+          // Fetch prescription for the appointment
+          const prescription = await Prescription.findOne({
+            appointmentId: appoint._id,
+          }).lean();
+          console.log("haspppp", prescription);
+          // Check if the prescription exists and is not an empty object
+          const hasPrescription =
+            prescription && Object.keys(prescription).length > 0;
 
           // Use either hairTestId or followupOf to find the associated hair test data
           const hairTestIdToUse = appoint.hairTestId || appoint.followupOf;
@@ -280,17 +457,24 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
             }
           }
 
-          // Determine the method of consultation based on the plan
+          // Determine the method of consultation based on the order status and plan
           let Method = "Other"; // Default value
-          if (appoint.planId) {
-            const plan = await Plan.findById(appoint.planId).lean();
-            if (plan) {
-              if (plan.name === "Local Plan") {
-                Method = "Audio Call";
-              } else if (plan.name === "Premium Plan") {
-                Method = "Video Call";
+          if (order && order.status === "paid") {
+            if (appoint.planId) {
+              const plan = await Plan.findById(appoint.planId).lean();
+              if (plan) {
+                if (plan.name === "Local Plan") {
+                  Method = "Audio Call";
+                } else if (plan.name === "Premium Plan") {
+                  Method = "Video Call";
+                }
               }
             }
+          } else {
+            // If the order is not paid or doesn't exist, clear appointment details
+            appoint.appointmentDate = "";
+            appoint.timeSlot = "";
+            Method = "Other"; // Clear Method if not paid
           }
 
           return {
@@ -299,6 +483,7 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
             progress,
             Method,
             orderAmount: order?.amount || null,
+            hasPrescription, // Add hasPrescription field
           };
         } catch (innerError) {
           console.error("Error fetching data for appointment:", innerError);
@@ -308,6 +493,7 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
             progress: 0,
             Method: "Other",
             orderAmount: null,
+            hasPrescription: false, // Default if error occurs
           };
         }
       })
@@ -319,14 +505,22 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
       .json(
         new ApiResponse(
           200,
-          hairtestsWithOrderData,
+          appointmentsWithOrderAndPrescriptionData,
           "All appointments fetched successfully",
           "Success"
         )
       );
   } catch (error) {
-    console.error("getFollowupAppointment error:", error);
-    throw new ApiError(400, null, "Something went wrong", error.message);
+    console.error("getFollowupApointment error:", error);
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(
+          500,
+          null,
+          "Something went wrong while fetching follow-up appointments"
+        )
+      );
   }
 });
 

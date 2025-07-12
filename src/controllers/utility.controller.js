@@ -30,6 +30,8 @@ const OtherProcedures = require("../models/OtherProcedures.model");
 
 const getContent = asyncHandler(async (req, res) => {
   try {
+    console.log("get content", req.header);
+    // console.log("Request Body:", req.body);
     const homeData = await homeModel.find({});
     const expertiseData = await expertiseModel.find({});
     const aboutUsData = await aboutUsModel.find({});
@@ -48,20 +50,28 @@ const getContent = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(new ApiResponse(200, {home : homeData[0],
-        expertise : expertiseData[0],
-        specialist : specialistData[0],
-        aboutUs : aboutUsData[0],
-        customerVideos : customerVideos[0],
-        plan:plan,contactus:contactus[0],
-        config:config[0],
-        hairWomen:hairWomen[0],
-        hairMen:hairMen[0],
-        hairTransplant:hairTransplant[0],
-        onlineTest:onlineTest[0],
-        dermatologist:dermatologist[0],
-        otherProcedures:otherProcedures[0]      
-      },"succesffully"));
+      .json(
+        new ApiResponse(
+          200,
+          {
+            home: homeData[0],
+            expertise: expertiseData[0],
+            specialist: specialistData[0],
+            aboutUs: aboutUsData[0],
+            customerVideos: customerVideos[0],
+            plan: plan,
+            contactus: contactus[0],
+            config: config[0],
+            hairWomen: hairWomen[0],
+            hairMen: hairMen[0],
+            hairTransplant: hairTransplant[0],
+            onlineTest: onlineTest[0],
+            dermatologist: dermatologist[0],
+            otherProcedures: otherProcedures[0],
+          },
+          "succesffully"
+        )
+      );
   } catch (error) {
     throw new ApiError(400, "Unable to add Admin", error.message);
   }
@@ -69,22 +79,22 @@ const getContent = asyncHandler(async (req, res) => {
 
 const editHome = asyncHandler(async (req, res) => {
   try {
+    let where = await homeModel.findOne({
+      _id: new mongoose.Types.ObjectId("66be630af160573daaf0b0e4"),
+    });
 
-    let where = await homeModel.findOne({_id : new mongoose.Types.ObjectId('66be630af160573daaf0b0e4')});
-    
-    if(req.body?.section1) where["section1"] = req.body?.section1;
-    if(req.body?.section2) where["section2"] = req.body?.section2;
-    if(req.body?.section3) where["section3"] = req.body?.section3;
-    if(req.body?.section4) where["section4"] = req.body?.section4;
-    if(req.body?.section5) where["section5"] = req.body?.section5;
-    if(req.body?.section6) where["section6"] = req.body?.section6;
-    if(req.body?.section7) where["section7"] = req.body?.section7;
-    if(req.body?.section8) where["section8"] = req.body?.section8;
-    if(req.body?.section9) where["section9"] = req.body?.section9;
-    if(req.body?.section10) where["section10"] = req.body?.section10;
-    if(req.body?.section11) where["section11"] = req.body?.section11;
-    if(req.body?.section12) where["section12"] = req.body?.section12;
-
+    if (req.body?.section1) where["section1"] = req.body?.section1;
+    if (req.body?.section2) where["section2"] = req.body?.section2;
+    if (req.body?.section3) where["section3"] = req.body?.section3;
+    if (req.body?.section4) where["section4"] = req.body?.section4;
+    if (req.body?.section5) where["section5"] = req.body?.section5;
+    if (req.body?.section6) where["section6"] = req.body?.section6;
+    if (req.body?.section7) where["section7"] = req.body?.section7;
+    if (req.body?.section8) where["section8"] = req.body?.section8;
+    if (req.body?.section9) where["section9"] = req.body?.section9;
+    if (req.body?.section10) where["section10"] = req.body?.section10;
+    if (req.body?.section11) where["section11"] = req.body?.section11;
+    if (req.body?.section12) where["section12"] = req.body?.section12;
 
     await where.save();
 
@@ -111,7 +121,7 @@ const editHome = asyncHandler(async (req, res) => {
     //       },
     //     ],
     //   },
-    //   section2: 
+    //   section2:
     //     //review number
     //     {
     //       num1: 50,
@@ -352,10 +362,11 @@ const editHome = asyncHandler(async (req, res) => {
   }
 });
 
-
 const editExpertise = asyncHandler(async (req, res) => {
   try {
-    let where1 = await expertiseModel.findOne({ _id: new mongoose.Types.ObjectId('66c184519eb150caf2b0cc7e')});
+    let where1 = await expertiseModel.findOne({
+      _id: new mongoose.Types.ObjectId("66c184519eb150caf2b0cc7e"),
+    });
 
     if (req.body?.section1) where1["section1"] = req.body?.section1;
     if (req.body?.section2) where1["section2"] = req.body?.section2;
@@ -495,15 +506,16 @@ const editExpertise = asyncHandler(async (req, res) => {
 
 const editAboutUs1 = asyncHandler(async (req, res) => {
   try {
-    let {id} = req.body;
-    let where1 = await aboutUsModel.findOne({ _id: new mongoose.Types.ObjectId('66c18ecedd9b98696ebc3957') });
+    let { id } = req.body;
+    let where1 = await aboutUsModel.findOne({
+      _id: new mongoose.Types.ObjectId("66c18ecedd9b98696ebc3957"),
+    });
     if (req.body?.section1) where1["section1"] = req.body?.section1;
     if (req.body?.section2) where1["section2"] = req.body?.section2;
     if (req.body?.section3) where1["section3"] = req.body?.section3;
     if (req.body?.section4) where1["section4"] = req.body?.section4;
     if (req.body?.section5) where1["section5"] = req.body?.section5;
     if (req.body?.section6) where1["section6"] = req.body?.section6;
-
 
     await where1.save();
 
@@ -522,7 +534,7 @@ const editAboutUs1 = asyncHandler(async (req, res) => {
     //       shortDesc: "At Hairsncares, we believe that healthy, lustrous, beautiful hair is a reflection of overall well-being.",
     //       longDesc: "We understand the emotional impact that hair loss and thinning can have on individuals. Our mission is to provide latest, effective, affordable solutions and support to help our clients regain their confidence as well as to restore their hair's vitality.We understand the emotional impact that hair loss and thinning can have on individuals. Our mission is to provide latest, effective, affordable solutions and support to help our clients regain their confidence as well as to restore their hair's vitality",
     //     },
-  
+
     //   section3: {
     //     //Hair Transplant data
     //     title: "Our Journey",
@@ -546,13 +558,13 @@ const editAboutUs1 = asyncHandler(async (req, res) => {
     //       },
     //     ],
     //   },
-  
+
     //   section4: {
     //     img: "https://res.cloudinary.com/drkpwvnun/image/upload/v1723923759/hair-assessment/smxb7kpxarsyba9bnvgr.png",
     //     title: "Our Comprehensive Approach",
     //     desc: "At Hairsncares, we understand that every individual's hair health journey is unique. That's why we offer a seamless and convenient online hair test. With just a few simple steps, you can take the hair test on our website, providing us with valuable insights of your hair and scalp condition. Once you've completed the hair test, our advanced algorithm analyzes the data and generates a comprehensive report detailing your hair health status. This report forms the foundation of your personalized holistic treatment plan including medicine, diet, stress & lifestyle care designed to tackle hair loss or thinning effectively. To ensure the highest level of care and expertise, Hairsncares boasts a panel of esteemed doctors who specialize in hair health. These professionals have extensive experience in the hair care field and are at the forefront of the latest advancements in hair care. You have the option to opt for a virtual consultation with one of our hair expert doctors, allowing you to discuss your hair concerns in-depth and receive holistic personalized recommendations.",
     //   },
-  
+
     //   section5: {
     //     //Hair Transplant data
     //     title: "Core Principles for Hair Loss/ Hair Thinning",
@@ -579,12 +591,12 @@ const editAboutUs1 = asyncHandler(async (req, res) => {
     //       },
     //     ],
     //   },
-  
+
     //   section6: {
     //     //Hair Transplant data
     //     title: "Our Commitment",
     //     desc: "At Hairsncares, we are committed to providing an empowering and supportive environment for our clients. Through our user-friendly website, individuals can easily take a hair test online, receive personalized analysis, and access expert treatment recommendations for their hair care journey. We offer the option of virtual consultations with our esteemed doctors, ensuring personalized attention and guidance throughout the process.\nWe are inspired by the success stories of our clients who have regained their confidence and transformed their lives through our comprehensive hair care programs. Hairsncares is dedicated to being the trusted companion on your path to healthier, fuller hair.\nWelcome to Hairsncares, where your hair health is our top priority. Together, let's unlock the secrets to radiant, thriving hair and embrace a life filled with confidence and vitality.",
-  
+
     //     data: [
     //       {
     //         title: "Our Vision",
@@ -609,10 +621,11 @@ const editAboutUs1 = asyncHandler(async (req, res) => {
   }
 });
 
-
 const editSpecialist = asyncHandler(async (req, res) => {
   try {
-    let where1 = await specialistsModel.findOne({ _id: new mongoose.Types.ObjectId('66c184e278a36a3bc0370df5') });
+    let where1 = await specialistsModel.findOne({
+      _id: new mongoose.Types.ObjectId("66c184e278a36a3bc0370df5"),
+    });
 
     if (req.body?.section1) where1["section1"] = req.body?.section1;
     if (req.body?.section2) where1["section2"] = req.body?.section2;
@@ -648,7 +661,7 @@ const editSpecialist = asyncHandler(async (req, res) => {
     //         desc: "Our experienced dermatologists specialize in hair care, offering tailored solutions for your hair needs. Trust us for the healthy, beautiful hair you deserve.",
     //       },
     //     ],
-  
+
     //   section3: {
     //     //Hair Transplant data
     //     name: "Dr Amit Agarkar",
@@ -663,17 +676,17 @@ const editSpecialist = asyncHandler(async (req, res) => {
     //     association: "Dr. Amit Agarkar is a part of AHRS (association of hair restoration surgeons) & other such reputed hair restoration associations in India.",
     //     awards : ["https://res.cloudinary.com/drkpwvnun/image/upload/v1723957089/hair-assessment/umkrw2kk7ual46ynsoxx.png"]
     //   },
-  
+
     //   section4: {
     //     title: "Our Team of Doctors",
     //     desc: "Introducing Our Esteemed Team of Doctors: Our team embodies a commitment to excellence, utilizing the latest advancements and a patient-centred approach to achieve your desired hair goals.",
     //   },
-  
+
     //   section5: {
     //     //Hair Transplant data
     //     title: "HairsNcares Counsellors",
     //     desc: "Our team of skilled hair care counselors is here to provide personalized advice and solutions for all your hair needs. With a deep understanding of various hair types and concerns",
-  
+
     //     data: [
     //       {
     //         desc: "Education & Confidence Boosting",
@@ -694,7 +707,7 @@ const editSpecialist = asyncHandler(async (req, res) => {
     //       },
     //     ],
     //   },
-  
+
     // }
     // const homeData = await specialistsModel.create(data);
     // await where.save()
@@ -708,40 +721,45 @@ const editSpecialist = asyncHandler(async (req, res) => {
 
 const editCustomerVideos = asyncHandler(async (req, res) => {
   try {
-
     if (req.body?.section1) {
-      let where1 = await CustomerVideosModel.findOne({ _id:  new mongoose.Types.ObjectId('66c3c6bda058b2552a04ee0f') });
+      let where1 = await CustomerVideosModel.findOne({
+        _id: new mongoose.Types.ObjectId("66c3c6bda058b2552a04ee0f"),
+      });
       where1["section1"] = req.body?.section1;
       await where1.save();
     }
-    if (req.body?.plan == "1"){
-      let {appPrice1,appPrice2,appPrice3,appPrice4} = req.body;
-      if(appPrice1){
+    if (req.body?.plan == "1") {
+      let { appPrice1, appPrice2, appPrice3, appPrice4 } = req.body;
+      if (appPrice1) {
         let plan = await planModel.findOne({ name: "Local Plan" });
         plan.price = appPrice1;
-        await plan.save()
+        await plan.save();
       }
-      if(appPrice2){
+      if (appPrice2) {
         let plan = await planModel.findOne({ name: "Premium Plan" });
         plan.price = appPrice2;
-        await plan.save()
+        await plan.save();
       }
-      if(appPrice3){
-        let plan = await Config.updateOne({ _id: new mongoose.Types.ObjectId("6714362ab526d76306f3c9e3") },{deliveryCharge: appPrice3});
+      if (appPrice3) {
+        let plan = await Config.updateOne(
+          { _id: new mongoose.Types.ObjectId("6714362ab526d76306f3c9e3") },
+          { deliveryCharge: appPrice3 }
+        );
         plan.deliveryCharge = appPrice3;
-        console.log("sjorjf",plan,appPrice3)
+        console.log("sjorjf", plan, appPrice3);
         // await plan.save()
       }
-      if(appPrice4){
-        let plan = await Config.updateOne({ _id: new mongoose.Types.ObjectId("6714362ab526d76306f3c9e3") },{deliveryAmt: appPrice4});
+      if (appPrice4) {
+        let plan = await Config.updateOne(
+          { _id: new mongoose.Types.ObjectId("6714362ab526d76306f3c9e3") },
+          { deliveryAmt: appPrice4 }
+        );
         plan.deliveryAmt = appPrice4;
-        console.log("sjorjf",plan,appPrice4)
+        console.log("sjorjf", plan, appPrice4);
 
         // await plan.save()
       }
     }
-
-
 
     // let data =   {
     //   section1: [{
@@ -779,7 +797,7 @@ const editCustomerVideos = asyncHandler(async (req, res) => {
     //     title: "Through pioneering research by skin care experts from India and Australia, Fair and Handsome, 'the Radiance Cream for Men' has developed a breakthrough",
     //     videoUrl: "https://www.youtube.com/embed/i3JI37i0w1U?si=JUs7JMUIn8N3FoCv&amp;controls=0",
     //   },
-    // ]  
+    // ]
     // }
     // const homeData = await CustomerVideosModel.create(data);
     // await where.save()
@@ -793,12 +811,13 @@ const editCustomerVideos = asyncHandler(async (req, res) => {
 
 const editContactUs = asyncHandler(async (req, res) => {
   try {
-    let where1 = await contactScreenModel.findOne({ _id: new mongoose.Types.ObjectId("66e738acfb823b2b236f89aa") });
+    let where1 = await contactScreenModel.findOne({
+      _id: new mongoose.Types.ObjectId("66e738acfb823b2b236f89aa"),
+    });
 
     if (req.body?.section1) where1["section1"] = req.body?.section1;
     if (req.body?.section2) where1["section2"] = req.body?.section2;
     if (req.body?.section3) where1["section3"] = req.body?.section3;
-
 
     await where1.save();
 
@@ -817,7 +836,7 @@ const editContactUs = asyncHandler(async (req, res) => {
     //       time1: "Mon - Fri: 9AM - 7PM",
     //       time2: "Sat - Sun: 11AM - 4PM"
     //     },
-  
+
     //   section3: {
     //     title: "How it works",
     //     img: "https://res.cloudinary.com/drkpwvnun/image/upload/v1726429127/hair-assessment/iyev0fqlfwvdbfbpxgp7.jpg",
@@ -847,17 +866,16 @@ const editContactUs = asyncHandler(async (req, res) => {
   }
 });
 
-
-
 const editHairWomen = asyncHandler(async (req, res) => {
   try {
     let where1 = await HairWomen.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759aab9bcf259ff7713bb3d") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759aab9bcf259ff7713bb3d") },
+      req.body
+    );
 
     // if (req.body?.section1) where1["section1"] = req.body?.section1;
     // if (req.body?.section2) where1["section2"] = req.body?.section2;
     // if (req.body?.section3) where1["section3"] = req.body?.section3;
-
 
     // await where1.save();
     return res
@@ -871,7 +889,9 @@ const editHairWomen = asyncHandler(async (req, res) => {
 const editHairMen = asyncHandler(async (req, res) => {
   try {
     let where1 = await HairMen.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759aa61256d05e84900ae41") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759aa61256d05e84900ae41") },
+      req.body
+    );
     // await where1.save();
     return res
       .status(200)
@@ -884,7 +904,9 @@ const editHairMen = asyncHandler(async (req, res) => {
 const editHairTransplant = asyncHandler(async (req, res) => {
   try {
     let where1 = await HairTransplant.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759aace2fab323f747389ce") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759aace2fab323f747389ce") },
+      req.body
+    );
     // await where1.save();
     return res
       .status(200)
@@ -894,10 +916,12 @@ const editHairTransplant = asyncHandler(async (req, res) => {
   }
 });
 
-const editOnlineTest= asyncHandler(async (req, res) => {
+const editOnlineTest = asyncHandler(async (req, res) => {
   try {
     let where1 = await OnlineTest.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759aaf4d4c1c38daf400f12") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759aaf4d4c1c38daf400f12") },
+      req.body
+    );
     // await where1.save();
     return res
       .status(200)
@@ -907,10 +931,12 @@ const editOnlineTest= asyncHandler(async (req, res) => {
   }
 });
 
-const editDermatologist= asyncHandler(async (req, res) => {
+const editDermatologist = asyncHandler(async (req, res) => {
   try {
     let where1 = await Dermatologist.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759ab098235221422062643") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759ab098235221422062643") },
+      req.body
+    );
     // await where1.save();
     return res
       .status(200)
@@ -920,10 +946,12 @@ const editDermatologist= asyncHandler(async (req, res) => {
   }
 });
 
-const editOtherProcedures= asyncHandler(async (req, res) => {
+const editOtherProcedures = asyncHandler(async (req, res) => {
   try {
     let where1 = await OtherProcedures.updateOne(
-      { _id: new mongoose.Types.ObjectId("6759ab19eec202d7e2f01750") },req.body);
+      { _id: new mongoose.Types.ObjectId("6759ab19eec202d7e2f01750") },
+      req.body
+    );
     // await where1.save();
     return res
       .status(200)
@@ -933,15 +961,8 @@ const editOtherProcedures= asyncHandler(async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
 module.exports = {
-    getContent,
+  getContent,
   editHome,
   editExpertise,
   editAboutUs1,
@@ -953,6 +974,5 @@ module.exports = {
   editOnlineTest,
   editHairTransplant,
   editDermatologist,
-  editOtherProcedures
+  editOtherProcedures,
 };
-

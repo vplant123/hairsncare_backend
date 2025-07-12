@@ -185,6 +185,7 @@ router.post("/delete-hairtest", verifyJwt, deleteHairTests);
 
 router.post("/check-coupon", verifyJwt, getCouponRelateddata);
 
+
 // router.get("/doctors", alldoctors);
 
 module.exports = router;

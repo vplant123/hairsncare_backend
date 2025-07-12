@@ -18,7 +18,9 @@ const {
   updatePaymentOrder,
   changeOrderStatus,
   shipOrder,
-
+  createInvoiceFromExistingOrder,
+  getInvoiceByOrderNumber,
+  testInvoiceCreation,
   updateOrder
 } = require("../controllers/payment.controller.js");
 
@@ -31,6 +33,9 @@ router.post("/update-payment-order", verifyJwt, updatePaymentOrder);
 
 router.post("/place-order", verifyJwt, placeOrder);
 router.post("/change-order-status", verifyJwt, changeOrderStatus);
+router.post("/create-invoice-from-order", verifyJwt, createInvoiceFromExistingOrder);
+router.get("/invoice/:orderNumber", verifyJwt, getInvoiceByOrderNumber);
+router.post("/test-invoice-creation", verifyJwt, testInvoiceCreation);
 
 router.post("/generate-paymentLink", verifyJwt, generatePaymentLink);
 router.delete("/deleteAllPayment", deleteAllPayments);

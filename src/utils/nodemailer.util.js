@@ -8,30 +8,29 @@ const nodemailer = require("nodemailer");
 //     }
 // });
 
-// const transporter = nodemailer.createTransport({
-//   host: "smtpout.secureserver.net", // GoDaddy SMTP server
-//   port: 465, // Secure SMTP port
-//   secure: true, // Use SSL/TLS
-//   auth: {
-//     user: "info@hairsncares.com", // Your GoDaddy email
-//     pass: "H@irs#321", // Your GoDaddy email password
-//   },
-
-// });
-
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
+  host: "smtpout.secureserver.net", // GoDaddy SMTP server
+  port: 465, // Secure SMTP port
+  secure: true, // Use SSL/TLS
   auth: {
-    user: "work26mohit@gmail.com",
-    pass: "tzci ujtt atay ciap",
+    user: "info@hairsncares.com", // Your GoDaddy email
+    pass: "H@irs#321", // Your GoDaddy email password
   },
 });
 
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.gmail.com",
+//   port: 587,
+//   secure: false,
+//   auth: {
+//     user: "work26mohit@gmail.com",
+//     pass: "tzci ujtt atay ciap",
+//   },
+// });
+
 const sendEmail = async (to, subject, text) => {
   const mailOptions = {
-    from: "work26mohit@gmail.com",
+    from: "info@hairsncares.com",
     to,
     subject,
     text,
@@ -42,7 +41,7 @@ const sendEmail = async (to, subject, text) => {
 
 const sendEmailTemplate = async (to, subject, emailHtml) => {
   const mailOptions = {
-    from: "work26mohit@gmail.com",
+    from: "info@hairsncares.com",
     to,
     subject,
     html: emailHtml,
