@@ -1149,59 +1149,93 @@ const getCoupons = asyncHandler(async (req, res) => {
 
 const editCoupon = asyncHandler(async (req, res) => {
   try {
-    const { code, _id, validity, percent, type, isActive } = req.body;
-
-    console.log("Request body:", req.body);
+    const {
+      code,
+      _id,
+      validity,
+      percent,
+      type,
+      isActive,
+      discountType,
+      fixedAmount,
+      minOrderAmount,
+    } = req.body;
 
     // Create new coupon if _id is not provided
     if (!_id) {
-      console.log("Creating a new coupon...");
-
-      if (!code || !validity || percent === undefined || type === undefined) {
-        console.log("Missing required fields for new coupon:", {
-          code,
-          validity,
-          percent,
-          type,
-        });
+      // Check for duplicate code
+      const existingCoupon = await CouponsModel.findOne({ code });
+      if (existingCoupon) {
         return res
           .status(400)
           .json(
             new ApiResponse(
               400,
               null,
-              "All fields (code, validity, percent, type) are required for creating a new coupon."
+              "Coupon code already exists. Please use a unique code."
             )
           );
       }
-
+      if (!code || !validity || !discountType || type === undefined) {
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              "All fields (code, validity, discountType, type) are required for creating a new coupon."
+            )
+          );
+      }
+      if (discountType === "percent" && percent === undefined) {
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              "Percent is required for percent type coupon."
+            )
+          );
+      }
+      if (discountType === "fixed" && fixedAmount === undefined) {
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              "fixedAmount is required for fixed type coupon."
+            )
+          );
+      }
       const newCoupon = await CouponsModel.create({
         code,
         validity,
-        percent,
+        percent: discountType === "percent" ? percent : undefined,
+        discountType,
+        fixedAmount: discountType === "fixed" ? fixedAmount : undefined,
+        minOrderAmount: minOrderAmount || 0,
         type,
         isActive: isActive ?? true,
       });
-
-      console.log("New coupon created:", newCoupon);
-
       return res
         .status(200)
         .json(new ApiResponse(200, newCoupon, "Coupon added successfully."));
     }
 
     // Update existing coupon if _id is provided
-    console.log("Editing existing coupon with _id:", _id);
-
     const updateData = {
       ...(code && { code }),
       ...(validity && { validity }),
-      ...(percent !== undefined && { percent }),
+      ...(discountType && { discountType }),
+      ...(percent !== undefined && discountType === "percent" && { percent }),
+      ...(fixedAmount !== undefined &&
+        discountType === "fixed" && { fixedAmount }),
+      ...(minOrderAmount !== undefined && { minOrderAmount }),
       ...(type !== undefined && { type }),
       ...(isActive !== undefined && { isActive }),
     };
-
-    console.log("Update data:", updateData);
 
     const updatedCoupon = await CouponsModel.findByIdAndUpdate(
       _id,
@@ -1210,14 +1244,10 @@ const editCoupon = asyncHandler(async (req, res) => {
     );
 
     if (!updatedCoupon) {
-      console.log("Coupon not found for _id:", _id);
       return res
         .status(404)
         .json(new ApiResponse(404, null, "Coupon not found."));
     }
-
-    console.log("Coupon updated successfully:", updatedCoupon);
-
     return res
       .status(200)
       .json(
@@ -1393,6 +1423,17 @@ const contactDetails = asyncHandler(async (req, res) => {
 const addInvoice = asyncHandler(async (req, res) => {
   try {
     const data = req.body;
+    if (!data) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "No data provided for invoice creation"));
+    }
+    // Validate required fields
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Invoice must have at least one item"));
+    }
     console.log("Invoice Data:", data);
 
     let order = null;
@@ -1437,12 +1478,27 @@ const addInvoice = asyncHandler(async (req, res) => {
         const {
           createInvoiceFromOrder,
         } = require("../controllers/payment.controller");
-        const invoice = await createInvoiceFromOrder(
-          order,
-          userDetails,
-          address
-        );
-
+        let invoice;
+        try {
+          invoice = createInvoiceFromOrder(order, userDetails, address);
+        } catch (err) {
+          return res
+            .status(500)
+            .json(
+              new ApiError(
+                500,
+                "Failed to create invoice from order",
+                err.message
+              )
+            );
+        }
+        if (!invoice) {
+          return res
+            .status(500)
+            .json(
+              new ApiError(500, "Invoice creation failed for unknown reasons")
+            );
+        }
         return res
           .status(200)
           .json(
@@ -1525,7 +1581,8 @@ const addInvoice = asyncHandler(async (req, res) => {
     let subtotal = 0;
 
     // Process each item
-    invoiceData.items = (Array.isArray(data.items) ? data.items : []).map(
+    // First, calculate item totals and subtotal
+    let baseItems = (Array.isArray(data.items) ? data.items : []).map(
       (item) => {
         let cleanItem = allowedItemFields.reduce((acc, key) => {
           if (item[key] !== undefined) acc[key] = item[key];
@@ -1543,27 +1600,65 @@ const addInvoice = asyncHandler(async (req, res) => {
         const gstAmount = (rateAfterDiscount * gstPercent) / 100;
         const itemTotal = (rateAfterDiscount + gstAmount) * quantity;
 
-        // Save item calculations
-        cleanItem.total = Math.round(itemTotal); // Round total to nearest integer
-        cleanItem.discountAmount = Math.round(discountAmount * quantity); // Round discount amount
-        cleanItem.gstAmount = Math.round(gstAmount * quantity); // Round GST amount
-
         // Accumulate totals
         subtotal += rate * quantity;
         total += itemTotal;
         totalDiscount += discountAmount * quantity;
         totalGST += gstAmount * quantity;
 
-        return cleanItem;
+        return {
+          ...cleanItem,
+          rate,
+          quantity,
+          discountAmount,
+          itemTotal,
+          gstAmount,
+        };
       }
     );
+
+    // Distribute coupon discount across items proportionally
+    let distributedCouponDiscounts = [];
+    let distributedSum = 0;
+    if (total > 0 && couponDiscountAmount > 0) {
+      distributedCouponDiscounts = baseItems.map((item, idx) => {
+        if (idx === baseItems.length - 1) {
+          return couponDiscountAmount - distributedSum;
+        }
+        const share = Math.round((item.itemTotal / total) * couponDiscountAmount);
+        distributedSum += share;
+        return share;
+      });
+    } else {
+      distributedCouponDiscounts = baseItems.map(() => 0);
+    }
+
+    // Prepare invoice items with both discounts
+    invoiceData.items = baseItems.map((item, idx) => {
+      const couponDiscount = distributedCouponDiscounts[idx];
+      const totalItemDiscount = Math.round(item.discountAmount * item.quantity) + couponDiscount;
+      return {
+        ...item,
+        total: Math.round(item.itemTotal - couponDiscount),
+        discountAmount: Math.round(item.discountAmount * item.quantity),
+        couponDiscount: couponDiscount,
+        totalDiscount: totalItemDiscount,
+        gstAmount: Math.round(item.gstAmount * item.quantity),
+      };
+    });
 
     // Calculate delivery charge
     let deliveryCharge = total < 2000 ? 200 : 0;
 
     // Apply coupon discount
     let couponDiscountAmount = 0;
-    if (data.couponDiscount) {
+    if (order && order.coupon && order.coupon.discountType) {
+      if (order.coupon.discountType === "fixed") {
+        couponDiscountAmount = order.coupon.fixedAmount || 0;
+      } else {
+        couponDiscountAmount = (total * (order.coupon.percent || 0)) / 100;
+      }
+    } else if (data.couponDiscount) {
       couponDiscountAmount = (total * data.couponDiscount) / 100;
     }
 
@@ -1632,15 +1727,33 @@ const addInvoice = asyncHandler(async (req, res) => {
     // Generate invoice number
     const sequence = await Invoices.countDocuments();
     invoiceData.invoiceNo = sequence + 1;
-
-    const invoice = await Invoices.create(invoiceData);
-
+    let invoice;
+    try {
+      invoice = await Invoices.create(invoiceData);
+    } catch (dbError) {
+      return res
+        .status(500)
+        .json(
+          new ApiError(
+            500,
+            "Failed to create invoice in database",
+            dbError.message
+          )
+        );
+    }
     return res
       .status(200)
       .json(new ApiResponse(200, invoice, "Invoice created successfully"));
   } catch (error) {
     console.error("Error creating invoice:", error);
-    throw new ApiError(400, "Something went wrong", error.message);
+    return res
+      .status(500)
+      .json(
+        new ApiError(
+          500,
+          error.message || "Something went wrong while creating invoice"
+        )
+      );
   }
 });
 
@@ -2443,19 +2556,18 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
     const { hairTestId, appointmentDate, timeSlot } = req.body;
     var doctorId = req.body.doctorId;
 
-    // console.log("Parsed hairTestId:", hairTestId);
-    // console.log("Parsed appointmentDate:", appointmentDate);
-    // console.log("Parsed timeSlot:", timeSlot);
-    // console.log("Parsed doctorId:", doctorId);
-
     if (!hairTestId || hairTestId === "") {
       console.error("hairTestId is missing or empty");
-      throw new ApiError(400, "hairTestId is required and cannot be empty");
+      return res
+        .status(400)
+        .json(new ApiError(400, "hairTestId is required and cannot be empty"));
     }
 
     if (!doctorId || doctorId === "") {
       console.error("doctorId is missing or empty");
-      throw new ApiError(400, "doctorId is required and cannot be empty");
+      return res
+        .status(400)
+        .json(new ApiError(400, "doctorId is required and cannot be empty"));
     }
 
     // Fetch the appointment using hairTestId
@@ -2463,7 +2575,7 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
     console.log("Appointment fetched:", appointment);
     if (!appointment) {
       console.error("Appointment not found for hairTestId:", hairTestId);
-      throw new ApiError(404, "Appointment not found");
+      return res.status(404).json(new ApiError(404, "Appointment not found"));
     }
 
     // Fetch doctor by ID
@@ -2471,7 +2583,7 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
     console.log("Doctor fetched:", doctor);
     if (!doctor) {
       console.error("Doctor not found for doctorId:", doctorId);
-      throw new ApiError(404, "Doctor not found");
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
     }
 
     // Fetch user data for the doctor
@@ -2479,7 +2591,7 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
     console.log("Doctor user data fetched:", doctorData);
     if (!doctorData) {
       console.error("User data not found for doctor userId:", doctor.userId);
-      throw new ApiError(404, "User not found");
+      return res.status(404).json(new ApiError(404, "User not found"));
     }
 
     // Fetch user linked to appointment
@@ -2490,7 +2602,7 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
         "User not found for appointment userId:",
         appointment.userId
       );
-      throw new ApiError(404, "User not found");
+      return res.status(404).json(new ApiError(404, "User not found"));
     }
 
     // Fetch hair test linked to appointment
@@ -2498,7 +2610,7 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
     console.log("HairTest fetched:", hairTest);
     if (!hairTest) {
       console.error("HairTest not found for id:", appointment.hairTestId);
-      throw new ApiError(404, "Hair Test not found");
+      return res.status(404).json(new ApiError(404, "Hair Test not found"));
     }
 
     console.log("Preparing WhatsApp notification payload");
@@ -2515,7 +2627,9 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
 
     if (!notificationStatus || !notificationStatus.success) {
       console.error("WhatsApp notification failed or not confirmed");
-      throw new ApiError(400, "WhatsApp notification not confirmed");
+      return res
+        .status(400)
+        .json(new ApiError(400, "WhatsApp notification not confirmed"));
     }
 
     // Update the appointment with assigned doctor and status
@@ -2543,7 +2657,9 @@ const assignDoctorToAppointment = asyncHandler(async (req, res) => {
       );
   } catch (error) {
     console.error("Error assigning appointment:", error);
-    throw new ApiError(400, error.message, error.message);
+    return res
+      .status(400)
+      .json(new ApiError(400, error.message, error.message));
   }
 });
 
@@ -2697,32 +2813,28 @@ const sendReport = asyncHandler(async (req, res) => {
     if (!hairTestId) {
       return res
         .status(400)
-        .json({ success: false, message: "hairTestId is required" });
+        .json(new ApiResponse(400, null, "hairTestId is required"));
     }
-    console.log(hairTestId);
     const appointment = await Appointment.findOne({ hairTestId });
 
     if (!appointment) {
       return res
         .status(404)
-        .json({ success: false, message: "Appointment not found" });
+        .json(new ApiResponse(404, null, "Appointment not found"));
     }
 
     appointment.isReportSent = true;
     await appointment.save();
-    console.log(appointment);
-    return res.status(200).json({
-      success: true,
-      message: "Report sent successfully",
-      appointment,
-    });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, appointment, "Report sent successfully"));
   } catch (error) {
     console.error("Error sending report:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(500, null, error.message || "Internal server error")
+      );
   }
 });
 
@@ -2733,32 +2845,30 @@ const sendPrescription = asyncHandler(async (req, res) => {
     if (!appointmentId) {
       return res
         .status(400)
-        .json({ success: false, message: "appointmentId is required" });
+        .json(new ApiResponse(400, null, "appointmentId is required"));
     }
-    console.log(appointmentId);
     const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res
         .status(404)
-        .json({ success: false, message: "Appointment not found" });
+        .json(new ApiResponse(404, null, "Appointment not found"));
     }
 
     appointment.isReportSent = true;
     await appointment.save();
-    console.log(appointment);
-    return res.status(200).json({
-      success: true,
-      message: "prescription sent successfully",
-      appointment,
-    });
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, appointment, "prescription sent successfully")
+      );
   } catch (error) {
     console.error("Error sending report:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(500, null, error.message || "Internal server error")
+      );
   }
 });
 

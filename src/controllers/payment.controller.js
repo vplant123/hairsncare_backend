@@ -30,70 +30,118 @@ const instance = new Razorpay({
 
 const { generateOrderNumber } = require("../utils/orderNumberGenerator");
 
-// Pure function: only calculates and returns invoice data, no DB calls
-const createInvoiceFromOrder = (order, user, address, couponPercent = 0) => {
-  // Calculate invoice items from order products
-  const invoiceItems = order.products.map((product) => {
-    const rate = Math.round(Number(product.item.price) || 0); // Price already includes GST
+const createInvoiceFromOrder = (
+  order,
+  user,
+  address,
+  config = {},
+  couponPercent,
+  couponFixed
+) => {
+  let subTotal = 0;
+  let itemLevelDiscountTotal = 0;
+  let totalGST = 0;
+
+  // First, calculate item totals and subtotal
+  const baseItems = order.products.map((product) => {
+    const rate = Math.round(Number(product.item.price) || 0);
     const quantity = Math.round(Number(product.quantity) || 0);
     const discount = Math.round(Number(product.item.discount) || 0);
     const gst = Math.round(Number(product.item.gst) || 0);
 
-    // Calculate discount on the full rate (including GST)
     const discountAmount = Math.round((rate * discount) / 100);
-    const rateAfterDiscount = Math.round(rate - discountAmount);
-
-    // Calculate GST amount for display purposes only (from original rate)
-    const gstAmount = Math.round((rate * gst) / (100 + gst)); // Extract GST from original price
-
-    // Final item total (rate after discount)
+    const rateAfterDiscount = rate - discountAmount;
     const itemTotal = Math.round(rateAfterDiscount * quantity);
+    const gstAmount = Math.round((rate * gst) / (100 + gst));
+
+    subTotal += itemTotal;
+    itemLevelDiscountTotal += discountAmount * quantity;
+    totalGST += gstAmount * quantity;
 
     return {
-      item: product.item._id,
-      quantity: quantity.toString(),
-      rate: rate.toString(), // Original price (includes GST)
-      gst: gst.toString(),
-      discount: discount.toString(),
-      total: itemTotal.toString(),
-      discountAmount: Math.round(discountAmount * quantity),
-      gstAmount: Math.round(gstAmount * quantity), // GST amount for display only
-      hsn: product.item.hsn || "",
-      productName: product.item.name,
+      product,
+      quantity,
+      rate,
+      discount,
+      discountAmount,
+      itemTotal,
+      gstAmount,
     };
   });
 
-  // Calculate subtotal (rate after discount)
-  let subtotal = 0;
-  let totalGST = 0;
-  let totalDiscount = 0;
+  console.log("[INVOICE] subTotal:", subTotal);
+  console.log("[INVOICE] couponPercent:", couponPercent);
+  console.log("[INVOICE] couponFixed:", couponFixed);
 
-  invoiceItems.forEach((item) => {
-    const itemTotal = parseFloat(item.total);
-    subtotal += itemTotal;
-    totalGST += item.gstAmount; // For display purposes only
-    totalDiscount += item.discountAmount;
-  });
-
-  // Round subtotal
-  subtotal = Math.round(subtotal);
-
-  // Calculate delivery charge based on subtotal
-  const deliveryCharge = Math.round(subtotal < 2000 ? 200 : 0);
-
-  // Calculate coupon discount on subtotal
-  let couponDiscountAmount = 0;
-  if (couponPercent) {
-    couponDiscountAmount = Math.round((subtotal * couponPercent) / 100);
+  // Calculate coupon discount
+  const percentDiscount = Math.round((couponPercent * subTotal) / 100);
+  let couponDiscount = 0;
+  if (order.coupon?.discountType === "fixed") {
+    couponDiscount = Math.round(order.coupon.fixedAmount || couponFixed || 0);
+  } else if (order.coupon?.discountType === "percent") {
+    couponDiscount = Math.round(
+      ((order.coupon.percent || couponPercent || 0) * subTotal) / 100
+    );
+  } else {
+    couponDiscount = couponFixed > 0 ? couponFixed : percentDiscount;
   }
+  console.log("[INVOICE] couponDiscount:", couponDiscount);
 
-  // Calculate final total: subtotal + delivery charge - coupon discount
-  const totalAmount = Math.round(
-    subtotal + deliveryCharge - couponDiscountAmount
+  // Distribute coupon discount across items proportionally
+  let distributedCouponDiscounts = [];
+  let distributedSum = 0;
+  if (subTotal > 0 && couponDiscount > 0) {
+    distributedCouponDiscounts = baseItems.map((item, idx) => {
+      if (idx === baseItems.length - 1) {
+        return couponDiscount - distributedSum;
+      }
+      const share = Math.round((item.itemTotal / subTotal) * couponDiscount);
+      distributedSum += share;
+      return share;
+    });
+  } else {
+    distributedCouponDiscounts = baseItems.map(() => 0);
+  }
+  console.log(
+    "[INVOICE] distributedCouponDiscounts:",
+    distributedCouponDiscounts
   );
 
-  // Prepare invoice data
-  const invoiceData = {
+  // Prepare invoice items with both discounts
+  const invoiceItems = baseItems.map((item, idx) => {
+    const couponShare = distributedCouponDiscounts[idx];
+    const totalItemDiscount = item.discountAmount * item.quantity + couponShare;
+    return {
+      item: item.product.item._id,
+      quantity: item.quantity.toString(),
+      rate: item.rate.toString(),
+      gst: item.product.item.gst?.toString() || "0",
+      discount: item.discount.toString(),
+      total: (item.itemTotal - couponShare).toString(),
+      discountAmount: item.discountAmount * item.quantity,
+      couponDiscount: couponShare,
+      totalDiscount: totalItemDiscount,
+      hsn: item.product.item.hsn || "",
+      productName: item.product.item.name,
+    };
+  });
+
+  // Delivery calculation
+  const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
+  const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
+  const deliveryChargeCalc = subTotal > deliveryAmt ? 0 : deliveryCharge;
+
+  // Final totals
+  const totalAmount = Math.round(
+    subTotal - couponDiscount + deliveryChargeCalc
+  );
+  const totalDiscount = itemLevelDiscountTotal + couponDiscount;
+
+  console.log("[INVOICE] itemLevelDiscountTotal:", itemLevelDiscountTotal);
+  console.log("[INVOICE] totalDiscount:", totalDiscount);
+  console.log("[INVOICE] totalAmount:", totalAmount);
+
+  return {
     name: user?.fullname,
     mobile: user?.mobile,
     email: address?.email,
@@ -101,13 +149,14 @@ const createInvoiceFromOrder = (order, user, address, couponPercent = 0) => {
     date: new Date(),
     userId: user._id,
     items: invoiceItems,
-    subtotal: Math.round(subtotal), // Rate after discount
-    total: Math.round(subtotal), // Same as subtotal
-    totalGST: Math.round(totalGST), // GST amount for display only
-    totalDiscount: Math.round(totalDiscount + couponDiscountAmount), // Product discount + coupon discount
-    couponDiscount: Math.round(couponDiscountAmount),
-    deliveryCharges: Math.round(deliveryCharge),
-    totalAmount: Math.round(totalAmount), // Final amount after all calculations
+    subtotal: Math.round(subTotal),
+    total: Math.round(subTotal),
+    totalGST: Math.round(totalGST),
+    itemLevelDiscount: Math.round(itemLevelDiscountTotal),
+    couponDiscount: Math.round(couponDiscount),
+    totalDiscount: Math.round(totalDiscount),
+    deliveryCharges: Math.round(deliveryChargeCalc),
+    totalAmount: Math.round(totalAmount),
     paid: order.mode === "cash",
     paidAmt: Math.round(totalAmount),
     dues: 0,
@@ -128,20 +177,14 @@ const createInvoiceFromOrder = (order, user, address, couponPercent = 0) => {
         note: "Invoice created from order placement",
       },
     ],
-  };
-
-  // Set shipping address
-  if (address) {
-    invoiceData.shippingAddress = {
+    shippingAddress: {
       street: address.fullAdress || "",
       city: address.city || "",
       state: address.state || "",
       pincode: address.pin || "",
       country: "India",
-    };
-  }
-
-  return invoiceData;
+    },
+  };
 };
 
 const createInvoiceFromExistingOrder = asyncHandler(async (req, res) => {
@@ -307,8 +350,8 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, invoice, "Test invoice created successfully"));
   } catch (error) {
     console.error("Error in test invoice creation:", error);
-      return res
-        .status(400)
+    return res
+      .status(400)
       .json(
         new ApiResponse(
           400,
@@ -319,59 +362,57 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
   }
 });
 
-function calculateOrderSummary({ products, couponPercent = 0, config }) {
-    // Calculate order items and subtotal
-    let subTotal = 0;
-    const orderItems = products.map((item) => {
-    const rate = Math.round(Number(item.item.price) || 0); // Price already includes GST
+function calculateOrderSummary({
+  products,
+  couponPercent = 0,
+  couponFixed = 0,
+  config,
+}) {
+  let subTotal = 0;
+  let itemLevelDiscountTotal = 0;
+
+  const orderItems = products.map((item) => {
+    const rate = Math.round(Number(item.item.price) || 0);
     const quantity = Math.round(Number(item.quantity) || 0);
     const discount = Math.round(Number(item.item.discount) || 0);
     const gst = Math.round(Number(item.item.gst) || 0);
 
-    // Calculate discount on the full rate (including GST)
     const discountAmount = Math.round((rate * discount) / 100);
-    const rateAfterDiscount = Math.round(rate - discountAmount);
-
-    // Calculate GST amount for display purposes only (from original rate)
-    const gstAmount = Math.round((rate * gst) / (100 + gst)); // Extract GST from original price
-
-    // Final item total (rate after discount)
+    const rateAfterDiscount = rate - discountAmount;
     const itemTotal = Math.round(rateAfterDiscount * quantity);
 
-      subTotal += itemTotal;
+    subTotal += itemTotal;
+    itemLevelDiscountTotal += discountAmount * quantity;
 
-      return {
-        name: item.item.name,
-        sku: item.item._id,
-        units: item.quantity,
-      selling_price: Math.round(item.item.price), // Original price (includes GST)
-      discount: Math.round(item.item.discount || 0),
-      tax: Math.round(item.item.gst || 0),
-        hsn: item.item.hsn || "",
-      };
-    });
+    return {
+      name: item.item.name,
+      sku: item.item._id,
+      units: quantity,
+      selling_price: rate,
+      discount: discount,
+      tax: gst,
+      hsn: item.item.hsn || "",
+    };
+  });
 
-  // Round subtotal
-  subTotal = Math.round(subTotal);
+  const percentDiscount = Math.round((couponPercent * subTotal) / 100);
+  const couponDiscount = couponFixed > 0 ? couponFixed : percentDiscount;
 
-  // Coupon discount on subtotal
-  let totalDiscount = Math.round((Number(couponPercent || 0) * subTotal) / 100);
-
-  // Delivery charge
   const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
   const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
-  const deliveryChargeCalc = Math.round(
-    subTotal - totalDiscount > deliveryAmt ? 0 : deliveryCharge
+  const deliveryChargeCalc = subTotal > deliveryAmt ? 0 : deliveryCharge;
+
+  const totalAmount = Math.round(
+    subTotal - couponDiscount + deliveryChargeCalc
   );
 
-  // Total amount: subtotal - coupon discount + delivery charge
-  const totalAmount = Math.round(
-    Number(subTotal) - Number(totalDiscount) + Number(deliveryChargeCalc)
-  );
+  const totalDiscount = itemLevelDiscountTotal + couponDiscount;
 
   return {
     orderItems,
     subTotal: Math.round(subTotal),
+    itemLevelDiscount: Math.round(itemLevelDiscountTotal),
+    couponDiscount: Math.round(couponDiscount),
     totalDiscount: Math.round(totalDiscount),
     deliveryCharge: Math.round(deliveryChargeCalc),
     totalAmount: Math.round(totalAmount),
@@ -381,7 +422,7 @@ function calculateOrderSummary({ products, couponPercent = 0, config }) {
 //OLD APIs
 const placeOrder = asyncHandler(async (req, res) => {
   try {
-    const { amount,products, addressId, mode, htmls, couponId } = req.body;
+    const { amount, products, addressId, mode, htmls, couponId } = req.body;
     console.log("place order", req.header);
     console.log("Request Body:", req.body);
 
@@ -389,7 +430,7 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     if (!user || !user._id || !products?.length) {
       console.log("User not found or no products provided");
-        return res
+      return res
         .status(404)
         .json(
           new ApiResponse(404, null, "User not found or no products provided")
@@ -405,12 +446,12 @@ const placeOrder = asyncHandler(async (req, res) => {
     // Validate address
     const address = await userAddresses.findOne({
       _id: addressId,
-        userId: user._id,
-      });
+      userId: user._id,
+    });
     if (!address) {
       console.log("Invalid or unauthorized address:", addressId);
-        return res
-          .status(400)
+      return res
+        .status(400)
         .json(new ApiResponse(400, null, "Invalid or unauthorized address"));
     }
 
@@ -431,10 +472,30 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     // Get coupon details if couponId is provided
     let couponPercent = 0;
+    let couponFixed = 0;
+    let couponMinOrder = 0;
+    let couponType = "percent";
     if (couponId) {
       const coupon = await CouponsModel.findById(couponId);
       if (coupon) {
+        couponType = coupon.discountType || "percent";
         couponPercent = coupon.percent || 0;
+        couponFixed = coupon.fixedAmount || 0;
+        couponMinOrder = coupon.minOrderAmount || 0;
+      }
+    }
+    // Check minOrderAmount against provided amount
+    if (couponId && couponMinOrder > 0) {
+      if (amount < couponMinOrder) {
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              null,
+              `Minimum order amount for this coupon is ${couponMinOrder}`
+            )
+          );
       }
     }
 
@@ -447,6 +508,7 @@ const placeOrder = asyncHandler(async (req, res) => {
     } = calculateOrderSummary({
       products,
       couponPercent,
+      couponFixed,
       config: { deliveryCharge: configDeliveryCharge, deliveryAmt },
     });
     console.log("Subtotal:", subTotal);
@@ -538,11 +600,20 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     // Create invoice automatically after order is saved
     try {
+      let couponPercentVal = 0;
+      let couponFixedVal = 0;
+      if (couponType === "percent") {
+        couponPercentVal = couponPercent;
+      } else if (couponType === "fixed") {
+        couponFixedVal = couponFixed;
+      }
       const invoiceData = createInvoiceFromOrder(
         order,
         user,
         address,
-        couponPercent
+        { deliveryCharge: configDeliveryCharge, deliveryAmt },
+        couponPercentVal,
+        couponFixedVal
       );
 
       // Save the invoice to database
@@ -934,9 +1005,14 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
     //CREATE SHIP ROCKET####
     let orderC = await CouponsModel.findOne({ _id: order?.coupon });
     let totalD = 0;
-    if (order?.coupon)
-      totalD =
-        (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
+    if (order?.coupon) {
+      if (orderC?.discountType === "fixed") {
+        totalD = orderC.fixedAmount || 0;
+      } else {
+        totalD =
+          (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
+      }
+    }
     let order_items = [],
       Product_Details = [];
     let total = 0;
@@ -1292,14 +1368,7 @@ const updateOrder = asyncHandler(async (req, res) => {
     });
 
     // Validate required fields
-    if (
-      !userId ||
-      !hairTestId ||
-      !paymentMode ||
-      !planType ||
-      !paymentStatus ||
-      !amount
-    ) {
+    if (!userId || !hairTestId || !paymentMode || !planType || !paymentStatus) {
       return res.status(400).json({
         success: false,
         message:

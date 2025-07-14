@@ -523,31 +523,37 @@ const applyCoupon = asyncHandler(async (req, res) => {
   try {
     const { user } = req;
     const { code, type, orderId, hairTestId } = req.body;
-    console.log(req.body);
-    console.log("user", user);
+    console.log("req.body", req.body);
     if (!user || !user._id) {
-      return res
-        .status(404)
-        .json({ message: "User not found or user ID is missing" });
+      return res.status(404).json(new ApiResponse(404, null, "User not found or user ID is missing"));
     }
     if (!code) {
-      return res.status(404).json({ message: "please enter code" });
+      return res.status(404).json(new ApiResponse(404, null, "please enter code"));
     }
     let coupon = await CouponsModel.findOne({ code: code });
     if (!coupon) {
-      console.log("coupon not found");
-      return res.status(404).json({ message: "coupon not found" });
+      return res.status(404).json(new ApiResponse(404, null, "coupon not found"));
     }
+    
     if (!coupon.isActive) {
-      return res.status(404).json({ message: "This coupon is not active" });
+      return res.status(404).json(new ApiResponse(404, null, "This coupon is not active"));
     }
     if (type != coupon?.type && coupon?.type != "3") {
-      console.log("type different");
-      return res.status(404).json({ message: "coupon not found" });
+      return res.status(404).json(new ApiResponse(404, null, "coupon not found"));
     }
     if (new Date() > coupon?.validity) {
-      console.log("validity over");
-      return res.status(404).json({ message: "coupon not found" });
+      return res.status(404).json(new ApiResponse(404, null, "coupon not found"));
+    }
+    // Check minOrderAmount if orderId or hairTestId is provided
+    let orderAmount = 0;
+    if (orderId) {
+      const order = await orderModel.findById(orderId);
+      if (!order) return res.status(404).json(new ApiResponse(404, null, "Order not found"));
+      orderAmount = order.amount;
+    } else if (hairTestId) {
+      const hairTest = await HairTest.findById(hairTestId);
+      if (!hairTest) return res.status(404).json(new ApiResponse(404, null, "Hair test not found"));
+      orderAmount = hairTest.amount || 0;
     }
     let couponM = await CouponsMappingModel.findOne({
       userId: user._id,
@@ -555,9 +561,8 @@ const applyCoupon = asyncHandler(async (req, res) => {
       status: 2,
       type: type,
     });
-    console.log("mapping created", couponM);
     if (couponM) {
-      return res.status(404).json({ message: "coupon already used" });
+      return res.status(404).json(new ApiResponse(404, null, "coupon already used"));
     }
 
     let couponMexist = await CouponsMappingModel.findOne({
@@ -568,22 +573,13 @@ const applyCoupon = asyncHandler(async (req, res) => {
     });
     if (!couponMexist) {
       let input = { userId: user._id, coupon: coupon?._id, status: 1, type: 2 };
-      let createMap = await CouponsMappingModel.create(input);
-      console.log(" create map", createMap);
+      await CouponsMappingModel.create(input);
     }
-    console.log(" created", couponMexist);
-
-    // if(orderId){
-    //     await orderModel.updateOne({_id : orderId},{coupon : coupon?._id})
-    // }
-    // if(hairTestId){
-    //     await HairTest.updateOne({_id : hairTestId},{coupon : coupon?._id})
-    // }
     return res
       .status(200)
       .json(new ApiResponse(200, coupon, "coupon applied successfully"));
   } catch (error) {
-    throw new ApiError(400, "Something went wrong", error.message);
+    return res.status(400).json(new ApiResponse(400, null, error.message || "Something went wrong"));
   }
 });
 

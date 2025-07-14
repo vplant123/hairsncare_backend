@@ -264,11 +264,16 @@ class UserService {
     let discount = 0;
     if (data?.couponId) {
       let coupon = await CouponsModel.findOne({ _id: data?.couponId });
-      discount = coupon?.percent;
-      console.log(
-        "[DEBUG] Book Appointment Service - Coupon applied. Discount percentage:",
-        discount
-      );
+      if (coupon) {
+        if (coupon.minOrderAmount && selectedPlan.price < coupon.minOrderAmount) {
+          throw new Error(`Minimum order amount for this coupon is ${coupon.minOrderAmount}`);
+        }
+        if (coupon.discountType === 'fixed') {
+          discount = coupon.fixedAmount;
+        } else {
+          discount = (selectedPlan.price * (coupon.percent || 0)) / 100;
+        }
+      }
     }
 
     // Handle case where selected plan is not found
@@ -535,7 +540,7 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
         },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
       await sendEmail(
-        "info@hairsncares.com",
+        "work26mohit@gmail.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
             Name : ${user?.fullname || ""},\n Phone : ${

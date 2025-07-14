@@ -437,14 +437,15 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
             .select("amount status")
             .lean();
 
-          // Fetch prescription for the appointment
           const prescription = await Prescription.findOne({
-            appointmentId: appoint._id,
+            $or: [
+              { appointmentId: appoint._id },
+              { appointmentId: appoint._id.toString() }
+            ]
           }).lean();
-          console.log("haspppp", prescription);
-          // Check if the prescription exists and is not an empty object
-          const hasPrescription =
-            prescription && Object.keys(prescription).length > 0;
+
+          console.log("prescription", prescription);
+          const hasPrescription = !!prescription;
 
           // Use either hairTestId or followupOf to find the associated hair test data
           const hairTestIdToUse = appoint.hairTestId || appoint.followupOf;
@@ -706,7 +707,7 @@ const uploadImage = asyncHandler(async (req, res) => {
 //         },\nEmail: ${user?.email || ""},\nMessage: ${data?.message || ""}`
 //       );
 //       sendEmail(
-//         "info@hairsncares.com",
+//         "work26mohit@gmail.com",
 //         "New Hair Test Alert! 💇",
 //         `New Appointment Request\n\nName: ${user?.fullname || ""},\nPhone: ${
 //           user?.mobile || ""
@@ -865,7 +866,7 @@ const uploadImage = asyncHandler(async (req, res) => {
 //         },\n Email: ${user?.email || ""},\n Message: ${data?.message || ""}`
 //       );
 //       sendEmail(
-//         "info@hairsncares.com",
+//         "work26mohit@gmail.com",
 //         "New Hair Test Alert! 💇",
 //         `New Appointment Request\n\n
 //                     Name: ${user?.fullname || ""},\n Phone: ${
@@ -1061,7 +1062,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
         },\n Email: ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
       sendEmail(
-        "info@hairsncares.com",
+        "work26mohit@gmail.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
                     Name: ${user?.fullname || ""},\n Phone: ${
