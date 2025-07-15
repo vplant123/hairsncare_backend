@@ -64,6 +64,7 @@ const {
   sendPrescription,
   sendOrderPrescription,
   updateFollowupdate,
+  updateInvoice,
 
   deleteQuery,
   deleteHairTests,
@@ -179,6 +180,8 @@ router.post("/send-prescription", verifyJwt, sendPrescription);
 
 router.post("/send-order-prescription", verifyJwt, sendOrderPrescription);
 router.post("/update-followup-date", verifyJwt, updateFollowupdate);
+
+router.post('/update-invoice',verifyJwt,updateInvoice);
 
 router.post("/delete-query", verifyJwt, deleteQuery);
 router.post("/delete-hairtest", verifyJwt, deleteHairTests);

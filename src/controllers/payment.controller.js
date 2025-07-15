@@ -123,6 +123,8 @@ const createInvoiceFromOrder = (
       totalDiscount: totalItemDiscount,
       hsn: item.product.item.hsn || "",
       productName: item.product.item.name,
+      batchNo: item.product.item.batchNo,
+      expiryDate: item.product.item.expiryDate,
     };
   });
 
@@ -229,20 +231,38 @@ const createInvoiceFromExistingOrder = asyncHandler(async (req, res) => {
         .json(new ApiResponse(404, null, "Address not found"));
     }
 
+    // Extract coupon values if present
+    let couponPercent = 0;
+    let couponFixed = 0;
+    if (order.coupon && order.coupon.discountType) {
+      if (order.coupon.discountType === "percent") {
+        couponPercent = order.coupon.percent || 0;
+      } else if (order.coupon.discountType === "fixed") {
+        couponFixed = order.coupon.fixedAmount || 0;
+      }
+    }
+
     // Create invoice
-    const invoiceData = createInvoiceFromOrder(order, userDetails, address);
+    const invoice = createInvoiceFromOrder(
+      order,
+      userDetails,
+      address,
+      { deliveryCharge: 200, deliveryAmt: 2000 },
+      couponPercent,
+      couponFixed
+    );
 
     // Save the invoice to database
-    const invoice = new Invoices(invoiceData);
-    await invoice.save();
+    const invoiceData = new Invoices(invoice);
+    await invoiceData.save();
 
     // Update order with invoice ID
-    order.invoiceId = invoice._id;
+    order.invoiceId = invoiceData._id;
     await order.save();
 
     return res
       .status(200)
-      .json(new ApiResponse(200, invoice, "Invoice created successfully"));
+      .json(new ApiResponse(200, invoiceData, "Invoice created successfully"));
   } catch (error) {
     console.error("Error creating invoice from existing order:", error);
     return res
@@ -312,7 +332,7 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
     }
 
     // Find the order
-    const order = await Order.findOne({ orderNumber });
+    const order = await Order.findOne({ orderNumber }).populate("coupon");
     if (!order) {
       return res
         .status(404)
@@ -342,8 +362,26 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
         .json(new ApiResponse(404, null, "Address not found"));
     }
 
+    // Extract coupon values if present
+    let couponPercent = 0;
+    let couponFixed = 0;
+    if (order.coupon && order.coupon.discountType) {
+      if (order.coupon.discountType === "percent") {
+        couponPercent = order.coupon.percent || 0;
+      } else if (order.coupon.discountType === "fixed") {
+        couponFixed = order.coupon.fixedAmount || 0;
+      }
+    }
+
     // Create invoice
-    const invoice = await createInvoiceFromOrder(order, userDetails, address);
+    const invoice = createInvoiceFromOrder(
+      order,
+      userDetails,
+      address,
+      { deliveryCharge: 200, deliveryAmt: 2000 },
+      couponPercent,
+      couponFixed
+    );
 
     return res
       .status(200)
@@ -535,6 +573,7 @@ const placeOrder = asyncHandler(async (req, res) => {
           gst: item.item.gst || 0,
           hsn: item.item.hsn || "",
           src: item.item.src,
+          batchNo: item.item.batchNo,
           expiryDate: item.item.expiryDate,
           zohoProductId: item.item.zohoProductId,
         },

@@ -37,6 +37,7 @@ const LoginHistory = require("../models/loginHistory.model.js");
 const cartModel = require("../models/Cart.model.js");
 const paymentModel = require("../models/payment.model.js");
 const addressModel = require("../models/userAddresses.model.js");
+const doctorModel = require("../models/doctor.model.js");
 
 const addAdmin = asyncHandler(async (req, res) => {
   try {
@@ -1423,310 +1424,107 @@ const contactDetails = asyncHandler(async (req, res) => {
 const addInvoice = asyncHandler(async (req, res) => {
   try {
     const data = req.body;
-    if (!data) {
-      return res
-        .status(400)
-        .json(new ApiError(400, "No data provided for invoice creation"));
-    }
+    // Extract required fields from the request body
+    const {
+      name,
+      orderDate,
+      mobile,
+      address,
+      items,
+      paymentMode,
+      doctor,
+      couponDiscount,
+    } = data;
+
     // Validate required fields
-    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+    if (!name || !mobile || !address || !items || !paymentMode) {
       return res
         .status(400)
-        .json(new ApiError(400, "Invoice must have at least one item"));
-    }
-    console.log("Invoice Data:", data);
-
-    let order = null;
-    if (data.orderNumber) {
-      const Order = require("../models/order.model");
-      const userAddresses = require("../models/userAddresses.model");
-      const CouponsModel = require("../models/Coupons.model");
-      const User = require("../models/user.model");
-
-      order = await Order.findOne({ orderNumber: data.orderNumber });
-
-      if (order) {
-        if (order.invoiceId) {
-          return res
-            .status(400)
-            .json(
-              new ApiResponse(
-                400,
-                null,
-                "Invoice already exists for this order"
-              )
-            );
-        }
-
-        // Get user details
-        const userDetails = await User.findById(order.userId);
-        if (!userDetails) {
-          return res
-            .status(404)
-            .json(new ApiResponse(404, null, "User not found"));
-        }
-
-        // Get address details
-        const address = await userAddresses.findById(order.addressId);
-        if (!address) {
-          return res
-            .status(404)
-            .json(new ApiResponse(404, null, "Address not found"));
-        }
-
-        // Use the standardized invoice creation function
-        const {
-          createInvoiceFromOrder,
-        } = require("../controllers/payment.controller");
-        let invoice;
-        try {
-          invoice = createInvoiceFromOrder(order, userDetails, address);
-        } catch (err) {
-          return res
-            .status(500)
-            .json(
-              new ApiError(
-                500,
-                "Failed to create invoice from order",
-                err.message
-              )
-            );
-        }
-        if (!invoice) {
-          return res
-            .status(500)
-            .json(
-              new ApiError(500, "Invoice creation failed for unknown reasons")
-            );
-        }
-        return res
-          .status(200)
-          .json(
-            new ApiResponse(
-              200,
-              invoice,
-              "Invoice created successfully from order"
-            )
-          );
-      } else {
-        return res
-          .status(404)
-          .json(
-            new ApiResponse(
-              404,
-              null,
-              "Order not found with provided order number"
-            )
-          );
-      }
+        .json(
+          new ApiError(
+            400,
+            "Missing required fields: name, mobile, address, items/products, or paymentMode"
+          )
+        );
     }
 
-    // If no orderNumber provided, continue with manual invoice creation
-    // Allowed fields at invoice level (updated for new model)
-    const allowedInvoiceFields = [
-      "name",
-      "mobile",
-      "email",
-      "address",
-      "date",
-      "userId",
-      "doctor",
-      "paid",
-      "paidAmt",
-      "dues",
-      "isActive",
-      "orderId",
-      "orderNumber",
-      "orderDate",
-      "couponDiscount",
-      "paymentMode",
-      "deliveryCharges",
-      "notes",
-      "adminNotes",
-      "source",
-      "currency",
-      "exchangeRate",
-      "consultationFee",
-      "consultationGST",
-    ];
-
-    // Allowed fields at item level (updated for new model)
-    const allowedItemFields = [
-      "item",
-      "quantity",
-      "rate",
-      "gst",
-      "discount",
-      "discountPercent",
-      "batchNo",
-      "stock",
-      "expiryDate",
-      "hsn",
-      "mfgName",
-      "sku",
-      "productName",
-      "weight",
-      "dimensions",
-    ];
-
-    // Prepare invoice data by filtering allowed fields
-    let invoiceData = allowedInvoiceFields.reduce((acc, key) => {
-      if (data[key] !== undefined) acc[key] = data[key];
-      return acc;
-    }, {});
-
-    let total = 0;
-    let totalDiscount = 0;
-    let totalGST = 0;
+    // Initialize totals
     let subtotal = 0;
+    let totalDiscount = 0;
+    let total = 0;
+    let totalGST = 0;
 
-    // Process each item
-    // First, calculate item totals and subtotal
-    let baseItems = (Array.isArray(data.items) ? data.items : []).map(
-      (item) => {
-        let cleanItem = allowedItemFields.reduce((acc, key) => {
-          if (item[key] !== undefined) acc[key] = item[key];
-          return acc;
-        }, {});
+    // Prepare invoice items and calculate the total discount for each item
+    const invoiceItems = items.map((item) => {
+      const rate = parseFloat(item.rate) || 0;
+      const quantity = parseInt(item.quantity) || 1;
+      const discountPercent = parseFloat(item.discount) || 0;
+      const gstPercent = parseFloat(item.gst) || 0;
 
-        const rate = parseFloat(item.rate) || 0;
-        const quantity = parseInt(item.quantity) || 1;
-        const discountPercent = parseFloat(item.discount) || 0;
-        const gstPercent = parseFloat(item.gst) || 0;
+      const discountAmount = (rate * discountPercent) / 100;
+      const rateAfterDiscount = rate - discountAmount;
 
-        // Calculate item totals
-        const discountAmount = (rate * discountPercent) / 100;
-        const rateAfterDiscount = rate - discountAmount;
-        const gstAmount = (rateAfterDiscount * gstPercent) / 100;
-        const itemTotal = (rateAfterDiscount + gstAmount) * quantity;
+      // Reverse GST calculation: rate is GST-inclusive
+      const basePrice = rate / (1 + gstPercent / 100);
+      const gstAmount = rate - basePrice;
 
-        // Accumulate totals
-        subtotal += rate * quantity;
-        total += itemTotal;
-        totalDiscount += discountAmount * quantity;
-        totalGST += gstAmount * quantity;
+      const itemTotal = rateAfterDiscount * quantity; // GST-inclusive after discount
 
-        return {
-          ...cleanItem,
-          rate,
-          quantity,
-          discountAmount,
-          itemTotal,
-          gstAmount,
-        };
-      }
-    );
+      // Update the grand totals
+      subtotal += rateAfterDiscount * quantity;
+      total += itemTotal;
+      totalDiscount += discountAmount * quantity;
+      totalGST += gstAmount * quantity;
 
-    // Distribute coupon discount across items proportionally
-    let distributedCouponDiscounts = [];
-    let distributedSum = 0;
-    if (total > 0 && couponDiscountAmount > 0) {
-      distributedCouponDiscounts = baseItems.map((item, idx) => {
-        if (idx === baseItems.length - 1) {
-          return couponDiscountAmount - distributedSum;
-        }
-        const share = Math.round((item.itemTotal / total) * couponDiscountAmount);
-        distributedSum += share;
-        return share;
-      });
-    } else {
-      distributedCouponDiscounts = baseItems.map(() => 0);
-    }
-
-    // Prepare invoice items with both discounts
-    invoiceData.items = baseItems.map((item, idx) => {
-      const couponDiscount = distributedCouponDiscounts[idx];
-      const totalItemDiscount = Math.round(item.discountAmount * item.quantity) + couponDiscount;
       return {
         ...item,
-        total: Math.round(item.itemTotal - couponDiscount),
-        discountAmount: Math.round(item.discountAmount * item.quantity),
-        couponDiscount: couponDiscount,
-        totalDiscount: totalItemDiscount,
-        gstAmount: Math.round(item.gstAmount * item.quantity),
+        rate,
+        quantity,
+        discountAmount,
+        rateAfterDiscount,
+        gstAmount,
+        total: itemTotal, // <-- This is the correct total for each item
       };
     });
 
-    // Calculate delivery charge
-    let deliveryCharge = total < 2000 ? 200 : 0;
-
     // Apply coupon discount
-    let couponDiscountAmount = 0;
-    if (order && order.coupon && order.coupon.discountType) {
-      if (order.coupon.discountType === "fixed") {
-        couponDiscountAmount = order.coupon.fixedAmount || 0;
-      } else {
-        couponDiscountAmount = (total * (order.coupon.percent || 0)) / 100;
-      }
-    } else if (data.couponDiscount) {
-      couponDiscountAmount = (total * data.couponDiscount) / 100;
-    }
+    let finalDiscountAmount = totalDiscount + couponDiscount;
 
-    // Set financial calculations
-    invoiceData.subtotal = Math.round(subtotal); // Round subtotal
-    invoiceData.total = Math.round(total); // Round total
-    invoiceData.totalGST = Math.round(totalGST); // Round GST total
-    invoiceData.totalDiscount = Math.round(
-      totalDiscount + couponDiscountAmount
-    ); // Round discount total
-    invoiceData.deliveryCharges = Math.round(deliveryCharge); // Round delivery charges
-    invoiceData.couponDiscount = Math.round(couponDiscountAmount); // Round coupon discount
+    // Add delivery charge if total is less than 2000
+    const deliveryCharge = total < 2000 ? 200 : 0;
+    // const deliveryCharge = subtotal < 2000 ? 200 : 0;
 
-    // Calculate final total amount, including consultation fee if provided
-    invoiceData.totalAmount = Math.round(
-      total +
-        deliveryCharge -
-        couponDiscountAmount +
-        (invoiceData.consultationFee || 0)
-    );
+    // Final amounts after applying coupon discount and delivery charge
+    const totalAmount = total - couponDiscount + deliveryCharge;
 
-    // Set paid amount
-    invoiceData.paidAmt = invoiceData.totalAmount;
+    // Prepare final invoice data
+    let invoiceData = {
+      name,
+      date: orderDate ? new Date(orderDate) : new Date(),
+      mobile,
+      address,
+      items: invoiceItems,
+      paymentMode,
+      subtotal: Math.round(subtotal),
+      total: Math.round(total),
+      totalGST: Math.round(totalGST),
+      totalDiscount: Math.round(finalDiscountAmount),
+      deliveryCharges: Math.round(deliveryCharge),
+      couponDiscount: Math.round(couponDiscount),
+      totalAmount: Math.round(totalAmount),
+      paid: data.paid || false,
+      paidAmt: totalAmount, // Assuming it's paid fully
+      isActive: true,
+      doctor: doctor,
+    };
 
-    // Set payment information
-    invoiceData.paymentStatus = data.paymentStatus || "pending";
-    if (data.paid) {
-      invoiceData.paymentStatus = "paid";
-      invoiceData.paymentDate = new Date();
-    }
-    invoiceData.transactionId = data.transactionId;
-
-    // Set order status
-    invoiceData.orderStatus = data.orderStatus || "pending";
-
-    // Set shipping information
-    if (data.shippingAddress) {
-      invoiceData.shippingAddress = data.shippingAddress;
-    } else if (data.address) {
-      // Parse address string into shipping address object
-      const addressParts = data.address.split(",").map((part) => part.trim());
-      invoiceData.shippingAddress = {
-        street: addressParts[0] || "",
-        city: addressParts[1] || "",
-        state: addressParts[2] || "",
-        pincode: addressParts[3] || "",
-        country: "India",
-      };
-    }
-
-    // Set status history
-    invoiceData.statusHistory = [
-      {
-        status: invoiceData.orderStatus,
-        timestamp: new Date(),
-        note: "Invoice created",
-      },
-    ];
-
-    // Set default values for new fields
-    invoiceData.source = data.source || "admin";
-    invoiceData.currency = data.currency || "INR";
-    invoiceData.exchangeRate = data.exchangeRate || 1;
-    invoiceData.isDeleted = false;
+    // If doctorId is provided, find doctor and set doctor.userI
 
     // Generate invoice number
     const sequence = await Invoices.countDocuments();
     invoiceData.invoiceNo = sequence + 1;
+
+    // Create the invoice
     let invoice;
     try {
       invoice = await Invoices.create(invoiceData);
@@ -1741,6 +1539,7 @@ const addInvoice = asyncHandler(async (req, res) => {
           )
         );
     }
+
     return res
       .status(200)
       .json(new ApiResponse(200, invoice, "Invoice created successfully"));
@@ -3052,6 +2851,39 @@ const getCouponRelateddata = asyncHandler(async (req, res) => {
   }
 });
 
+const updateInvoice = asyncHandler(async (req, res) => {
+  try {
+    const { invoiceId, orderNumber, doctorId } = req.body;
+    console.log(invoiceId, orderNumber, doctorId);
+    const invoice = await Invoices.findOne({ _id: invoiceId || orderNumber });
+    console.log(invoice);
+
+    if (!invoice) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invoice not found" });
+    }
+
+    const doctor = await doctorModel.findById(doctorId);
+    if (!doctor) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Doctor not found" });
+    }
+
+    invoice.doctor = doctor.userId;
+    await invoice.save();
+    return res.status(200).json({
+      success: true,
+      message: "Invoice updated successfully",
+      invoice,
+    });
+  } catch (error) {
+    console.error("Error updating invoice:", error);
+    throw new ApiError(400, "Something went wrong", error.message);
+  }
+});
+
 module.exports = {
   createDoctor,
   getallPatient,
@@ -3087,6 +2919,7 @@ module.exports = {
   deleteReview,
   AllUserData,
   contactDetails,
+  updateInvoice,
 
   getAdmin,
 

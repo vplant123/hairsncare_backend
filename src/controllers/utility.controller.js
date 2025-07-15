@@ -48,30 +48,28 @@ const getContent = asyncHandler(async (req, res) => {
     const dermatologist = await Dermatologist.find({});
     const otherProcedures = await OtherProcedures.find({});
 
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {
-            home: homeData[0],
-            expertise: expertiseData[0],
-            specialist: specialistData[0],
-            aboutUs: aboutUsData[0],
-            customerVideos: customerVideos[0],
-            plan: plan,
-            contactus: contactus[0],
-            config: config[0],
-            hairWomen: hairWomen[0],
-            hairMen: hairMen[0],
-            hairTransplant: hairTransplant[0],
-            onlineTest: onlineTest[0],
-            dermatologist: dermatologist[0],
-            otherProcedures: otherProcedures[0],
-          },
-          "succesffully"
-        )
-      );
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          home: homeData[0],
+          expertise: expertiseData[0],
+          specialist: specialistData[0],
+          aboutUs: aboutUsData[0],
+          customerVideos: customerVideos[0],
+          plan: plan,
+          contactus: contactus[0],
+          config: config[0],
+          hairWomen: hairWomen[0],
+          hairMen: hairMen[0],
+          hairTransplant: hairTransplant[0],
+          onlineTest: onlineTest[0],
+          dermatologist: dermatologist[0],
+          otherProcedures: otherProcedures[0],
+        },
+        "succesffully"
+      )
+    );
   } catch (error) {
     throw new ApiError(400, "Unable to add Admin", error.message);
   }
@@ -721,6 +719,7 @@ const editSpecialist = asyncHandler(async (req, res) => {
 
 const editCustomerVideos = asyncHandler(async (req, res) => {
   try {
+    console.log("req", req.body);
     if (req.body?.section1) {
       let where1 = await CustomerVideosModel.findOne({
         _id: new mongoose.Types.ObjectId("66c3c6bda058b2552a04ee0f"),
