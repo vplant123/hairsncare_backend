@@ -2761,32 +2761,38 @@ const updateFollowupdate = asyncHandler(async (req, res) => {
     const followupOf = appointment.followupOf || appointment.hairTestId;
     console.log("followupOf:", followupOf);
 
-    // Check for existing pending follow-up appointments
-    if (followupOf) {
-      const existingPendingFollowup = await Appointment.findOne({
-        followupOf,
-        status: { $ne: "completed" },
+    // If followupOf is not found, directly return response after updating the followUpDate
+    if (!followupOf) {
+      console.log("No followupOf found, skipping pending follow-up check.");
+      return res.status(200).json({
+        success: true,
+        message: "followUpDate updated successfully , appointment not found",
+        appointment,
       });
+    }
+
+    // Check for existing pending follow-up appointments
+    const existingPendingFollowup = await Appointment.findOne({
+      followupOf,
+      status: { $ne: "completed" },
+    });
+    console.log(
+      "Existing pending follow-up appointment:",
+      existingPendingFollowup
+    );
+
+    if (existingPendingFollowup) {
+      existingPendingFollowup.appointmentDate = followUpDate
+        .toISOString()
+        .split("T")[0];
+
+      await existingPendingFollowup.save();
       console.log(
-        "Existing pending follow-up appointment:",
+        "Updated existing pending follow-up:",
         existingPendingFollowup
       );
-
-      if (existingPendingFollowup) {
-        existingPendingFollowup.appointmentDate = followUpDate
-          .toISOString()
-          .split("T")[0];
-
-        await existingPendingFollowup.save();
-        console.log(
-          "Updated existing pending follow-up:",
-          existingPendingFollowup
-        );
-      } else {
-        console.log("No existing pending follow-up found.");
-      }
     } else {
-      console.log("No followupOf found in appointment.");
+      console.log("No existing pending follow-up found.");
     }
 
     return res.status(200).json({
