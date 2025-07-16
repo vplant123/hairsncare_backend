@@ -2714,26 +2714,81 @@ const sendOrderPrescription = asyncHandler(async (req, res) => {
 const updateFollowupdate = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.query;
-    const { followUpDate } = req.body;
+    let { followUpDate } = req.body;
+
+    console.log("Request received:", { appointmentId, followUpDate });
 
     if (!appointmentId) {
+      console.log("Missing appointmentId in request.");
       return res
         .status(400)
         .json({ success: false, message: "appointmentId is required" });
     }
-    console.log(appointmentId);
+
     const appointment = await Appointment.findById(appointmentId);
+    console.log("Fetched appointment:", appointment);
 
     if (!appointment) {
+      console.log("Appointment not found.");
       return res
         .status(404)
         .json({ success: false, message: "Appointment not found" });
     }
 
+    // Ensure followUpDate is a valid Date object
+    followUpDate = new Date(followUpDate);
+    console.log("Converted followUpDate:", followUpDate);
+
+    // Check if the conversion was successful
+    if (isNaN(followUpDate.getTime())) {
+      console.log("Invalid followUpDate:", followUpDate);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid followUpDate provided",
+      });
+    }
+
+    // Update appointment follow-up date
     appointment.followUpDate = followUpDate;
-    appointment.appointmentDate = followUpDate;
+    console.log("Updated appointment followUpDate:", appointment.followUpDate);
+
+    // Optionally update the appointment date as well
+    // appointment.appointmentDate = followUpDate.toISOString().split("T")[0];
+
     await appointment.save();
-    console.log(appointment);
+    console.log("Saved appointment:", appointment);
+
+    const followupOf = appointment.followupOf || appointment.hairTestId;
+    console.log("followupOf:", followupOf);
+
+    // Check for existing pending follow-up appointments
+    if (followupOf) {
+      const existingPendingFollowup = await Appointment.findOne({
+        followupOf,
+        status: { $ne: "completed" },
+      });
+      console.log(
+        "Existing pending follow-up appointment:",
+        existingPendingFollowup
+      );
+
+      if (existingPendingFollowup) {
+        existingPendingFollowup.appointmentDate = followUpDate
+          .toISOString()
+          .split("T")[0];
+
+        await existingPendingFollowup.save();
+        console.log(
+          "Updated existing pending follow-up:",
+          existingPendingFollowup
+        );
+      } else {
+        console.log("No existing pending follow-up found.");
+      }
+    } else {
+      console.log("No followupOf found in appointment.");
+    }
+
     return res.status(200).json({
       success: true,
       message: "followUpDate updated successfully",
