@@ -234,7 +234,7 @@ class UserService {
     await userToUpdate.save({ validateBeforeSave: false });
   };
 
-  bookAppointment = async (req, data) => {  
+  bookAppointment = async (req, data) => {
     const { user } = req;
 
     console.log("[DEBUG] Book Appointment Service - Request Data:", data);
@@ -261,18 +261,26 @@ class UserService {
       selectedPlan
     );
 
+    // Convert plan price to number
+    const planPrice = Number(selectedPlan.price);
     let discount = 0;
     if (data?.couponId) {
       let coupon = await CouponsModel.findOne({ _id: data?.couponId });
+
       if (coupon) {
-        if (coupon.minOrderAmount && selectedPlan.price < coupon.minOrderAmount) {
-          throw new Error(`Minimum order amount for this coupon is ${coupon.minOrderAmount}`);
+        if (coupon.couponType === "fixed") {
+          throw new Error(
+            "Fixed amount coupons are not supported for this operation"
+          );
         }
-        if (coupon.discountType === 'fixed') {
-          discount = coupon.fixedAmount;
-        } else {
-          discount = (selectedPlan.price * (coupon.percent || 0)) / 100;
+        const minOrderAmount = Number(coupon.minOrderAmount || 0);
+        const percent = Number(coupon.percent || 0);
+        if (coupon.minOrderAmount && planPrice < minOrderAmount) {
+          throw new Error(
+            `Minimum order amount for this coupon is ${coupon.minOrderAmount}`
+          );
         }
+        discount = (planPrice * percent) / 100;
       }
     }
 
@@ -284,17 +292,18 @@ class UserService {
       throw new Error("Selected plan not found");
     }
 
+    // Calculate final amount
+    const finalAmount = planPrice - discount;
+
     // Generate order number
     const orderNumber = await generateOrderNumber();
-    
+
     // Create the order
     const order = new Order({
       userId: user._id,
       orderNumber: orderNumber,
       planId: data.planId,
-      amount:
-        parseFloat(selectedPlan.price) -
-        (parseFloat(selectedPlan.price) * discount) / 100,
+      amount: finalAmount,
       status: "pending",
       orderType: "Appointment",
     });
@@ -325,9 +334,7 @@ class UserService {
     appointment.timeSlot =
       selectedPlan.features === "appointment" ? data.timeSlot : "noon";
     appointment.planId = data.planId;
-    // appointment.amount =
-    //   parseFloat(selectedPlan.price) -
-    //   (parseFloat(selectedPlan.price) * discount) / 100;
+    appointment.amount = finalAmount;
     appointment.coupon = data?.couponId || null;
 
     console.log(
@@ -360,9 +367,7 @@ class UserService {
     const paymentData = {
       orderId: order._id,
       userId: user._id,
-      totalAmount:
-        parseFloat(selectedPlan.price) -
-        (parseFloat(selectedPlan.price) * discount) / 100,
+      totalAmount: finalAmount,
       paymentStatus: "pending",
       paymentMethod: "",
     };
