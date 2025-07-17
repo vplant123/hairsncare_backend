@@ -14,33 +14,33 @@ const nodemailer = require("nodemailer");
 //   secure: true, // <== REQUIRED for port 465
 //   auth: {
 //     user: "info@hairsncares.com",
-//     pass: "H@irs#321",
-//   },
-// });
-
-// const transporter = nodemailer.createTransport({
-//   host: "smtpout.secureserver.net",
-//   port: 587,
-//   secure: false, // TLS starts after connection
-//   auth: {
-//     user: "info@hairsncares.com",
-//     pass: "H@irs#321",
+//     pass: "911@Hairs007",
 //   },
 // });
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "smtpout.secureserver.net",
   port: 587,
-  secure: false,
+  secure: false, // TLS starts after connection
   auth: {
-    user: "work26mohit@gmail.com",
-    pass: "tzci ujtt atay ciap",
+    user: "info@hairsncares.com",
+    pass: "911@Hairs007",
   },
 });
 
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.gmail.com",
+//   port: 587,
+//   secure: false,
+//   auth: {
+//     user: "work26mohit@gmail.com",
+//     pass: "tzci ujtt atay ciap",
+//   },
+// });
+
 const sendEmail = async (to, subject, text) => {
   const mailOptions = {
-    from: "work26mohit@gmail.com",
+    from: "info@hairsncares.com",
     to,
     subject,
     text,
@@ -51,7 +51,7 @@ const sendEmail = async (to, subject, text) => {
 
 const sendEmailTemplate = async (to, subject, emailHtml) => {
   const mailOptions = {
-    from: "work26mohit@gmail.com",
+    from: "info@hairsncares.com",
     to,
     subject,
     html: emailHtml,

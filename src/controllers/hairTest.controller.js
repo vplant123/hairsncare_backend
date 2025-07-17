@@ -707,7 +707,7 @@ const uploadImage = asyncHandler(async (req, res) => {
 //         },\nEmail: ${user?.email || ""},\nMessage: ${data?.message || ""}`
 //       );
 //       sendEmail(
-//         "work26mohit@gmail.com",
+//         "info@hairsncares.com",
 //         "New Hair Test Alert! 💇",
 //         `New Appointment Request\n\nName: ${user?.fullname || ""},\nPhone: ${
 //           user?.mobile || ""
@@ -866,7 +866,7 @@ const uploadImage = asyncHandler(async (req, res) => {
 //         },\n Email: ${user?.email || ""},\n Message: ${data?.message || ""}`
 //       );
 //       sendEmail(
-//         "work26mohit@gmail.com",
+//         "info@hairsncares.com",
 //         "New Hair Test Alert! 💇",
 //         `New Appointment Request\n\n
 //                     Name: ${user?.fullname || ""},\n Phone: ${
@@ -1062,7 +1062,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
         },\n Email: ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
       sendEmail(
-        "work26mohit@gmail.com",
+        "info@hairsncares.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
                     Name: ${user?.fullname || ""},\n Phone: ${

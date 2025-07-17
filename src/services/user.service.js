@@ -545,7 +545,7 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
         },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
       await sendEmail(
-        "work26mohit@gmail.com",
+        "info@hairsncares.com",
         "New Hair Test Alert! 💇",
         `New Appointment Request\n\n
             Name : ${user?.fullname || ""},\n Phone : ${
