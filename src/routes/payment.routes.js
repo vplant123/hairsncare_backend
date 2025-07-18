@@ -10,6 +10,7 @@ const {
   bookAppointment,
   paymentVerification,
   updatePayment,
+  deleteOrderAndPayments,
 } = require("../controllers/bookAppointment.controller");
 const {
   placeOrder,
@@ -30,6 +31,7 @@ router.post("/verification", paymentVerification);
 router.post("/bookAppointment", verifyJwt, bookAppointment);
 router.post("/update-payment", verifyJwt, updatePayment);
 router.post("/update-payment-order", verifyJwt, updatePaymentOrder);
+router.post("/delete-order-and-payments", verifyJwt, deleteOrderAndPayments);
 
 router.post("/place-order", verifyJwt, placeOrder);
 router.post("/change-order-status", verifyJwt, changeOrderStatus);

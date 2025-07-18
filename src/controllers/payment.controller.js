@@ -660,7 +660,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       await invoice.save();
 
       // Update order with invoice ID
-      order.invoiceId = invoice._id;
+      // order.invoiceId = invoice._id;
       await order.save();
 
       console.log("Invoice created automatically:", invoice._id);
@@ -1565,6 +1565,22 @@ const updateOrder = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteOrderAndPayments = asyncHandler(async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "orderId is required"));
+  }
+  // Hard delete order
+  await Order.deleteOne({ _id: orderId });
+  await Payment.deleteOne({ orderId });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Order and related payments deleted"));
+});
+
 module.exports = {
   placeOrder,
   generatePaymentLink,
@@ -1577,4 +1593,5 @@ module.exports = {
   updateOrder,
   getInvoiceByOrderNumber,
   testInvoiceCreation,
+  deleteOrderAndPayments,
 };
