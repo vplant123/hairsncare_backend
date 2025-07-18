@@ -1302,45 +1302,31 @@ const changeOrderStatus = asyncHandler(async (req, res) => {
           )?.toFixed(2),
         };
       });
-      if (status == "delivered" && !order?.invoiceId) {
-        let orderC = await CouponsModel.findOne({ _id: order?.coupon });
-        const orderUser = await User.findOne({ _id: order?.userId });
-        let totalD = 0;
-        if (orderC)
-          totalD =
-            (parseFloat(orderC?.percent || 0) * parseFloat(order.amount)) / 100;
-        let input = {
-          name: orderUser?.fullname,
-          mobile: orderUser?.mobile,
-          address: add?.fullAdress,
-          date: new Date(),
-          // doctor : doctor?._id,
-          items: orderItem,
-          total: order?.amount,
-          paid: 1,
-          paidAmt: order?.amount,
-          dues: 0,
-          orderId: order?._id?.toString(),
-          couponDiscount: totalD,
-          paymentMode: order?.mode,
-          deliveryCharges: order?.deliveryCharges,
-          totalDiscount: order?.totalDiscount,
-          totalAmount: order?.totalAmount,
-        };
-        let squence = await Invoices.countDocuments();
-        input["invoiceNo"] = squence + 1;
-        let invoice = await Invoices.create(input);
-        console.log("sdjkfo", order?._id, invoice?._id);
-        let xx = await Order.updateOne(
-          { _id: order?._id },
-          { invoiceId: invoice?._id }
-        );
-        console.log("sdjkfo", order?._id, invoice?._id?.toString(), xx);
-
+      // Set invoiceId if status is 'delivered' or 'shipped' and invoiceId is not set
+      if (status == "delivered" || status == "shipped") {
+        // Fetch the existing invoice for this order
+        const invoice = await Invoices.findOne({
+          orderId: order?._id.toString(),
+        });
+        if (invoice) {
+          await Order.updateOne(
+            { _id: order?._id },
+            { invoiceId: invoice._id }
+          );
+          console.log(
+            "Linked existing invoice to order:",
+            order?._id,
+            invoice?._id
+          );
+        } else {
+          console.log("No existing invoice found for order:", order?._id);
+        }
         if (add?.email) {
           let email = await sendEmailTemplate(
             add?.email,
-            "Order Delivered Successfully",
+            status == "delivered"
+              ? "Order Delivered Successfully"
+              : "Order Shipped Successfully",
             emailHtml
           );
           console.log("kfoker", email);
@@ -1572,13 +1558,48 @@ const deleteOrderAndPayments = asyncHandler(async (req, res) => {
       .status(400)
       .json(new ApiResponse(400, null, "orderId is required"));
   }
-  // Hard delete order
-  await Order.deleteOne({ _id: orderId });
-  await Payment.deleteOne({ orderId });
+
+  let errors = [];
+  let deletedOrder = null;
+  let deletedInvoice = null;
+  let deletedPayment = null;
+
+  try {
+    deletedOrder = await Order.deleteOne({ _id: orderId });
+  } catch (err) {
+    errors.push({ type: "order", message: err.message });
+  }
+
+  try {
+    deletedInvoice = await Invoices.deleteOne({ orderId });
+  } catch (err) {
+    errors.push({ type: "invoice", message: err.message });
+  }
+
+  try {
+    deletedPayment = await Payment.deleteOne({ orderId });
+  } catch (err) {
+    errors.push({ type: "payment", message: err.message });
+  }
+
+  if (errors.length > 0) {
+    return res.status(500).json(
+      new ApiResponse(500, {
+        deletedOrder,
+        deletedInvoice,
+        deletedPayment,
+        errors,
+      }, "One or more deletions failed")
+    );
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, null, "Order and related payments deleted"));
+    .json(new ApiResponse(200, {
+      deletedOrder,
+      deletedInvoice,
+      deletedPayment,
+    }, "Order, invoice, and related payments deleted successfully"));
 });
 
 module.exports = {

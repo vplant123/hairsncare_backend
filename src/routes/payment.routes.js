@@ -10,7 +10,6 @@ const {
   bookAppointment,
   paymentVerification,
   updatePayment,
-  deleteOrderAndPayments,
 } = require("../controllers/bookAppointment.controller");
 const {
   placeOrder,
@@ -22,7 +21,8 @@ const {
   createInvoiceFromExistingOrder,
   getInvoiceByOrderNumber,
   testInvoiceCreation,
-  updateOrder
+  updateOrder,
+  deleteOrderAndPayments
 } = require("../controllers/payment.controller.js");
 
 // router.post("/order-create", verifyJwt, orderCreate);
