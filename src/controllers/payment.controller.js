@@ -1602,6 +1602,13 @@ const deleteOrderAndPayments = asyncHandler(async (req, res) => {
     }, "Order, invoice, and related payments deleted successfully"));
 });
 
+function formatDateToYMD(date) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d)) return "";
+  return d.toISOString().split("T")[0];
+}
+
 module.exports = {
   placeOrder,
   generatePaymentLink,

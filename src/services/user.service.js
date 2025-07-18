@@ -28,6 +28,13 @@ const instance = new Razorpay({
   key_secret: "IppjQRgEVWjB5cnPvoP1jMB8",
 });
 
+function formatDateToYMD(date) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d)) return "";
+  return d.toISOString().split("T")[0];
+}
+
 class UserService {
   registerService = async (data) => {
     console.log("Incoming registration data:", data);
@@ -330,7 +337,7 @@ class UserService {
     appointment.orderId = order._id;
     appointment.status = "booked";
     appointment.appointmentDate =
-      selectedPlan.features === "appointment" ? data.appointmentDate : "";
+      selectedPlan.features === "appointment" ? formatDateToYMD(data.appointmentDate) : "";
     appointment.timeSlot =
       selectedPlan.features === "appointment" ? data.timeSlot : "noon";
     appointment.planId = data.planId;
