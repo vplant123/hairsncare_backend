@@ -51,6 +51,7 @@ const createInvoiceFromOrder = (
 
     const discountAmount = Math.round((rate * discount) / 100);
     const rateAfterDiscount = rate - discountAmount;
+    const discountedPrice = rateAfterDiscount;
     const itemTotal = Math.round(rateAfterDiscount * quantity);
     const gstAmount = Math.round((rate * gst) / (100 + gst));
 
@@ -64,6 +65,7 @@ const createInvoiceFromOrder = (
       rate,
       discount,
       discountAmount,
+      discountedPrice,
       itemTotal,
       gstAmount,
     };
@@ -117,8 +119,9 @@ const createInvoiceFromOrder = (
       rate: item.rate.toString(),
       gst: item.product.item.gst?.toString() || "0",
       discount: item.discount.toString(),
-      total: Math.max(0, item.itemTotal - couponShare).toString(),
-      discountAmount: item.discountAmount * item.quantity,
+      discountedPrice: item.discountedPrice,
+      total: item.itemTotal,
+      discountAmount: item.itemTotal * item.quantity,
       couponDiscount: couponShare,
       totalDiscount: totalItemDiscount,
       hsn: item.product.item.hsn || "",
@@ -131,7 +134,10 @@ const createInvoiceFromOrder = (
   // Delivery calculation
   const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
   const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
-  const deliveryChargeCalc = subTotal > deliveryAmt ? 0 : deliveryCharge;
+  const deliveryChargeCalc =
+    Math.round(Math.max(subTotal - couponDiscount, 0)) > deliveryAmt
+      ? 0
+      : deliveryCharge;
 
   // Final totals
   const totalAmount = Math.round(
@@ -152,7 +158,7 @@ const createInvoiceFromOrder = (
     userId: user._id,
     items: invoiceItems,
     subtotal: Math.round(subTotal),
-    total: Math.round(subTotal),
+    total: Math.round(Math.max(subTotal - couponDiscount, 0)),
     totalGST: Math.round(totalGST),
     itemLevelDiscount: Math.round(itemLevelDiscountTotal),
     couponDiscount: Math.round(couponDiscount),
@@ -438,7 +444,8 @@ function calculateOrderSummary({
 
   const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
   const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
-  const deliveryChargeCalc = subTotal > deliveryAmt ? 0 : deliveryCharge;
+  const deliveryChargeCalc =
+    Math.max(subTotal - couponDiscount, 0) > deliveryAmt ? 0 : deliveryCharge;
 
   const totalAmount = Math.round(
     Math.max(subTotal - couponDiscount, 0) + deliveryChargeCalc

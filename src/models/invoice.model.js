@@ -31,6 +31,7 @@ const invoiceSchema = new mongoose.Schema(
         rate: { type: String },
         gst: { type: String },
         discount: { type: String },
+        discountedPrice: { type: String },
         total: { type: String },
         batchNo: { type: String },
         stock: { type: Number },
@@ -105,8 +106,8 @@ const invoiceSchema = new mongoose.Schema(
 
     // Invoice and order references
     invoiceNo: { type: Number },
-      orderId: { type: String },
-      orderNumber: { type: String },
+    orderId: { type: String },
+    orderNumber: { type: String },
     orderDate: { type: Date },
 
     // Tax and compliance

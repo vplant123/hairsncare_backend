@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
   secure: false, // TLS starts after connection
   auth: {
     user: "info@hairsncares.com",
-    pass: "911@Hairsncare#s",
+    pass: "911@Hairsncares",
   },
 });
 
