@@ -117,7 +117,7 @@ const createInvoiceFromOrder = (
       rate: item.rate.toString(),
       gst: item.product.item.gst?.toString() || "0",
       discount: item.discount.toString(),
-      total: (item.itemTotal - couponShare).toString(),
+      total: Math.max(0, item.itemTotal - couponShare).toString(),
       discountAmount: item.discountAmount * item.quantity,
       couponDiscount: couponShare,
       totalDiscount: totalItemDiscount,
@@ -135,7 +135,7 @@ const createInvoiceFromOrder = (
 
   // Final totals
   const totalAmount = Math.round(
-    subTotal - couponDiscount + deliveryChargeCalc
+    Math.max(subTotal - couponDiscount, 0) + deliveryChargeCalc
   );
   const totalDiscount = itemLevelDiscountTotal + couponDiscount;
 
@@ -441,7 +441,7 @@ function calculateOrderSummary({
   const deliveryChargeCalc = subTotal > deliveryAmt ? 0 : deliveryCharge;
 
   const totalAmount = Math.round(
-    subTotal - couponDiscount + deliveryChargeCalc
+    Math.max(subTotal - couponDiscount, 0) + deliveryChargeCalc
   );
 
   const totalDiscount = itemLevelDiscountTotal + couponDiscount;
@@ -1584,22 +1584,30 @@ const deleteOrderAndPayments = asyncHandler(async (req, res) => {
 
   if (errors.length > 0) {
     return res.status(500).json(
-      new ApiResponse(500, {
-        deletedOrder,
-        deletedInvoice,
-        deletedPayment,
-        errors,
-      }, "One or more deletions failed")
+      new ApiResponse(
+        500,
+        {
+          deletedOrder,
+          deletedInvoice,
+          deletedPayment,
+          errors,
+        },
+        "One or more deletions failed"
+      )
     );
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {
-      deletedOrder,
-      deletedInvoice,
-      deletedPayment,
-    }, "Order, invoice, and related payments deleted successfully"));
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        deletedOrder,
+        deletedInvoice,
+        deletedPayment,
+      },
+      "Order, invoice, and related payments deleted successfully"
+    )
+  );
 });
 
 function formatDateToYMD(date) {
