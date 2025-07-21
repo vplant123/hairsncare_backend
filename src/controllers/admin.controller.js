@@ -2212,7 +2212,14 @@ const assignDoctorForPrescription = asyncHandler(async (req, res) => {
 });
 
 const createFollowupAppointment = asyncHandler(async (req, res) => {
-  const { followupOf, appointmentDate, timeSlot, doctorId, status } = req.body;
+  const {
+    followupOf,
+    appointmentDate,
+    timeSlot,
+    doctorId,
+    status,
+    appointmentId,
+  } = req.body;
 
   // Validate inputs
   console.log(req.body);
@@ -2300,6 +2307,14 @@ const createFollowupAppointment = asyncHandler(async (req, res) => {
     status: status || "assigned",
     nextAction: "none",
   });
+  console.log("Appointment ID:", appointmentId);
+
+  if (appointmentId && followup._id) {
+    await Appointment.findByIdAndUpdate(appointmentId, {
+      nextAppointment: followup._id,
+    });
+    console.log("Followup appointment created:", followup);
+  }
 
   // Send WhatsApp notification
   const whatsappPayload = {

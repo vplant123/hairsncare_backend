@@ -73,6 +73,12 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    nextAppointment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Appointment",
+      default: null,
+    },
+
     // Follow-up Management
     followupOf: {
       type: mongoose.Schema.Types.ObjectId,

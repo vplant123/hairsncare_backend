@@ -408,18 +408,25 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
 
 function calculateOrderSummary({
   products,
-  couponPercent = 0,
-  couponFixed = 0,
+  couponPercent,
+  couponFixed,
+  couponType,
   config,
 }) {
+  // Ensure safe defaults
+  couponPercent = Number(couponPercent ?? 0);
+  couponFixed = Number(couponFixed ?? 0);
+  couponType = couponType ?? "percent";
+  config = config ?? {};
+
   let subTotal = 0;
   let itemLevelDiscountTotal = 0;
 
   const orderItems = products.map((item) => {
-    const rate = Math.round(Number(item.item.price) || 0);
-    const quantity = Math.round(Number(item.quantity) || 0);
-    const discount = Math.round(Number(item.item.discount) || 0);
-    const gst = Math.round(Number(item.item.gst) || 0);
+    const rate = Math.round(Number(item?.item?.price ?? 0));
+    const quantity = Math.round(Number(item?.quantity ?? 0));
+    const discount = Math.round(Number(item?.item?.discount ?? 0));
+    const gst = Math.round(Number(item?.item?.gst ?? 0));
 
     const discountAmount = Math.round((rate * discount) / 100);
     const rateAfterDiscount = rate - discountAmount;
@@ -429,21 +436,21 @@ function calculateOrderSummary({
     itemLevelDiscountTotal += discountAmount * quantity;
 
     return {
-      name: item.item.name,
-      sku: item.item._id,
+      name: item?.item?.name ?? "",
+      sku: item?.item?._id ?? "",
       units: quantity,
       selling_price: rate,
       discount: discount,
       tax: gst,
-      hsn: item.item.hsn || "",
+      hsn: item?.item?.hsn ?? "",
     };
   });
 
   const percentDiscount = Math.round((couponPercent * subTotal) / 100);
-  const couponDiscount = couponFixed > 0 ? couponFixed : percentDiscount;
+  const couponDiscount = couponType === "fixed" ? couponFixed : percentDiscount;
 
-  const deliveryCharge = Math.round(config?.deliveryCharge ?? 200);
-  const deliveryAmt = Math.round(config?.deliveryAmt ?? 2000);
+  const deliveryCharge = Math.round(Number(config?.deliveryCharge ?? 200));
+  const deliveryAmt = Math.round(Number(config?.deliveryAmt ?? 2000));
   const deliveryChargeCalc =
     Math.max(subTotal - couponDiscount, 0) > deliveryAmt ? 0 : deliveryCharge;
 
@@ -548,12 +555,14 @@ const placeOrder = asyncHandler(async (req, res) => {
       orderItems,
       subTotal,
       totalDiscount,
+      couponDiscount,
       deliveryCharge: calculatedDeliveryCharge,
       totalAmount,
     } = calculateOrderSummary({
       products,
       couponPercent,
       couponFixed,
+      couponType,
       config: { deliveryCharge: configDeliveryCharge, deliveryAmt },
     });
     console.log("Subtotal:", subTotal);
@@ -592,6 +601,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       coupon: couponId || null,
       deliveryCharges: calculatedDeliveryCharge,
       totalDiscount,
+      couponDiscount,
     });
 
     console.log("Order created:", order);
