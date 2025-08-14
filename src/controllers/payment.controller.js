@@ -1677,6 +1677,8 @@ function getSafe(obj, path, def = undefined) {
   );
 }
 
+const { config, ENV } = require("../utils/auth");
+
 const ENV = process.env.ENV || "prod";
 const BACKEND_URL =
   ENV === "dev" ? process.env.LOCAL_BACKEND_URL : process.env.PROD_BACKEND_URL;
@@ -1840,7 +1842,7 @@ const payment = async (req, res) => {
     // Perform gateway call
     const response = await client.request({
       method: "POST",
-      url: "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay",
+      url: `${config.apiUrl}/checkout/v2/pay`,
       headers: {
         accept: "application/json",
         "Content-Type": "application/json",
@@ -1932,7 +1934,7 @@ const status = async (req, res) => {
 
     const options = {
       method: "GET",
-      url: `https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/order/${encodeURIComponent(
+      url: `${config.apiUrl}/checkout/v2/order/${encodeURIComponent(
         merchantOrderId
       )}/status`,
       headers: {

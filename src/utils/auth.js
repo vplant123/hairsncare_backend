@@ -1,8 +1,27 @@
 // src/auth/token.js
 const axios = require("axios");
 
-const OAUTH_URL =
-  "https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token";
+// Environment-aware configuration
+const ENV = process.env.PHONEPE_ENV;
+const config = {
+  sandbox: {
+    apiUrl: process.env.SANDBOX_API_URL,
+    clientId: process.env.SANDBOX_CLIENT_ID,
+    clientSecret: process.env.SANDBOX_CLIENT_SECRET,
+    clientVersion: process.env.SANDBOX_CLIENT_VERSION,
+    grantType: process.env.SANDBOX_GRANT_TYPE,
+  },
+  prod: {
+    apiUrl: process.env.PROD_API_URL,
+    clientId: process.env.PROD_CLIENT_ID,
+    clientSecret: process.env.PROD_CLIENT_SECRET,
+    clientVersion: process.env.PROD_CLIENT_VERSION,
+    grantType: process.env.PROD_GRANT_TYPE,
+  },
+}[ENV];
+
+// Construct OAuth URL dynamically
+const OAUTH_URL = `${config.apiUrl}/v1/oauth/token`;
 
 // ---- Internal state ----
 let token = null;
@@ -13,19 +32,18 @@ let inflight = null; // promise for deduplication
 const isValid = () => token && Date.now() < expiresAtMs - 60_000;
 
 function readEnv() {
-  const { CLIENT_ID, CLIENT_SECRET, CLIENT_VERSION, GRANT_TYPE } = process.env;
-
   const missing = [];
-  if (!CLIENT_ID) missing.push("CLIENT_ID");
-  if (!CLIENT_SECRET) missing.push("CLIENT_SECRET");
-  if (!CLIENT_VERSION) missing.push("CLIENT_VERSION");
-  if (!GRANT_TYPE) missing.push("GRANT_TYPE");
+  if (!config.clientId) missing.push(`${ENV.toUpperCase()}_CLIENT_ID`);
+  if (!config.clientSecret) missing.push(`${ENV.toUpperCase()}_CLIENT_SECRET`);
+  if (!config.clientVersion)
+    missing.push(`${ENV.toUpperCase()}_CLIENT_VERSION`);
+  if (!config.grantType) missing.push(`${ENV.toUpperCase()}_GRANT_TYPE`);
 
   return {
-    CLIENT_ID,
-    CLIENT_SECRET,
-    CLIENT_VERSION,
-    GRANT_TYPE,
+    CLIENT_ID: config.clientId,
+    CLIENT_SECRET: config.clientSecret,
+    CLIENT_VERSION: config.clientVersion,
+    GRANT_TYPE: config.grantType,
     missing,
   };
 }
@@ -124,7 +142,14 @@ async function getToken() {
 /** Convenience header helper */
 async function getAuthHeader() {
   const t = await getToken();
-  return { Authorization: `O-Bearer ${t}` }; // <-- FIXED
+  return { Authorization: `O-Bearer ${t}` }; // PhonePe expects 'Bearer', not 'O-Bearer'
 }
 
-module.exports = { getToken, getAuthHeader };
+// Export configuration for use in other files
+module.exports = {
+  getToken,
+  getAuthHeader,
+  config,
+  OAUTH_URL,
+  ENV,
+};
