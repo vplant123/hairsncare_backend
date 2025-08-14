@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "my-app",
       script: "./src/index.js",
-      instances: "max",
+      s: "max",
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",

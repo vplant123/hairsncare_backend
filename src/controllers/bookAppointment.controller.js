@@ -30,6 +30,7 @@ const bookAppointment = asyncHandler(async (req, res) => {
 
 const updatePayment = asyncHandler(async (req, res) => {
   try {
+    console.log("update payment working");
     const payment = await UserService.updatePayment(req, req.body);
 
     return res

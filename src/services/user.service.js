@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+const axios = require("axios");
 const User = require("../models/user.model.js");
 const ApiError = require("../utils/ApiError.js");
 const Order = require("../models/order.model.js");
@@ -6,7 +8,6 @@ const Razorpay = require("razorpay");
 const Plan = require("../models/plan.model");
 const Review = require("../models/Review.model.js");
 const Appointment = require("../models/Appointment.model.js");
-
 const CommonHelper = require("../utils/commonHelper.js");
 const { sendEmail } = require("../utils/nodemailer.util.js");
 const sendOTP = require("../utils/fast2sms.utils.js");
@@ -20,8 +21,8 @@ const { ObjectId } = require("mongodb");
 const { default: mongoose } = require("mongoose");
 const zohoService = require("./zoho.service.js");
 const { generateOrderNumber } = require("../utils/orderNumberGenerator.js");
-
 const LoginModel = require("../models/loginHistory.model.js");
+const asyncHandler = require("../utils/asyncHandler.js"); // Assumed to be available
 
 const instance = new Razorpay({
   key_id: "rzp_test_8ZrSJwOa8vWxQu",
@@ -311,6 +312,7 @@ class UserService {
       orderNumber: orderNumber,
       planId: data.planId,
       amount: finalAmount,
+      paymentMethod: "online",
       status: "pending",
       orderType: "Appointment",
     });
@@ -337,7 +339,9 @@ class UserService {
     appointment.orderId = order._id;
     appointment.status = "booked";
     appointment.appointmentDate =
-      selectedPlan.features === "appointment" ? formatDateToYMD(data.appointmentDate) : "";
+      selectedPlan.features === "appointment"
+        ? formatDateToYMD(data.appointmentDate)
+        : "";
     appointment.timeSlot =
       selectedPlan.features === "appointment" ? data.timeSlot : "noon";
     appointment.planId = data.planId;
@@ -394,52 +398,57 @@ class UserService {
 
   updatePayment = async (req, data) => {
     const { user } = req;
-    // console.log("userrrrr", user)
+    console.log("[STEP] User from request:", user);
+
     if (!user || !user._id) {
+      console.log("[ERROR] User not found or user ID is missing");
       return res
         .status(404)
         .json({ message: "User not found or user ID is missing" });
     }
+
     const loggedInUser = await User.findById(user._id);
+    console.log("[STEP] Logged in user from DB:", loggedInUser);
 
-    // const { appointmentDate, timeSlot, planId } = req.body;
+    // const selectedPlan = await Plan.findById(data.planId);
+    // console.log("[STEP] Selected plan:", selectedPlan);
 
-    const selectedPlan = await Plan.findById(data.planId);
-    // console.log("body", req.body)
-    // console.log("selectedplan", selectedPlan)
-    if (!selectedPlan) {
-      const err = {
-        status: 404,
-        message: "Selected plan not found",
-      };
-      return err;
-    }
+    // if (!selectedPlan) {
+    //   console.log("[ERROR] Selected plan not found");
+    //   const err = {
+    //     status: 404,
+    //     message: "Selected plan not found",
+    //   };
+    //   return err;
+    // }
 
-    // const paymentData = {
-    //     orderId: data.id,
-    //     paymentStatus: 'success',
-    // };
-    // const payment = new Payment(paymentData);
+    console.log("[STEP] Payment data received:", data);
     await Payment.findOneAndUpdate(
       { orderId: data.id },
       { paymentStatus: "success" }
     );
+    console.log("[STEP] Payment status updated to success for orderId:", data.id);
+
     const response = await Appointment.findOneAndUpdate(
       { orderId: data.id },
       { paymentStatus: "success", status: "booked" },
       { new: true }
     );
+    console.log("[STEP] Appointment updated:", response);
 
     const hairTestUpdate = await HairTest.findOneAndUpdate(
       { _id: response?.hairTestId },
       { status: "completed" },
       { new: true }
     );
+    console.log("[STEP] HairTest updated:", hairTestUpdate);
+
     await Order.findOneAndUpdate(
       { _id: data.id },
       { status: "paid" },
       { new: true }
     );
+    console.log("[STEP] Order status updated to paid for orderId:", data.id);
 
     if (response?.coupon) {
       let couponMexist = await CouponsMappingModel.findOne({
@@ -448,86 +457,53 @@ class UserService {
         status: 1,
         type: 1,
       });
+      console.log("[STEP] Coupon mapping found:", couponMexist);
       if (couponMexist) {
         couponMexist.status = 2;
         await couponMexist.save();
+        console.log("[STEP] Coupon mapping status updated to 2");
       }
     }
 
     let orderC = await CouponsModel.findOne({ _id: response?.coupon });
+    console.log("[STEP] Coupon model found:", orderC);
+
     let totalD = 0;
     if (response?.coupon)
       totalD =
         (parseFloat(orderC?.percent || 0) * parseFloat(selectedPlan?.amount)) /
         100;
+    console.log("[STEP] Total discount calculated:", totalD);
 
     let zohoOrder = {
       data: [
         {
-          // "Owner": {
-          //     "id": "{{user-id}}"
-          // },
-          // "Deal_Name": {
-          //     "id": "{{deal-id}}"
-          // },
-          // "Account_Name": {
-          //     "id": "{{account-id}}"
-          // },
-          // "Quote_Name": {
-          //     "id": "{{quote-id}}"
-          // },
           Contact_Name: {
             id: user?.zohoUserId,
           },
           Discount: totalD,
-          // "Description": "Design your own layouts that align your business processes precisely. Assign them to profiles appropriately.",
-          // "Customer_No": "Customer_No",
-          // "Shipping_State":  add?.state,
-          // "Tax": 127.67,
-          // "Billing_Country": "India",
-          // "Carrier": "USPS",
           Status: "Delivered",
-          // "Sales_Commission": 127.67,
-          // "Due_Date": "2018-01-25",
-          // "Billing_Street": add?.city,
-          // "Adjustment": 127.67,
-          // "Terms_and_Conditions": "Design your own layouts that align your business processes precisely. Assign them to profiles appropriately.",
-          // "Billing_Code": "Billing_Code",
-          // "Product_Details": Product_Details,
           Subject: `Hair Test`,
-          // "Excise_Duty": 127.67,
-          // "Shipping_City": add?.city,
           Shipping_Country: "India",
-          // "Shipping_Code": "Shipping_Code",
-          // "Billing_City": add?.city,
-          // "Purchase_Order": "Purchase_Order",
-          // "Billing_State": add?.state,
-          // "$line_tax": [
-          //     {
-          //         "percentage": 12.5,
-          //         "name": "Sales Tax"
-          //     },
-          //     {
-          //         "percentage": 8.5,
-          //         "name": "Common Tax"
-          //     }
-          // ],
-          // "Pending": "Pending",
-          // "Shipping_Street": "Shipping_Street"
         },
       ],
     };
+    console.log("[STEP] Zoho order data prepared:", zohoOrder);
+
     let record = await zohoService.createRecord({
       module: "Sales_Orders",
       reqData: zohoOrder,
     });
+    console.log("[STEP] Zoho record created:", record);
+
     if (record) {
       await Order.updateOne(
         { _id: data.id },
         { zoho_order_Id: record?.data?.[0]?.details?.id }
       );
+      console.log("[STEP] Zoho order ID updated in Order model");
     }
-    console.log("mko", hairTestUpdate);
+
     try {
       await sendEmail(
         user?.email,
@@ -541,8 +517,8 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
 \n\nBest regards,\nHairsncares.com
 `
       );
+      console.log("[STEP] Confirmation email sent to user");
 
-      // Send to admin
       await sendEmail(
         "info@vplanthairclinics.com",
         "New Hair Test Alert! 💇",
@@ -551,6 +527,8 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
           user?.mobile || ""
         },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
+      console.log("[STEP] Notification email sent to vplanthairclinics");
+
       await sendEmail(
         "info@hairsncares.com",
         "New Hair Test Alert! 💇",
@@ -559,34 +537,31 @@ Stay tuned for your customized hair care plan!\n\nThank you for choosing Hairsnc
           user?.mobile || ""
         },\n Email : ${user?.email || ""},\n Message: ${data?.message || ""}`
       );
+      console.log("[STEP] Notification email sent to hairsncares");
 
       await WhatsappTextTemplate({
         attr: [user?.fullname || "user"],
         name: user?.fullname,
         phone: "9004405160",
         campName: "admin2_message_notification",
-        // media: {
-        //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767356/hair-assessment/xplb1jpopazurg1xcpml.jpg",
-        //   filename: "file",
-        // },
       });
+      console.log("[STEP] WhatsApp notification sent to admin");
 
       await WhatsappTextTemplate({
         attr: null,
         name: user?.fullname,
         phone: user?.mobile?.toString(),
         campName: "Utility_Thankyou_Message_after_completing_hair_test",
-        // media: {
-        //   url: "https://res.cloudinary.com/drkpwvnun/image/upload/v1725767356/hair-assessment/xplb1jpopazurg1xcpml.jpg",
-        //   filename: "file",
-        // },
       });
+      console.log("[STEP] WhatsApp thank you message sent to user");
     } catch (error) {
-      console.log("jijsdij", error);
+      console.log("[ERROR] Error sending notifications:", error);
     }
 
+    console.log("[STEP] Final updated payment response:", response);
     return response;
   };
+
   addReview = async (req, data) => {
     const { user } = req;
     console.log(".......", user);

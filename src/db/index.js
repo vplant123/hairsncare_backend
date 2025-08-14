@@ -23,54 +23,43 @@
 //     });
 //   } catch (error) {
 //     console.error("Mongoose connection error:", error);
-//     setTimeout(connectDB, 10000); // Retry connection after delay
+//     setTimeout(connectDB, 10000);
 //   }
 // };
 
 // module.exports = connectDB;
 
-
 const mongoose = require("mongoose");
- 
-const uri = "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/HairsNCare?retryWrites=true&w=majority&appName=HairsNcares";
- 
+
+const uri =
+  "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/HairsNCare?retryWrites=true&w=majority&appName=HairsNcares";
+
 async function connectDB() {
-
   try {
-
     await mongoose.connect(uri, {
-
       useNewUrlParser: true,
 
       useUnifiedTopology: true,
 
       family: 4, // Force IPv4 (important for your VPS)
-
     });
- 
+
     console.log("✅ Mongoose connected to MongoDB Atlas!");
-
   } catch (err) {
-
     console.error("❌ Mongoose connection error:", err.message);
 
     setTimeout(connectDB, 10000); // Retry after 10s
-
   }
- 
+
   // Graceful shutdown
 
   process.on("SIGINT", async () => {
-
     await mongoose.connection.close();
 
     console.log("🛑 Mongoose disconnected due to app termination");
 
     process.exit(0);
-
   });
-
 }
- 
+
 module.exports = connectDB;
- 

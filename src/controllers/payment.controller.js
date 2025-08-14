@@ -1,4 +1,4 @@
-// const crypto = require("crypto");
+const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Payment = require("../models/payment.model.js");
 const asyncHandler = require("../utils/asyncHandler.js");
@@ -22,6 +22,12 @@ const Product = require("../models/products.models.js");
 const Appointment = require("../models/Appointment.model.js");
 const Plan = require("../models/plan.model.js");
 const HairTest = require("../models/hairTest.model.js");
+
+const axios = require("axios"); // const uniqid = require("uniqid");
+// ...existing code...
+const { getAuthHeader, getToken } = require("../utils/auth.js");
+// ...existing code...
+const CallbackResponse = require("../models/callbackModel");
 
 const instance = new Razorpay({
   key_id: "rzp_test_IVOsFC0Bobcxcv",
@@ -847,9 +853,15 @@ const placeOrder = asyncHandler(async (req, res) => {
 
     await Cart.findOneAndDelete({ userId: user._id });
 
+    let responseData = {
+      orderId: order._id,
+      userId: user._id,
+      totalAmount,
+    };
+
     return res
       .status(200)
-      .json(new ApiResponse(200, order._id, "Order created successfully"));
+      .json(new ApiResponse(200, responseData, "Order created successfully"));
   } catch (error) {
     console.error("=== PLACE ORDER API ERROR ===");
     console.error("Error type:", error.constructor.name);
@@ -990,7 +1002,7 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
         .json({ message: "User not found or user ID is missing" });
     }
     const loggedInUser = await User.findById(user._id);
-    let { orderId, htmls } = req.body;
+    let { orderId, htmls, paymentStatus } = req.body;
     const order = await Order.findOne({ _id: orderId });
     if (!order) {
       const err = {
@@ -1002,10 +1014,12 @@ const updatePaymentOrder = asyncHandler(async (req, res) => {
 
     await Payment.findOneAndUpdate(
       { orderId: order._id },
-      { paymentStatus: "success" }
+      { paymentStatus: paymentStatus }
     );
     order.deliveryStatus = "processing";
-    order.status = "paid";
+    if (paymentStatus === "success") {
+      order.status = "paid";
+    }
     await order.save();
 
     // Create invoice automatically after payment is successful
@@ -1459,7 +1473,7 @@ const updateOrder = asyncHandler(async (req, res) => {
     }
 
     if (!order) {
-      // Generate order number for new order
+      // Generate order number
       const orderNumber = await generateOrderNumber();
 
       // Create new order if it doesn't exist
@@ -1634,6 +1648,345 @@ function formatDateToYMD(date) {
   return d.toISOString().split("T")[0];
 }
 
+function normalizeName(fullname = "") {
+  const parts = String(fullname).trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] || "";
+  const lastName = parts.slice(1).join(" ") || "";
+  return { firstName, lastName };
+}
+
+function parseAmountToPaise(amount) {
+  // Accept number or numeric string; round to 2 decimals then convert to paise
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 100);
+}
+
+function pickPhone(value) {
+  if (!value) return "";
+
+  return String(value).replace(/\D/g, "").slice(-10);
+}
+
+function getSafe(obj, path, def = undefined) {
+  return (
+    path
+      .split(".")
+      .reduce((acc, k) => (acc && acc[k] != null ? acc[k] : undefined), obj) ??
+    def
+  );
+}
+
+const ENV = process.env.ENV || "prod";
+const BACKEND_URL =
+  ENV === "dev" ? process.env.LOCAL_BACKEND_URL : process.env.PROD_BACKEND_URL;
+const FRONTEND_URL =
+  ENV === "dev"
+    ? process.env.LOCAL_FRONTEND_URL
+    : process.env.PROD_FRONTEND_URL;
+
+const payment = async (req, res) => {
+  const DEBUG = process.env.DEBUG;
+  const BACKEND_URL = process.env.BACKEND_URL;
+
+  // Localized logger
+  const logDebug = (...args) => {
+    if (DEBUG) console.log(...args);
+  };
+
+  try {
+    // Correlation id for this end-to-end request
+    const crypto = require("node:crypto");
+    const rid =
+      (crypto.randomUUID && crypto.randomUUID()) ||
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+    logDebug(`[PAYMENT][${rid}] Incoming body:`, req.body);
+
+    const {
+      amount,
+      orderId: merchantOrderId,
+      userId,
+      redirectUrl,
+      callbackUrl, // optional, only sent if you enable below
+    } = req.body || {};
+
+    if (!userId || !merchantOrderId || amount == null) {
+      return res.status(400).json({
+        error: "Missing required parameters: userId, orderId, amount.",
+      });
+    }
+
+    // Optional: duplicate order protection (requires Payment model)
+    if (typeof Payment?.findOne === "function") {
+      const existingPayment = await Payment.findOne({ merchantOrderId }).lean();
+      if (existingPayment) {
+        return res
+          .status(400)
+          .json({ error: "Duplicate orderId. Please use a unique orderId." });
+      }
+    }
+
+    // Resolve user
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const { firstName, lastName } = normalizeName(user.fullname || "");
+    const email = (user.email || "").trim();
+    const mobileNumber = pickPhone(user.mobile);
+
+    if (!firstName || !lastName || !email || !mobileNumber) {
+      return res.status(400).json({
+        error:
+          "Missing required user details: firstName, lastName, email, or mobileNumber.",
+      });
+    }
+
+    // Amount (send rupees to backend; convert here to paise)
+    const amountInPaise = parseAmountToPaise(amount);
+    if (amountInPaise == null)
+      return res.status(400).json({ error: "Invalid amount." });
+
+    // Auth header from token module
+    const { Authorization } = await getAuthHeader();
+    if (!Authorization) {
+      return res
+        .status(500)
+        .json({ error: "OAuth token not available. Please try again later." });
+    }
+    logDebug(
+      `[PAYMENT][${rid}] Auth header present (masked):`,
+      `${Authorization.slice(0, 20)}...`
+    );
+
+    // Build PhonePe payload
+    const requestData = {
+      merchantOrderId,
+      amount: amountInPaise,
+      expireAfter: 320,
+      metaInfo: {
+        udf1: userId,
+        udf2: `${firstName} ${lastName}`.trim(),
+        udf3: mobileNumber,
+        udf4: email,
+      },
+      paymentFlow: {
+        type: "PG_CHECKOUT",
+        message: "Payment",
+        merchantUrls: {
+          redirectUrl: redirectUrl,
+          callbackUrl: `${BACKEND_URL}/api/v1/payment/phonepay/callback`,
+        },
+      },
+    };
+
+    logDebug(`[PAYMENT][${rid}] Request payload:`, requestData);
+
+    // Create a scoped axios client with interceptors for deep visibility
+    const client = require("axios").create({
+      timeout: 90_000,
+      validateStatus: () => true,
+    });
+
+    // Attach request/response timing & logs
+    client.interceptors.request.use((config) => {
+      config.metadata = { start: Date.now() };
+      const authPreview =
+        typeof config.headers?.Authorization === "string"
+          ? config.headers.Authorization.slice(0, 20) + "..."
+          : "<none>";
+      logDebug(
+        `[PAYMENT][${rid}] → ${config.method?.toUpperCase()} ${config.url}`,
+        {
+          headers: { ...config.headers, Authorization: authPreview },
+          hasBody: !!config.data,
+        }
+      );
+      return config;
+    });
+
+    client.interceptors.response.use(
+      (resp) => {
+        const dur = Date.now() - (resp.config.metadata?.start || Date.now());
+        logDebug(
+          `[PAYMENT][${rid}] ← ${resp.status} ${resp.config.url} (${dur}ms) body:`,
+          resp.data
+        );
+        return resp;
+      },
+      (err) => {
+        const cfg = err.config || {};
+        const dur = Date.now() - (cfg.metadata?.start || Date.now());
+        if (err.response) {
+          logDebug(
+            `[PAYMENT][${rid}] ← ${err.response.status} ${cfg?.url} (${dur}ms) body:`,
+            err.response.data
+          );
+        } else if (err.request) {
+          console.error(
+            `[PAYMENT][${rid}] ✖ No response from ${cfg?.url} (${dur}ms). Network/timeout.`,
+            { code: err.code, message: err.message }
+          );
+        } else {
+          console.error(
+            `[PAYMENT][${rid}] ✖ Request setup error for ${cfg?.url} (${dur}ms):`,
+            err.message
+          );
+        }
+        return Promise.reject(err);
+      }
+    );
+
+    // Perform gateway call
+    const response = await client.request({
+      method: "POST",
+      url: "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization,
+        "X-Request-Id": rid,
+      },
+      data: requestData,
+    });
+
+    // Validate structure
+    if (!response.data || typeof response.data !== "object") {
+      return res
+        .status(502)
+        .json({ error: "Invalid response from PhonePe.", raw: response.data });
+    }
+
+    console.log("[PAYMENT] PhonePe Response:", response.data);
+
+    // Success path: redirect link
+    const redirect =
+      getSafe(response, "data.data.redirectUrl") ||
+      getSafe(response, "data.redirectUrl");
+    if (redirect) {
+      console.log("[PAYMENT] Redirect URL sent to FE:", redirect);
+      return res.status(200).json({ redirectUrl: redirect, success: true });
+    }
+
+    // Error path: bubble up gateway message if present
+    const gatewayMessage =
+      getSafe(response, "data.message") ||
+      getSafe(response, "data.data.message") ||
+      "Unexpected response from PhonePe.";
+    return res
+      .status(502)
+      .json({ error: gatewayMessage, raw: response.data, success: false });
+  } catch (err) {
+    console.error("[PAYMENT] Error:", err.stack || err);
+    if (err.code === "ECONNABORTED") {
+      return res.status(504).json({ error: "Payment gateway timeout." });
+    }
+    return res
+      .status(500)
+      .json({
+        error: "An error occurred while initiating the payment.",
+        success: false,
+      });
+  }
+};
+
+const callback = async (req, res) => {
+  try {
+    const data = req.body || {};
+    if (!data.event || !data.payload) {
+      return res.status(400).json({
+        error: "Invalid data format. 'event' and 'payload' are required.",
+      });
+    }
+
+    const callbackResponse = new CallbackResponse({
+      event: data.event,
+      payload: data.payload,
+      headers: req.headers,
+      receivedAt: new Date(),
+    });
+    await callbackResponse.save();
+
+    return res
+      .status(200)
+      .json({ message: "Callback data saved successfully." });
+  } catch (err) {
+    console.error("Callback Error:", err.stack || err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+const status = async (req, res) => {
+  try {
+    const { merchantOrderId } = req.params || {};
+    if (!merchantOrderId) {
+      return res
+        .status(400)
+        .json({ error: "Missing merchantOrderId parameter." });
+    }
+
+    const { Authorization } = await getAuthHeader();
+    if (!Authorization) {
+      return res.status(500).json({
+        error: "OAuth token not available. Please try again later.",
+      });
+    }
+
+    const options = {
+      method: "GET",
+      url: `https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/order/${encodeURIComponent(
+        merchantOrderId
+      )}/status`,
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization,
+      },
+      timeout: 90000,
+      validateStatus: () => true,
+    };
+
+    console.log("[PAYMENT] Status Check Options:", options);
+    const response = await axios.request(options);
+
+    console.log("[PAYMENT] Status Check Response:", response.data);
+
+    // Pull status defensively
+    const state =
+      getSafe(response, "data.data.state") || getSafe(response, "data.state");
+    const amountInPaise =
+      getSafe(response, "data.data.amount") || getSafe(response, "data.amount");
+
+    if (!state) {
+      return res.status(502).json({
+        error: "Unexpected response from payment gateway.",
+        raw: response.data,
+      });
+    }
+
+    // if (state === "COMPLETED") {
+    //   // Redirect to FE route pattern: /success/:id
+    //   const url = `${FRONTEND_URL}/success/1`;
+    //   return res.redirect(302, url);
+    // }
+
+    // if (state === "FAILED" || state === "CANCELED") {
+    //   const url = `${FRONTEND_URL}/failure/1`;
+    //   return res.redirect(302, url);
+    // }
+
+    return res.status(200).json({
+      success: true,
+      status: String(state).toLowerCase(),
+      message: "Payment is in progress. Please try again later.",
+      amountInPaise,
+    });
+  } catch (err) {
+    console.error("Status Error:", err.stack || err);
+    return res.status(500).json({ error: "Failed to fetch payment status." });
+  }
+};
+
 module.exports = {
   placeOrder,
   generatePaymentLink,
@@ -1647,4 +2000,8 @@ module.exports = {
   getInvoiceByOrderNumber,
   testInvoiceCreation,
   deleteOrderAndPayments,
+
+  payment,
+  status,
+  callback,
 };

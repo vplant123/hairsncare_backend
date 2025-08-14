@@ -141,7 +141,7 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
       return res.status(400).json(new ApiResponse(400, "please Sign up fisrt"));
     }
     const otpGenerated = await sendOTP(mobile.toString());
-    console.log("Gen otp", otpGenerated);
+    // console.log("Gen otp", otpGenerated);
     if (user) {
       user.otp = otpGenerated;
       user.otpCreatedAt = new Date();

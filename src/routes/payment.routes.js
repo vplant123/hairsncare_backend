@@ -22,11 +22,16 @@ const {
   getInvoiceByOrderNumber,
   testInvoiceCreation,
   updateOrder,
-  deleteOrderAndPayments
+  deleteOrderAndPayments,
+
+  payment,
+  status,
+  callback,
 } = require("../controllers/payment.controller.js");
 
 // router.post("/order-create", verifyJwt, orderCreate);
 // router.post("/payment-create", verifyJwt, bookAppointment);
+
 router.post("/verification", paymentVerification);
 router.post("/bookAppointment", verifyJwt, bookAppointment);
 router.post("/update-payment", verifyJwt, updatePayment);
@@ -35,7 +40,11 @@ router.post("/delete-order-and-payments", verifyJwt, deleteOrderAndPayments);
 
 router.post("/place-order", verifyJwt, placeOrder);
 router.post("/change-order-status", verifyJwt, changeOrderStatus);
-router.post("/create-invoice-from-order", verifyJwt, createInvoiceFromExistingOrder);
+router.post(
+  "/create-invoice-from-order",
+  verifyJwt,
+  createInvoiceFromExistingOrder
+);
 router.get("/invoice/:orderNumber", verifyJwt, getInvoiceByOrderNumber);
 router.post("/test-invoice-creation", verifyJwt, testInvoiceCreation);
 
@@ -43,6 +52,10 @@ router.post("/generate-paymentLink", verifyJwt, generatePaymentLink);
 router.delete("/deleteAllPayment", deleteAllPayments);
 router.post("/shipOrder", shipRocket, shipOrder);
 
-router.post("/update-order",verifyJwt, updateOrder);
+router.post("/update-order", verifyJwt, updateOrder);
+
+router.post("/phonepay", verifyJwt, payment);
+router.post("/phonepay/callback", callback);
+router.get("/phonepay/status/:merchantOrderId", status);
 
 module.exports = router;
