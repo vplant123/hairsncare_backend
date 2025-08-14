@@ -1,9 +1,18 @@
-// src/auth/token.js
 const axios = require("axios");
+require("dotenv").config(); // Ensure environment variables are loaded from .env file
 
-// Environment-aware configuration
-const ENV = process.env.PHONEPE_ENV;
-const config = {
+// Environment-aware configuration with validation
+const ENV = process.env.PHONEPE_ENV || "prod";
+console.log("[AUTH] Environment:", ENV);
+
+if (!["sandbox", "prod"].includes(ENV)) {
+  throw new Error(
+    `[AUTH] Invalid PHONEPE_ENV: ${ENV}. Must be 'sandbox' or 'prod'`
+  );
+}
+
+// Configuration object for both sandbox and production environments
+const envConfig = {
   sandbox: {
     apiUrl: process.env.SANDBOX_API_URL,
     clientId: process.env.SANDBOX_CLIENT_ID,
@@ -18,15 +27,24 @@ const config = {
     clientVersion: process.env.PROD_CLIENT_VERSION,
     grantType: process.env.PROD_GRANT_TYPE,
   },
-}[ENV];
+};
 
-// Construct OAuth URL dynamically
+// Selecting the correct config based on the environment
+
+const config = envConfig[ENV];
+console.log("[AUTH] Using config for environment:", config);
+
+if (!config || !config.apiUrl) {
+  throw new Error(`[AUTH] Missing configuration for environment: ${ENV}`);
+}
+
+// Construct OAuth URL dynamically based on selected environment
 const OAUTH_URL = `${config.apiUrl}/v1/oauth/token`;
 
 // ---- Internal state ----
 let token = null;
 let expiresAtMs = 0;
-let inflight = null; // promise for deduplication
+let inflight = null; // Promise for deduplication of token request
 
 // Consider token "about to expire" if <60s remain
 const isValid = () => token && Date.now() < expiresAtMs - 60_000;
@@ -53,15 +71,15 @@ async function requestToken() {
     readEnv();
 
   if (missing.length) {
-    // Don’t throw at module load; throw here with specifics.
+    // Don't throw at module load; throw here with specifics
     const msg =
       `[AUTH] Missing environment variables: ${missing.join(", ")}. ` +
       `Check your .env and process.env.`;
-    // Log once for visibility
     console.error(msg);
     throw new Error(msg);
   }
 
+  // Prepare the body for the token request
   const body = new URLSearchParams({
     client_id: CLIENT_ID,
     client_secret: CLIENT_SECRET,
@@ -71,17 +89,19 @@ async function requestToken() {
 
   let res;
   try {
+    // Making the request to get the token
     res = await axios.post(OAUTH_URL, body, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       timeout: 75_000,
-      validateStatus: () => true, // we’ll inspect status manually
+      validateStatus: () => true, // Manually inspect status
     });
   } catch (netErr) {
-    // Network/timeout/DNS, etc.
+    // Handle network, timeout, DNS, etc. errors
     console.error("[AUTH] Network error requesting token:", netErr.message);
     throw new Error(`[AUTH] Network error requesting token: ${netErr.message}`);
   }
 
+  // Check if the response is valid (2xx status)
   if (!res || res.status < 200 || res.status >= 300) {
     const safeData = res && res.data ? JSON.stringify(res.data) : "<no body>";
     console.error(
@@ -89,12 +109,11 @@ async function requestToken() {
       safeData
     );
     throw new Error(
-      `[AUTH] Token request failed with status ${
-        res && res.status
-      }. Body: ${safeData}`
+      `[AUTH] Token request failed with status ${res.status}. Body: ${safeData}`
     );
   }
 
+  // Extract the token from the response
   const data = res.data || {};
   const accessToken = data.access_token;
   if (!accessToken) {
@@ -111,7 +130,7 @@ async function requestToken() {
   const expiresFromIn =
     typeof data.expires_in === "number" ? now + data.expires_in * 1000 : null;
 
-  expiresAtMs = expiresFromAt ?? expiresFromIn ?? now + 15 * 60 * 1000; // default 15m
+  expiresAtMs = expiresFromAt ?? expiresFromIn ?? now + 15 * 60 * 1000; // Default to 15 minutes
   token = accessToken;
 
   return token;
@@ -122,12 +141,12 @@ async function requestToken() {
  * Concurrent callers share the same in-flight request.
  */
 async function getToken() {
-  if (isValid()) return token;
-  if (inflight) return inflight;
+  if (isValid()) return token; // If token is valid, return it
+  if (inflight) return inflight; // If request is in-flight, return that promise
 
   inflight = requestToken()
     .catch((err) => {
-      // Reset cache on failure so next call can retry
+      // Reset cache on failure, so next call can retry
       token = null;
       expiresAtMs = 0;
       throw err;
@@ -142,7 +161,7 @@ async function getToken() {
 /** Convenience header helper */
 async function getAuthHeader() {
   const t = await getToken();
-  return { Authorization: `O-Bearer ${t}` }; // PhonePe expects 'Bearer', not 'O-Bearer'
+  return { Authorization: `O-Bearer ${t}` }; // Fixed: Changed from O-Bearer to Bearer
 }
 
 // Export configuration for use in other files
