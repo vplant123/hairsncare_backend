@@ -2,7 +2,7 @@ const axios = require("axios");
 require("dotenv").config(); // Ensure environment variables are loaded from .env file
 
 // Environment-aware configuration with validation
-const ENV = process.env.PHONEPE_ENV || "prod";
+const ENV = process.env.PHONEPE_ENV;
 console.log("[AUTH] Environment:", ENV);
 
 if (!["sandbox", "prod"].includes(ENV)) {
@@ -39,7 +39,11 @@ if (!config || !config.apiUrl) {
 }
 
 // Construct OAuth URL dynamically based on selected environment
-const OAUTH_URL = `${config.apiUrl}/v1/oauth/token`;
+
+// const OAUTH_URL = `${config.apiUrl}/v1/oauth/token`;
+const OAUTH_URL =
+  "https://api.phonepe.com/apis/identity-manager/v1/oauth/token";
+console.log("[AUTH] Using OAuth URL:", OAUTH_URL);
 
 // ---- Internal state ----
 let token = null;
@@ -50,36 +54,58 @@ let inflight = null; // Promise for deduplication of token request
 const isValid = () => token && Date.now() < expiresAtMs - 60_000;
 
 function readEnv() {
+  console.log("[AUTH] Reading environment variables...");
   const missing = [];
   if (!config.clientId) missing.push(`${ENV.toUpperCase()}_CLIENT_ID`);
   if (!config.clientSecret) missing.push(`${ENV.toUpperCase()}_CLIENT_SECRET`);
+  if (!config.apiUrl) missing.push(`${ENV.toUpperCase()}_API_URL`);
   if (!config.clientVersion)
     missing.push(`${ENV.toUpperCase()}_CLIENT_VERSION`);
   if (!config.grantType) missing.push(`${ENV.toUpperCase()}_GRANT_TYPE`);
 
-  return {
+  const envVars = {
     CLIENT_ID: config.clientId,
     CLIENT_SECRET: config.clientSecret,
     CLIENT_VERSION: config.clientVersion,
     GRANT_TYPE: config.grantType,
+    API_URL: config.apiUrl,
     missing,
   };
+
+  console.log(
+    "[AUTH] Environment variables read:",
+    JSON.stringify(
+      {
+        ...envVars,
+      },
+      null,
+      2
+    )
+  );
+
+  return envVars;
 }
 
 async function requestToken() {
-  const { CLIENT_ID, CLIENT_SECRET, CLIENT_VERSION, GRANT_TYPE, missing } =
-    readEnv();
+  console.log("[AUTH] Starting token request...");
+  const {
+    CLIENT_ID,
+    CLIENT_SECRET,
+    CLIENT_VERSION,
+    GRANT_TYPE,
+    API_URL,
+    missing,
+  } = readEnv();
 
   if (missing.length) {
-    // Don't throw at module load; throw here with specifics
-    const msg =
-      `[AUTH] Missing environment variables: ${missing.join(", ")}. ` +
-      `Check your .env and process.env.`;
+    const msg = `[AUTH] Missing environment variables: ${missing.join(
+      ", "
+    )}. Check your .env and process.env.`;
     console.error(msg);
     throw new Error(msg);
   }
 
-  // Prepare the body for the token request
+  console.log("[AUTH] Preparing request body...");
   const body = new URLSearchParams({
     client_id: CLIENT_ID,
     client_secret: CLIENT_SECRET,
@@ -89,19 +115,22 @@ async function requestToken() {
 
   let res;
   try {
-    // Making the request to get the token
+    console.log("[AUTH] Sending POST request to:", OAUTH_URL);
     res = await axios.post(OAUTH_URL, body, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       timeout: 75_000,
-      validateStatus: () => true, // Manually inspect status
+      validateStatus: () => true,
     });
+    console.log("[AUTH] Received response with status:", res.status);
   } catch (netErr) {
-    // Handle network, timeout, DNS, etc. errors
-    console.error("[AUTH] Network error requesting token:", netErr.message);
+    console.error("[AUTH] Network error details:", {
+      message: netErr.message,
+      code: netErr.code,
+      stack: netErr.stack,
+    });
     throw new Error(`[AUTH] Network error requesting token: ${netErr.message}`);
   }
 
-  // Check if the response is valid (2xx status)
   if (!res || res.status < 200 || res.status >= 300) {
     const safeData = res && res.data ? JSON.stringify(res.data) : "<no body>";
     console.error(
@@ -113,7 +142,6 @@ async function requestToken() {
     );
   }
 
-  // Extract the token from the response
   const data = res.data || {};
   const accessToken = data.access_token;
   if (!accessToken) {
@@ -123,15 +151,17 @@ async function requestToken() {
     );
   }
 
-  // Support either expires_at (epoch seconds) or expires_in (seconds)
   const now = Date.now();
   const expiresFromAt =
     typeof data.expires_at === "number" ? data.expires_at * 1000 : null;
   const expiresFromIn =
     typeof data.expires_in === "number" ? now + data.expires_in * 1000 : null;
 
-  expiresAtMs = expiresFromAt ?? expiresFromIn ?? now + 15 * 60 * 1000; // Default to 15 minutes
+  expiresAtMs = expiresFromAt ?? expiresFromIn ?? now + 15 * 60 * 1000;
   token = accessToken;
+
+  console.log("[AUTH] Token successfully obtained");
+  console.log("[AUTH] Token expiration:", new Date(expiresAtMs).toISOString());
 
   return token;
 }
@@ -141,17 +171,28 @@ async function requestToken() {
  * Concurrent callers share the same in-flight request.
  */
 async function getToken() {
-  if (isValid()) return token; // If token is valid, return it
-  if (inflight) return inflight; // If request is in-flight, return that promise
+  console.log("[AUTH] getToken called");
 
+  if (isValid()) {
+    console.log("[AUTH] Using cached valid token");
+    return token;
+  }
+
+  if (inflight) {
+    console.log("[AUTH] Using in-flight token request");
+    return inflight;
+  }
+
+  console.log("[AUTH] Initiating new token request");
   inflight = requestToken()
     .catch((err) => {
-      // Reset cache on failure, so next call can retry
+      console.error("[AUTH] Token request failed:", err.message);
       token = null;
       expiresAtMs = 0;
       throw err;
     })
     .finally(() => {
+      console.log("[AUTH] Token request completed");
       inflight = null;
     });
 
@@ -160,8 +201,11 @@ async function getToken() {
 
 /** Convenience header helper */
 async function getAuthHeader() {
+  console.log("[AUTH] Getting authorization header");
   const t = await getToken();
-  return { Authorization: `O-Bearer ${t}` }; // Fixed: Changed from O-Bearer to Bearer
+  const header = { Authorization: `O-Bearer ${t}` };
+  console.log("[AUTH] Authorization header created");
+  return header;
 }
 
 // Export configuration for use in other files

@@ -1680,10 +1680,12 @@ function getSafe(obj, path, def = undefined) {
 const { config, ENV } = require("../utils/auth");
 
 const BACKEND_URL =
-  ENV === "dev" ? process.env.LOCAL_BACKEND_URL : process.env.PROD_BACKEND_URL;
+  ENV === "sandbox"
+    ? process.env.LOCAL_BACKEND_URL
+    : process.env.PROD_BACKEND_URL;
 
 const FRONTEND_URL =
-  ENV === "dev"
+  ENV === "sandbox"
     ? process.env.LOCAL_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
 
