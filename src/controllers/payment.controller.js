@@ -1679,7 +1679,7 @@ function getSafe(obj, path, def = undefined) {
 
 const { config, ENV } = require("../utils/auth");
 
-const ENV = process.env.ENV || "prod";
+ENV = process.env.ENV || "prod";
 const BACKEND_URL =
   ENV === "dev" ? process.env.LOCAL_BACKEND_URL : process.env.PROD_BACKEND_URL;
 const FRONTEND_URL =
