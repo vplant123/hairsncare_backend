@@ -1735,7 +1735,7 @@ const payment = async (req, res) => {
     const email = (user.email || "").trim();
     const mobileNumber = pickPhone(user.mobile);
 
-    if (!firstName || !lastName || !email || !mobileNumber) {
+    if (!firstName || !email || !mobileNumber) {
       return res.status(400).json({
         error:
           "Missing required user details: firstName, lastName, email, or mobileNumber.",
@@ -1881,12 +1881,10 @@ const payment = async (req, res) => {
     if (err.code === "ECONNABORTED") {
       return res.status(504).json({ error: "Payment gateway timeout." });
     }
-    return res
-      .status(500)
-      .json({
-        error: "An error occurred while initiating the payment.",
-        success: false,
-      });
+    return res.status(500).json({
+      error: "An error occurred while initiating the payment.",
+      success: false,
+    });
   }
 };
 
