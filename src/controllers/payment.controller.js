@@ -429,14 +429,14 @@ function calculateOrderSummary({
   let itemLevelDiscountTotal = 0;
 
   const orderItems = products.map((item) => {
-    const rate = Math.round(Number(item?.item?.price ?? 0));
-    const quantity = Math.round(Number(item?.quantity ?? 0));
-    const discount = Math.round(Number(item?.item?.discount ?? 0));
-    const gst = Math.round(Number(item?.item?.gst ?? 0));
+    const rate = Math.round(Number(item?.item?.price ?? 0)); // Round price
+    const quantity = Math.round(Number(item?.quantity ?? 0)); // Round quantity
+    const discount = Math.round(Number(item?.item?.discount ?? 0)); // Round discount
+    const gst = Math.round(Number(item?.item?.gst ?? 0)); // Round GST
 
-    const discountAmount = Math.round((rate * discount) / 100);
+    const discountAmount = Math.round((rate * discount) / 100); // Round discount amount
     const rateAfterDiscount = rate - discountAmount;
-    const itemTotal = Math.round(rateAfterDiscount * quantity);
+    const itemTotal = Math.round(rateAfterDiscount * quantity); // Round item total
 
     subTotal += itemTotal;
     itemLevelDiscountTotal += discountAmount * quantity;
@@ -452,28 +452,41 @@ function calculateOrderSummary({
     };
   });
 
-  const percentDiscount = Math.round((couponPercent * subTotal) / 100);
-  const couponDiscount = couponType === "fixed" ? couponFixed : percentDiscount;
+  // Calculate coupon discount (rounding happens after calculation)
+  let couponDiscount = 0;
+  if (couponType === "fixed") {
+    couponDiscount = Math.round(couponFixed); // Round fixed coupon
+  } else if (couponType === "percent") {
+    couponDiscount = Math.round((couponPercent * subTotal) / 100); // Round percentage coupon
+  }
 
-  const deliveryCharge = Math.round(Number(config?.deliveryCharge ?? 200));
-  const deliveryAmt = Math.round(Number(config?.deliveryAmt ?? 2000));
+  // Delivery charge calculation (rounding happens after calculation)
+  const deliveryCharge = Math.round(Number(config?.deliveryCharge ?? 200)); // Round delivery charge
+  const deliveryAmt = Math.round(Number(config?.deliveryAmt ?? 2000)); // Round delivery amount
   const deliveryChargeCalc =
     Math.max(subTotal - couponDiscount, 0) > deliveryAmt ? 0 : deliveryCharge;
 
-  const totalAmount = Math.round(
-    Math.max(subTotal - couponDiscount, 0) + deliveryChargeCalc
-  );
+  // Round individual components
+  const roundedSubTotal = Math.round(subTotal); // Round subTotal
+  const roundedCouponDiscount = couponDiscount; // Already rounded earlier
+  const roundedDeliveryCharge = deliveryChargeCalc; // Already calculated and rounded
 
-  const totalDiscount = itemLevelDiscountTotal + couponDiscount;
+  // Calculate total amount in steps (round the final total)
+  const discountedAmount = Math.max(roundedSubTotal - roundedCouponDiscount, 0);
+  const totalAmount = discountedAmount + roundedDeliveryCharge;
+
+  // Calculate total discount
+  const roundedItemDiscount = Math.round(itemLevelDiscountTotal); // Round item discount
+  const totalDiscount = roundedItemDiscount + roundedCouponDiscount;
 
   return {
     orderItems,
-    subTotal: Math.round(subTotal),
-    itemLevelDiscount: Math.round(itemLevelDiscountTotal),
-    couponDiscount: Math.round(couponDiscount),
-    totalDiscount: Math.round(totalDiscount),
-    deliveryCharge: Math.round(deliveryChargeCalc),
-    totalAmount: Math.round(totalAmount),
+    subTotal: roundedSubTotal,
+    itemLevelDiscount: roundedItemDiscount,
+    couponDiscount: roundedCouponDiscount,
+    totalDiscount: Math.round(totalDiscount), // Round total discount
+    deliveryCharge: roundedDeliveryCharge,
+    totalAmount: Math.round(totalAmount), // Round total amount
   };
 }
 
