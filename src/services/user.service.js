@@ -427,7 +427,10 @@ class UserService {
       { orderId: data.id },
       { paymentStatus: "success" }
     );
-    console.log("[STEP] Payment status updated to success for orderId:", data.id);
+    console.log(
+      "[STEP] Payment status updated to success for orderId:",
+      data.id
+    );
 
     const response = await Appointment.findOneAndUpdate(
       { orderId: data.id },
@@ -468,11 +471,15 @@ class UserService {
     let orderC = await CouponsModel.findOne({ _id: response?.coupon });
     console.log("[STEP] Coupon model found:", orderC);
 
+    let selectedPlan = await Plan.findById(orderC?.coupon);
+    console.log("[STEP] Selected plan found:", selectedPlan);
+
     let totalD = 0;
-    if (response?.coupon)
+    if (response?.coupon) {
       totalD =
-        (parseFloat(orderC?.percent || 0) * parseFloat(selectedPlan?.amount)) /
+        (parseFloat(orderC?.percent || 0) * parseFloat(selectedPlan?.price)) /
         100;
+    }
     console.log("[STEP] Total discount calculated:", totalD);
 
     let zohoOrder = {
