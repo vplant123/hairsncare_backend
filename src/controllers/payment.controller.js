@@ -412,6 +412,86 @@ const testInvoiceCreation = asyncHandler(async (req, res) => {
   }
 });
 
+// function calculateOrderSummary({
+//   products,
+//   couponPercent,
+//   couponFixed,
+//   couponType,
+//   config,
+// }) {
+//   // Ensure safe defaults
+//   couponPercent = Number(couponPercent ?? 0);
+//   couponFixed = Number(couponFixed ?? 0);
+//   couponType = couponType ?? "percent";
+//   config = config ?? {};
+
+//   let subTotal = 0;
+//   let itemLevelDiscountTotal = 0;
+
+//   const orderItems = products.map((item) => {
+//     const rate = Math.round(Number(item?.item?.price ?? 0)); // Round price
+//     const quantity = Math.round(Number(item?.quantity ?? 0)); // Round quantity
+//     const discount = Math.round(Number(item?.item?.discount ?? 0)); // Round discount
+//     const gst = Math.round(Number(item?.item?.gst ?? 0)); // Round GST
+
+//     const discountAmount = Math.round((rate * discount) / 100); // Round discount amount
+//     const rateAfterDiscount = rate - discountAmount;
+//     const itemTotal = Math.round(rateAfterDiscount * quantity); // Round item total
+
+//     subTotal += itemTotal;
+//     itemLevelDiscountTotal += discountAmount * quantity;
+
+//     return {
+//       name: item?.item?.name ?? "",
+//       sku: item?.item?._id ?? "",
+//       units: quantity,
+//       selling_price: rate,
+//       discount: discount,
+//       tax: gst,
+//       hsn: item?.item?.hsn ?? "",
+//     };
+//   });
+
+//   // Calculate coupon discount (rounding happens after calculation)
+//   let couponDiscount = 0;
+//   if (couponType === "fixed") {
+//     couponDiscount = Math.round(couponFixed); // Round fixed coupon
+//   } else if (couponType === "percent") {
+//     couponDiscount = Math.round((couponPercent * subTotal) / 100); // Round percentage coupon
+//   }
+
+//   // Delivery charge calculation (rounding happens after calculation)
+//   const deliveryCharge = Math.round(Number(config?.deliveryCharge ?? 200)); // Round delivery charge
+//   const deliveryAmt = Math.round(Number(config?.deliveryAmt ?? 2000)); // Round delivery amount
+//   const deliveryChargeCalc =
+//     Math.max(subTotal - couponDiscount, 0) > deliveryAmt ? 0 : deliveryCharge;
+
+//   // Round individual components
+//   const roundedSubTotal = Math.round(subTotal); // Round subTotal
+//   const roundedCouponDiscount = couponDiscount; // Already rounded earlier
+//   const roundedDeliveryCharge = deliveryChargeCalc; // Already calculated and rounded
+
+//   // Calculate total amount in steps (round the final total)
+//   const discountedAmount = Math.max(roundedSubTotal - roundedCouponDiscount, 0);
+//   const totalAmount = Math.round(discountedAmount + roundedDeliveryCharge);
+
+//   // Calculate total discount
+//   const roundedItemDiscount = Math.round(itemLevelDiscountTotal); // Round item discount
+//   const totalDiscount = roundedItemDiscount + roundedCouponDiscount;
+
+//   return {
+//     orderItems,
+//     subTotal: roundedSubTotal,
+//     itemLevelDiscount: roundedItemDiscount,
+//     couponDiscount: roundedCouponDiscount,
+//     totalDiscount: Math.round(totalDiscount), // Round total discount
+//     deliveryCharge: roundedDeliveryCharge,
+//     totalAmount: Math.round(totalAmount),
+//   };
+// }
+
+//OLD APIs
+
 function calculateOrderSummary({
   products,
   couponPercent,
@@ -419,9 +499,11 @@ function calculateOrderSummary({
   couponType,
   config,
 }) {
-  // Ensure safe defaults
-  couponPercent = Number(couponPercent ?? 0);
-  couponFixed = Number(couponFixed ?? 0);
+  const safeNumber = (val, defaultVal = 0) =>
+    Math.round(Number(val ?? defaultVal));
+
+  couponPercent = safeNumber(couponPercent);
+  couponFixed = safeNumber(couponFixed);
   couponType = couponType ?? "percent";
   config = config ?? {};
 
@@ -429,15 +511,18 @@ function calculateOrderSummary({
   let itemLevelDiscountTotal = 0;
 
   const orderItems = products.map((item) => {
-    const rate = Math.round(Number(item?.item?.price ?? 0)); // Round price
-    const quantity = Math.round(Number(item?.quantity ?? 0)); // Round quantity
-    const discount = Math.round(Number(item?.item?.discount ?? 0)); // Round discount
-    const gst = Math.round(Number(item?.item?.gst ?? 0)); // Round GST
+    // Round input values first
+    const rate = safeNumber(item?.item?.price);
+    const quantity = safeNumber(item?.quantity);
+    const discount = safeNumber(item?.item?.discount);
+    const gst = safeNumber(item?.item?.gst);
 
-    const discountAmount = Math.round((rate * discount) / 100); // Round discount amount
+    // Calculate discount
+    const discountAmount = Math.round((rate * discount) / 100);
     const rateAfterDiscount = rate - discountAmount;
-    const itemTotal = Math.round(rateAfterDiscount * quantity); // Round item total
+    const itemTotal = rateAfterDiscount * quantity;
 
+    // Update running totals with unrounded values
     subTotal += itemTotal;
     itemLevelDiscountTotal += discountAmount * quantity;
 
@@ -452,45 +537,40 @@ function calculateOrderSummary({
     };
   });
 
-  // Calculate coupon discount (rounding happens after calculation)
+  // Round running totals
+  subTotal = Math.round(subTotal);
+  itemLevelDiscountTotal = Math.round(itemLevelDiscountTotal);
+
+  // Calculate coupon discount
   let couponDiscount = 0;
   if (couponType === "fixed") {
-    couponDiscount = Math.round(couponFixed); // Round fixed coupon
+    couponDiscount = safeNumber(couponFixed);
   } else if (couponType === "percent") {
-    couponDiscount = Math.round((couponPercent * subTotal) / 100); // Round percentage coupon
+    couponDiscount = Math.round((couponPercent * subTotal) / 100);
   }
 
-  // Delivery charge calculation (rounding happens after calculation)
-  const deliveryCharge = Math.round(Number(config?.deliveryCharge ?? 200)); // Round delivery charge
-  const deliveryAmt = Math.round(Number(config?.deliveryAmt ?? 2000)); // Round delivery amount
+  // Calculate delivery charges
+  const deliveryCharge = safeNumber(config?.deliveryCharge, 200);
+  const deliveryAmt = safeNumber(config?.deliveryAmt, 2000);
   const deliveryChargeCalc =
     Math.max(subTotal - couponDiscount, 0) > deliveryAmt ? 0 : deliveryCharge;
 
-  // Round individual components
-  const roundedSubTotal = Math.round(subTotal); // Round subTotal
-  const roundedCouponDiscount = couponDiscount; // Already rounded earlier
-  const roundedDeliveryCharge = deliveryChargeCalc; // Already calculated and rounded
-
-  // Calculate total amount in steps (round the final total)
-  const discountedAmount = Math.max(roundedSubTotal - roundedCouponDiscount, 0);
-  const totalAmount = discountedAmount + roundedDeliveryCharge;
-
-  // Calculate total discount
-  const roundedItemDiscount = Math.round(itemLevelDiscountTotal); // Round item discount
-  const totalDiscount = roundedItemDiscount + roundedCouponDiscount;
+  // Calculate final amounts
+  const discountedAmount = Math.max(subTotal - couponDiscount, 0);
+  const totalAmount = discountedAmount + deliveryChargeCalc;
+  const totalDiscount = itemLevelDiscountTotal + couponDiscount;
 
   return {
     orderItems,
-    subTotal: roundedSubTotal,
-    itemLevelDiscount: roundedItemDiscount,
-    couponDiscount: roundedCouponDiscount,
-    totalDiscount: Math.round(totalDiscount), // Round total discount
-    deliveryCharge: roundedDeliveryCharge,
-    totalAmount: Math.round(totalAmount), // Round total amount
+    subTotal,
+    itemLevelDiscount: itemLevelDiscountTotal,
+    couponDiscount,
+    totalDiscount,
+    deliveryCharge: deliveryChargeCalc,
+    totalAmount: Math.round(totalAmount),
   };
 }
 
-//OLD APIs
 const placeOrder = asyncHandler(async (req, res) => {
   try {
     const { amount, products, addressId, mode, htmls, couponId } = req.body;
@@ -584,6 +664,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       couponType,
       config: { deliveryCharge: configDeliveryCharge, deliveryAmt },
     });
+
     console.log("Subtotal:", subTotal);
 
     // Generate order number
@@ -1704,7 +1785,7 @@ const FRONTEND_URL =
 
 const payment = async (req, res) => {
   const DEBUG = process.env.DEBUG;
-  const BACKEND_URL = process.env.BACKEND_URL;
+  // const BACKEND_URL = process.env.BACKEND_URL;
 
   // Localized logger
   const logDebug = (...args) => {
