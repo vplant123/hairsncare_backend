@@ -41,6 +41,7 @@
     "otp-generator": "^4.0.1",
     "puppeteer": "^22.9.0",
     "razorpay": "^2.8.5",
+    "sharp": "^0.34.3",
     "twilio": "^5.0.3",
     "ua-parser-js": "^2.0.3",
     "uniqid": "^5.4.0",

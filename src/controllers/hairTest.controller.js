@@ -440,8 +440,8 @@ const getFollowupApointment = asyncHandler(async (req, res) => {
           const prescription = await Prescription.findOne({
             $or: [
               { appointmentId: appoint._id },
-              { appointmentId: appoint._id.toString() }
-            ]
+              { appointmentId: appoint._id.toString() },
+            ],
           }).lean();
 
           console.log("prescription", prescription);
@@ -1038,7 +1038,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
       console.error("Error saving progress:", err);
     });
 
-    if (data?.Personal && data?.Personal?.phoneNumber) {
+    if (data?.personal && data?.personal?.phoneNumber && !data?.Nutritional) {
       const user = await User.findOne({ _id: data?.userId });
       console.log(
         "Sending WhatsApp and email notifications to user:",
@@ -1051,6 +1051,7 @@ const createHairTestForUserStepWise = asyncHandler(async (req, res) => {
         phone: "9004405160",
         campName: "admin2_message_notification",
       });
+
       console.log("Whatsapp Response:", whatsappResponse);
 
       sendEmail(
