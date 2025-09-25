@@ -75,6 +75,12 @@ const userSchema = new Schema(
       default: null,
     },
     permission: {
+
+      dashboard: {
+        default: false,
+        type: Boolean,
+      },
+
       hairTest: {
         default: false,
         type: Boolean,
@@ -112,6 +118,14 @@ const userSchema = new Schema(
         type: Boolean,
       },
       admin: {
+        default: false,
+        type: Boolean,
+      },
+      followUp: {
+        default: false,
+        type: Boolean,
+      },
+      invoices: {
         default: false,
         type: Boolean,
       },
