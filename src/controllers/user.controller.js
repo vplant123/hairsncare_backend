@@ -127,11 +127,11 @@ const sendOtpForLogin = asyncHandler(async (req, res) => {
     console.log("mobile", mobile);
     const user = await User.findOne({ mobile: mobile });
     if (user) {
-      if (user.role == "doctor" || user.role == "admin") {
-        return res
-          .status(201)
-          .json(new ApiResponse(201, user, "please enter password"));
-      }
+      // if (user.role == "doctor" || user.role == "admin") {
+      //   return res
+      //     .status(201)
+      //     .json(new ApiResponse(201, user, "please enter password"));
+      // }
       if (user?.isDeleted) {
         return res
           .status(400)
