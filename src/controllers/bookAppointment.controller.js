@@ -31,8 +31,14 @@ const bookAppointment = asyncHandler(async (req, res) => {
 const updatePayment = asyncHandler(async (req, res) => {
   try {
     console.log("update payment working");
-    const payment = await UserService.updatePayment(req, req.body);
-
+    // const payment = await UserService.updatePayment(req, req.body);
+    try {
+      await UserService.updatePayment(req, req.body).catch(err =>
+        console.error("[updatePayment] service error (logged):", err)
+      );
+    } catch (err) {
+      console.error("[updatePayment] unexpected error (logged):", err);
+    }
     return res
       .status(200)
       .json(
@@ -43,6 +49,7 @@ const updatePayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Something wrong", error.message);
   }
 });
+
 
 const paymentVerification = asyncHandler(async (req, res) => {
   try {

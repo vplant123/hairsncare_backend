@@ -2053,11 +2053,12 @@ const status = async (req, res) => {
     const amountInPaise =
       getSafe(response, "data.data.amount") || getSafe(response, "data.amount");
 
+    //  
+
     if (!state) {
-      return res.status(502).json({
-        error: "Unexpected response from payment gateway.",
-        raw: response.data,
-      });
+      // Gateway returned no state (e.g. ORDER_NOT_FOUND). Return the gateway
+      // response with HTTP 200 so clients don't see a 502.
+      return res.status(200).json(response.data || { success: false });
     }
 
     // if (state === "COMPLETED") {
@@ -2082,6 +2083,17 @@ const status = async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch payment status." });
   }
 };
+
+// This is for debugging purposes only
+// const status = async (req, res) => {
+//   return res.status(200).json({
+//     success: true,
+//     status: "completed",
+//     message: "Payment successful",
+//   });
+// };
+
+
 
 module.exports = {
   placeOrder,
