@@ -1487,6 +1487,91 @@
           ]
         }
       ]
+    },
+    {
+      "id": "S10",
+      "title": "Female Hormonal & Reproductive Health",
+      "subtitle": "Female-specific triggers for hair loss",
+      "questions": [
+        {
+          "id": "Q_S10_001",
+          "text": "Pregnancy / Postpartum / Breastfeeding Status",
+          "desc": "Postpartum hair loss typically begins 2–4 months after delivery and lasts 6–12 months",
+          "type": "SINGLE_SELECT",
+          "mandatory": true,
+          "conditional": { "dependsOn": "Q_S01_002", "operator": "equals", "value": "female" },
+          "options": [
+            { "value": "none", "label": "None — not pregnant / not postpartum" },
+            { "value": "pregnant", "label": "Currently pregnant" },
+            { "value": "postpartum_lt_6", "label": "Postpartum — under 6 months" },
+            { "value": "postpartum_6_12", "label": "Postpartum — 6–12 months" },
+            { "value": "breastfeeding", "label": "Currently breastfeeding" },
+            { "value": "postpartum_gt_1", "label": "Postpartum — over 1 year ago" }
+          ]
+        },
+        {
+          "id": "Q_S10_002",
+          "text": "Menstrual Cycle & Hormonal Status",
+          "desc": "Irregular or absent periods often signal hormonal imbalances",
+          "type": "SINGLE_SELECT",
+          "mandatory": true,
+          "conditional": { "dependsOn": "Q_S01_002", "operator": "equals", "value": "female" },
+          "options": [
+            { "value": "regular", "label": "Regular cycle (21–35 days)" },
+            { "value": "irregular", "label": "Irregular cycle" },
+            { "value": "absent", "label": "Absent / amenorrhea" },
+            { "value": "perimenopause", "label": "Perimenopause (approaching menopause)" },
+            { "value": "postmenopause", "label": "Post-menopause" },
+            { "value": "prefer_not_to_say", "label": "Prefer not to say" }
+          ]
+        },
+        {
+          "id": "Q_S10_003",
+          "text": "Oral Contraceptive Pill (OCP) / Hormonal Contraception Use",
+          "desc": "Certain progestin-dominant OCPs have androgenic activity",
+          "type": "SINGLE_SELECT",
+          "mandatory": true,
+          "conditional": { "dependsOn": "Q_S01_002", "operator": "equals", "value": "female" },
+          "options": [
+            { "value": "never", "label": "Never used" },
+            { "value": "current", "label": "Currently using OCP / hormonal contraception" },
+            { "value": "stopped_lt_6", "label": "Stopped OCP — under 6 months ago" },
+            { "value": "stopped_gt_6", "label": "Stopped OCP — over 6 months ago" },
+            { "value": "recently_switched", "label": "Recently switched OCP brand" }
+          ]
+        },
+        {
+          "id": "Q_S10_004",
+          "text": "Significant Weight Loss in Past 12 Months",
+          "desc": "Rapid weight loss is a documented trigger for telogen effluvium",
+          "type": "SINGLE_SELECT",
+          "mandatory": true,
+          "conditional": { "dependsOn": "Q_S01_002", "operator": "equals", "value": "female" },
+          "options": [
+            { "value": "no", "label": "No significant weight change" },
+            { "value": "minor", "label": "Minor loss / gain (under 5 kg)" },
+            { "value": "moderate", "label": "5–10 kg loss (moderate trigger)" },
+            { "value": "significant", "label": "Over 10 kg loss (significant trigger)" },
+            { "value": "crash_diet", "label": "Crash / very low calorie diet (< 1,000 kcal/day)" }
+          ]
+        },
+        {
+          "id": "Q_S10_005",
+          "text": "PCOS-Related Symptoms",
+          "desc": "PCOS causes elevated androgens which trigger female androgenetic alopecia",
+          "type": "SINGLE_SELECT",
+          "mandatory": true,
+          "conditional": { "dependsOn": "Q_S01_002", "operator": "equals", "value": "female" },
+          "options": [
+            { "value": "none", "label": "No PCOS symptoms" },
+            { "value": "irregular_periods", "label": "Irregular periods only" },
+            { "value": "acne_hirsutism", "label": "Acne + facial / body hair growth (hirsutism)" },
+            { "value": "weight_gain_fatigue", "label": "Weight gain + fatigue + brain fog" },
+            { "value": "multiple", "label": "Multiple PCOS symptoms present" },
+            { "value": "confirmed", "label": "PCOS confirmed by doctor / ultrasound" }
+          ]
+        }
+      ]
     }
   ]
 }

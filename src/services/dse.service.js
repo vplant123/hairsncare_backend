@@ -48,6 +48,8 @@ function computeRootCauses(a) {
   if (["high", "extreme"].includes(a.Q_S05_001)) buckets.TE += a.Q_S05_001 === "extreme" ? 70 : 45;
   const meds = Array.isArray(a.Q_S04_005) ? a.Q_S04_005 : [a.Q_S04_005];
   if (meds.some(m => ["covid", "fever", "surgery"].includes(m))) buckets.TE += 75;
+  if (["postpartum_lt_6", "postpartum_6_12"].includes(a.Q_S10_001)) buckets.TE += 85; // Boosted from 60
+  if (["moderate", "significant", "crash_diet"].includes(a.Q_S10_004)) buckets.TE += a.Q_S10_004 === "crash_diet" ? 95 : 65; // Boosted
 
   // NB (Nutrition)
   if (["poor", "very_poor"].includes(a.Q_S05_003)) buckets.NB += a.Q_S05_003 === "very_poor" ? 60 : 40;
@@ -56,6 +58,9 @@ function computeRootCauses(a) {
   // HT (Hormonal/PCOS)
   if (["yes_medicated", "suspected"].includes(a.Q_S04_001)) buckets.HT += 50;
   if (a.Q_S04_009 === "yes") buckets.HT += 40;
+  if (["irregular", "absent", "perimenopause", "postmenopause"].includes(a.Q_S10_002)) buckets.HT += (a.Q_S10_002 === "absent" ? 45 : 30);
+  if (["stopped_lt_6", "recently_switched"].includes(a.Q_S10_003)) buckets.HT += 35;
+  if (["multiple", "confirmed", "acne_hirsutism"].includes(a.Q_S10_005)) buckets.HT += a.Q_S10_005 === "confirmed" ? 60 : 40;
 
   // SD (Scalp Inflammation)
   if (["oily", "very_oily"].includes(a.Q_S07_002)) buckets.SD += 30;
@@ -68,19 +73,21 @@ function computeRootCauses(a) {
 // 📊 2. CLINICAL DIMENSIONS (CRITICAL FIX: SCALP & DENSITY PENALTIES)
 function computeDensity(a) {
   let score = 100;
-  const areaMap = { frontal: 20, temples: 15, crown: 25, temples_crown: 40, diffuse: 25 };
+  const areaMap = { frontal: 15, temples: 10, crown: 15, temples_crown: 30, diffuse: 15 };
   score -= (areaMap[a.Q_S02_004] || 0);
 
-  const sevMap = { mild: 5, moderate: 20, severe: 40, advanced: 60 };
+  const sevMap = { mild: 5, moderate: 15, severe: 30, advanced: 50 };
   score -= (sevMap[a.Q_13] || 0);
 
-  const visMap = { bright_light: 15, moderate: 30, significant: 50, transparent: 70 };
+  const visMap = { bright_light: 10, moderate: 20, significant: 40, transparent: 60 };
   score -= (visMap[a.Q_18] || 0);
 
-  // Regional Check (Frontal, Mid, Crown)
-  if (["moderate", "severe"].includes(a.Q_19)) score -= 15;
-  if (["moderate", "severe"].includes(a.Q_20)) score -= 15;
-  if (["moderate", "severe"].includes(a.Q_21)) score -= 15;
+  // Regional Check (Only penalize if not already heavily hit by visibility)
+  if (score > 60) {
+    if (["moderate", "severe"].includes(a.Q_19)) score -= 10;
+    if (["moderate", "severe"].includes(a.Q_20)) score -= 10;
+    if (["moderate", "severe"].includes(a.Q_21)) score -= 10;
+  }
 
   return clamp(score);
 }
@@ -98,16 +105,16 @@ function computeStrength(a) {
 
 function computeScalp(a) {
   let score = 100;
-  const oilMap = { oily: 20, very_oily: 40, dry: 15, very_dry: 35 };
+  const oilMap = { oily: 15, very_oily: 30, dry: 10, very_dry: 25 };
   score -= (oilMap[a.Q_S07_002] || 0);
 
-  const itchMap = { mild: 10, moderate: 25, severe: 50, constant: 70 };
+  const itchMap = { mild: 5, moderate: 15, severe: 35, constant: 50 };
   score -= (itchMap[a.Q_S07_001] || 0);
 
-  const flakeMap = { mild: 10, moderate: 25, severe: 45 };
+  const flakeMap = { mild: 5, moderate: 15, severe: 35 };
   score -= (flakeMap[a.Q_S07_003] || 0);
 
-  const redMap = { mild: 10, moderate: 25, significant: 45 };
+  const redMap = { mild: 5, moderate: 15, significant: 30 };
   score -= (redMap[a.Q_S07_004] || 0);
 
   return clamp(score);
@@ -115,21 +122,24 @@ function computeScalp(a) {
 
 function computeFall(a) {
   const fallMap = { lt_50: 98, "50_100": 85, "100_150": 65, "150_200": 45, gt_200: 20 };
-  return clamp(fallMap[a.Q_S02_003] || (a.Q_37 === "much_more" ? 50 : 90));
+  let base = fallMap[a.Q_S02_003] || (a.Q_37 === "much_more" ? 50 : 90);
+  if (a.Q_S10_004 === "crash_diet") base -= 30;
+  return clamp(base);
 }
 
 function computeLifestyle(a) {
   let score = 100;
-  const stressMap = { minimal: 0, low: 10, moderate: 20, high: 45, extreme: 75 };
+  const stressMap = { minimal: 0, low: 5, moderate: 15, high: 30, extreme: 60 };
   score -= (stressMap[a.Q_S05_001] || 0);
 
-  const dietMap = { excellent: -10, good: 0, average: 20, poor: 45, very_poor: 65 };
+  const dietMap = { excellent: -10, good: 0, average: 10, poor: 30, very_poor: 50 };
   score -= (dietMap[a.Q_S05_003] || 0);
   
-  const proteinMap = { high: -10, adequate: 0, low: 35, very_low: 55 };
+  const proteinMap = { high: -10, adequate: 0, low: 20, very_low: 40 };
   score -= (proteinMap[a.Q_S05_007] || 0);
 
-  if (["regular", "heavy"].includes(a.Q_S05_004)) score -= 20;
+  if (["regular", "heavy"].includes(a.Q_S05_004)) score -= 25; // Smoking
+  if (["regular", "heavy"].includes(a.Q_S05_005)) score -= 20; // Alcohol
 
   return clamp(score);
 }
@@ -143,9 +153,19 @@ function computeRecovery(a) {
   const scalpScore = computeScalp(a);
   const lifestyleScore = computeLifestyle(a);
   
-  if (scalpScore < 60) score -= 25; // Inflamed scalp kills recovery potential
-  if (lifestyleScore < 50) score -= 20;
-  if (["low", "very_low"].includes(a.Q_S05_007)) score -= 15;
+  if (scalpScore < 50) score -= 15; // Only minor hit for scalp
+  if (lifestyleScore < 40) score -= 15;
+  
+  // TE / Postpartum Bonus (Highly Reversible)
+  if (["postpartum_lt_6", "postpartum_6_12", "pregnant"].includes(a.Q_S10_001)) score += 15;
+  if (a.Q_S02_002 === "sudden" || a.Q_40 === "acute") score += 20;
+
+  // AGA / Duration Penalties (Genuine follicle loss)
+  if (["gt_5_years", "1_2_years"].includes(a.Q_S02_001)) score -= (a.Q_S02_001 === "gt_5_years" ? 40 : 20);
+  if (["both", "paternal"].includes(a.Q_S03_001)) score -= 15;
+
+  // Age Modifier (Higher recovery for youth)
+  if (a.Q_S01_001 === "under_20") score += 10;
 
   return clamp(score);
 }
@@ -186,8 +206,8 @@ function runDSE(session) {
 
   return {
     hairHealthIndex: hhi,
-    severityBand: hhi >= 80 ? "MILD" : hhi >= 55 ? "MODERATE" : "SEVERE",
-    urgencyFlag: hhi < 40 || causeBuckets.SD > 45 || causeBuckets.TE > 45 ? "HIGH" : hhi < 65 ? "MEDIUM" : "LOW",
+    severityBand: hhi >= 75 ? "MILD" : hhi >= 45 ? "MODERATE" : "SEVERE",
+    urgencyFlag: hhi < 40 || causeBuckets.SD > 55 || causeBuckets.TE > 60 ? "HIGH" : hhi < 60 ? "MEDIUM" : "LOW",
     primaryConditions: conditions.filter(c => c.classification === "PRIMARY_CONDITION").map(c => c.name),
     secondaryConditions: conditions.filter(c => c.classification === "SECONDARY_CONDITION").map(c => c.name),
     conditions,

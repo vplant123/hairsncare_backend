@@ -17,7 +17,7 @@ const BRANCHING_RULES = [
     id: "BR_002_FEMALE_ROUTING",
     description: "Activate female-specific questions",
     trigger: (answers) => answers["Q_S01_002"] === "female",
-    activates: ["Q_S04_009"] // Only PCOS remains from the new set
+    activates: ["Q_S04_009", "Q_S10_001", "Q_S10_002", "Q_S10_003", "Q_S10_004", "Q_S10_005"]
   },
   {
     id: "BR_003_RAPID_ONSET",

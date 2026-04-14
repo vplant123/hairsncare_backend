@@ -31,10 +31,8 @@
 
 const mongoose = require("mongoose");
 
-const uri ="mongodb+srv://sanchitsharma_db_user:UoB2Nc6kzYwtxxZZ@cluster0.1yov2mp.mongodb.net/hairandcare";
-  // "mongodb://127.0.0.1:27017/hairandcare";
-// const uri =
-//   "mongodb+srv://hairsncares:hairsncares12345@hairsncares.d3wpd.mongodb.net/HairsNCare?retryWrites=true&w=majority&appName=HairsNcares";
+const uri =process.env.MONGODB_URI;
+
 
 async function connectDB() {
   try {

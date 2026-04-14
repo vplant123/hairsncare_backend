@@ -211,9 +211,9 @@ const NUTRITION_LIBRARY = {
   vegan_strict: {
     cards: [
       { title: "Biotin (Plant-Based)", dosage: "5,000 mcg/day", tone: "amber", icon: "chain", imageProvider: "static_IMG_2146_png", desc: "Supports keratin synthesis using plant-derived precursors.", foods: ["Almonds", "Walnuts", "Sweet potato", "Sunflower seeds"] },
-      { title: "Non-Heme Iron", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2110_png", desc: "Optimizes oxygen delivery; take with vitamin C for absorption.", foods: ["Spinach", "Lentils", "Tofu", "Pumpkin seeds"] },
+      { title: "Non-Heme Iron", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2146_png", desc: "Optimizes oxygen delivery; take with vitamin C for absorption.", foods: ["Spinach", "Lentils", "Tofu", "Pumpkin seeds"] },
       { title: "Zinc (Seeds & Nuts)", dosage: "15-30 mg/day", tone: "cyan", icon: "shield", imageProvider: "static_IMG_2146_png", desc: "Regulates enzyme activity via plant mineral pools.", foods: ["Pumpkin seeds", "Cashews", "Chickpeas", "Hemp seeds"] },
-      { title: "Plant-Based D3", dosage: "2,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2393_png", desc: "Maintains anagen using lichen-derived Vitamin D.", foods: ["Soy milk", "Mushrooms", "Lichen D3", "Sunlight"] },
+      { title: "Plant-Based D3", dosage: "2,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2146_png", desc: "Maintains anagen using lichen-derived Vitamin D.", foods: ["Soy milk", "Mushrooms", "Lichen D3", "Sunlight"] },
     ],
     meals: [
       { meal: "Breakfast", tone: "amber", icon: "sun", detail: "Oatmeal with walnuts, flaxseeds, and sliced bananas" },
@@ -226,9 +226,9 @@ const NUTRITION_LIBRARY = {
   vegetarian: {
     cards: [
       { title: "Biotin (Vitamin B7)", dosage: "5,000 mcg/day", tone: "amber", icon: "chain", imageProvider: "static_IMG_2146_png", desc: "Reinforces hair shaft structural integrity.", foods: ["Eggs", "Almonds", "Sweet potato", "Dairy"] },
-      { title: "Iron Synthesis", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2110_png", desc: "Optimizes oxygen delivery to follicle cells.", foods: ["Spinach", "Lentils", "Paneer", "Pumpkin seeds"] },
+      { title: "Iron Synthesis", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2146_png", desc: "Optimizes oxygen delivery to follicle cells.", foods: ["Spinach", "Lentils", "Paneer", "Pumpkin seeds"] },
       { title: "Zinc Focus", dosage: "15-30 mg/day", tone: "cyan", icon: "shield", imageProvider: "static_IMG_2146_png", desc: "Regulates enzyme activity and cellular repair.", foods: ["Curd", "Chickpeas", "Cashews", "Seeds"] },
-      { title: "Vitamin D3", dosage: "2,000-4,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2393_png", desc: "Maintains active anagen growth phase.", foods: ["Milk", "Egg yolks", "Fortified curd", "Sunlight"] },
+      { title: "Vitamin D3", dosage: "2,000-4,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2146_png", desc: "Maintains active anagen growth phase.", foods: ["Milk", "Egg yolks", "Fortified curd", "Sunlight"] },
     ],
     meals: [
       { meal: "Breakfast", tone: "amber", icon: "sun", detail: "Greek yogurt with almonds and berries or scrambled eggs" },
@@ -241,9 +241,9 @@ const NUTRITION_LIBRARY = {
   non_vegetarian: {
     cards: [
       { title: "Biotin (Vitamin B7)", dosage: "5,000 mcg/day", tone: "amber", icon: "chain", imageProvider: "static_IMG_2146_png", desc: "High-bioavailability keratin support.", foods: ["Salmon", "Eggs", "Almonds", "Sweet potato"] },
-      { title: "Heme Iron", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2110_png", desc: "Optimizes oxygen delivery via high-absorption heme iron.", foods: ["Red meat", "Chicken", "Spinach", "Lentils"] },
+      { title: "Heme Iron", dosage: "18-27 mg/day", tone: "red", icon: "drop", imageProvider: "static_IMG_2146_png", desc: "Optimizes oxygen delivery via high-absorption heme iron.", foods: ["Red meat", "Chicken", "Spinach", "Lentils"] },
       { title: "Zinc Focus", dosage: "15-30 mg/day", tone: "cyan", icon: "shield", imageProvider: "static_IMG_2146_png", desc: "Regulates enzyme activity and cellular repair.", foods: ["Oysters", "Beef", "Chickpeas", "Cashews"] },
-      { title: "Vitamin D3", dosage: "2,000-4,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2393_png", desc: "Maintains active anagen growth phase.", foods: ["Fatty fish", "Egg yolks", "Cod liver oil", "Fortified milk"] },
+      { title: "Vitamin D3", dosage: "2,000-4,000 IU/day", tone: "amber", icon: "sun", imageProvider: "static_IMG_2146_png", desc: "Maintains active anagen growth phase.", foods: ["Fatty fish", "Egg yolks", "Cod liver oil", "Fortified milk"] },
     ],
     meals: [
       { meal: "Breakfast", tone: "amber", icon: "sun", detail: "Eggs with smoked salmon on whole-grain toast" },
@@ -541,7 +541,7 @@ function buildLifestyleRiskFactors(get) {
   const sleepMap = { excellent: 95, good: 80, fair: 55, poor: 25, insomnia: 10 };
   const sleepProgress = sleepMap[sleep] || 80;
   const sleepTone = sleepProgress < 30 ? "high" : sleepProgress < 60 ? "moderate" : "good";
-  const sleepTag = sleep === "insomnia" ? "Critical" : sleep === "poor" ? "Weak" : "Normal";
+  const sleepTag = sleep === "insomnia" ? "Critical" : sleep === "poor" ? "Weak" : sleep === "fair" ? "Fair" : "Normal";
 
   const dietMap = { excellent: 95, good: 80, average: 55, poor: 25, very_poor: 10 };
   const dietProgress = dietMap[diet] || 55;
@@ -564,12 +564,12 @@ function buildLifestyleRiskFactors(get) {
   const alcoholTag = (alcohol.charAt(0).toUpperCase() + alcohol.slice(1)).replace("_", " ");
 
   return [
-    { title: "Stress Level", progress: stressProgress, tone: stressTone, tag: stressTag },
-    { title: "Sleep Quality", progress: sleepProgress, tone: sleepTone, tag: sleepTag },
-    { title: "Nutritional Intake", progress: dietProgress, tone: dietTone, tag: dietTag },
-    { title: "Protein Baseline", progress: proteinProgress, tone: proteinTone, tag: proteinTag },
-    { title: "Smoking Status", progress: smokingProgress, tone: smokingTone, tag: smokingTag },
-    { title: "Alcohol Factor", progress: alcoholProgress, tone: alcoholTone, tag: alcoholTag },
+    { label: "Stress Level", progress: stressProgress, tone: stressTone, tag: stressTag },
+    { label: "Sleep Quality", progress: sleepProgress, tone: sleepTone, tag: sleepTag },
+    { label: "Nutritional Intake", progress: dietProgress, tone: dietTone, tag: dietTag },
+    { label: "Protein Baseline", progress: proteinProgress, tone: proteinTone, tag: proteinTag },
+    { label: "Smoking Status", progress: smokingProgress, tone: smokingTone, tag: smokingTag },
+    { label: "Alcohol Factor", progress: alcoholProgress, tone: alcoholTone, tag: alcoholTag },
   ];
 }
 
@@ -612,8 +612,11 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
   const secondaryPct = secondaryCondObj.probabilityPct || 0;
 
   const categoryTitle = `Category 1 — ${primaryCondName}`;
-  const gender = String(dse.gender || get("Q_S01_002") || "unspecified").toLowerCase();
-  const age = get("Q_S01_001") || "";
+  const genderRaw = String(get("Q_S01_002") || "unspecified").toLowerCase();
+  const gender = genderRaw === "female" ? "female" : genderRaw === "male" ? "male" : "unspecified";
+  
+  const ageRaw = get("Q_S01_001") || "";
+  const age = String(ageRaw).replace("_", " ");
   const dietKey = detectDiet(get);
   const nutritionData = JSON.parse(JSON.stringify(NUTRITION_LIBRARY[dietKey]));
   // These will be resolved to base64 in the PDF generator service
@@ -627,8 +630,8 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
   const urgency = dse.urgencyFlag || "LOW";
   const stressNum = Number(get("Q_S05_001", 5)) || 5;
 
-  const hhiLabel = severity === "MILD" ? "Healthy" : severity === "MODERATE" ? "Moderate" : "Critical";
-  const hhiPillLabel = hhi >= 75 ? "Good Hair Health" : hhi >= 50 ? "Moderate Hair Health" : "Needs Attention";
+  const hhiLabel = severity === "MILD" ? "Healthy" : severity === "MODERATE" ? "Average" : "Below Average";
+  const hhiPillLabel = hhi >= 75 ? "Good Hair Health" : hhi >= 45 ? "Moderate Hair Health" : "Needs Attention";
 
   // Clinical staging (v12.1 — Anchored to Q_13 Severity)
   const severityVal = String(get("Q_13") || "");
@@ -646,7 +649,7 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
   const rootCauses = buildRootCauses(dse);
   const clinicalDimensions = buildClinicalDimensions(dse, get);
   const lifestyleFactors = buildLifestyleRiskFactors(get);
-  const lifestyleImpactCount = lifestyleFactors.filter(f => f.progress > 60).length;
+  const lifestyleImpactCount = lifestyleFactors.filter(f => f.progress < 60).length;
 
   // Recovery dimension for summary (usually rank 5 or title 'Recovery')
   const recoveryScore = (clinicalDimensions || []).find(d => d.title === "Recovery")?.score || hhi;
@@ -654,6 +657,7 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
   // Full report shell
   return {
     lifestyleImpactCount,
+    photoCrown,
     sessionId: session.sessionId,
     status: session.status || "COMPLETE",
     reportUrl: session.reportUrl || null,
@@ -696,7 +700,9 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
     },
 
     executiveSummary: {
-      text: `Clinical findings indicate ${primaryCondName} (${primaryPct}% probability) as the primary pattern for this ${age || "—"}-year-old ${gender} patient. Hair Health Index (HHI) of ${hhi}/100 places overall status in the ${severity} band with ${urgency} urgency. ${dse.flags && dse.flags.length ? `Composite rules fired: ${dse.flags.join(", ")}.` : ""} Recommended protocol follows the standardised phase-1 to phase-3 framework below.`,
+      text: age && gender !== "unspecified" 
+        ? `Clinical findings indicate ${primaryCondName} (${primaryPct}% probability) as the primary pattern for this ${age}-year-old ${gender} patient. Hair Health Index (HHI) of ${hhi}/100 places overall status in the ${severity} band with ${urgency} urgency.`
+        : `Clinical findings indicate ${primaryCondName} (${primaryPct}% probability) as the primary pattern. Hair Health Index (HHI) of ${hhi}/100 places overall status in the ${severity} band with ${urgency} urgency.`,
       confidenceBand: "HIGH",
       confidenceLabel: "HIGH Confidence (Deterministic DSE)",
     },
@@ -725,7 +731,7 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
       riskScoreDashArray: computeDash(riskScore, 219.91),
       hairLossRiskDashArray: computeDash(hairLossRiskScore, 207.35),
       geneticDashArray: computeDash(primaryPct, 207.35),
-      stressLevelLabel: Number(get("Q_S05_001", 5)) >= 8 ? "Extreme" : Number(get("Q_S05_001", 5)) >= 6 ? "High" : Number(get("Q_S05_001", 5)) >= 4 ? "Moderate" : "Low",
+      stressLevelLabel: ["extreme", "high"].includes(String(get("Q_S05_001", "low"))) ? "High" : get("Q_S05_001") === "moderate" ? "Moderate" : "Low",
       probabilityPct: primaryPct,
       // New helper fields (Additive)
       severitySummary: getSeveritySummary(dse.severity),
@@ -1000,8 +1006,8 @@ const mapDSEToReport = (session, flags = { withPhotoAnalysis: false, fullReport:
         },
         {
           label: "Stress Load",
-          level: Number(get("Q_S05_001", 5)) >= 7 ? "HIGH" : "MODERATE",
-          tone: Number(get("Q_S05_001", 5)) >= 7 ? "high" : "moderate",
+          level: ["high", "extreme"].includes(String(get("Q_S05_001", ""))) ? "HIGH" : "MODERATE",
+          tone: ["high", "extreme"].includes(String(get("Q_S05_001", ""))) ? "high" : "moderate",
           note: "Chronic cortisol disrupts follicle growth cycle",
         },
         {
@@ -1107,6 +1113,14 @@ const ARRAY_TEXT_FIELDS = ["bullets", "steps"];
 
 const mergeRefinements = (mapperReport, aiRefinements = {}) => {
   if (!aiRefinements || typeof aiRefinements !== "object") return mapperReport;
+  
+  // Guard against AI placeholders (e.g. "—-year-old", "unspecified patient")
+  const refinementStr = JSON.stringify(aiRefinements);
+  if (refinementStr.includes("—-") || refinementStr.includes("unspecified")) {
+    console.warn("[ClinicalGuard] AI Hallucination Blocked: Detected placeholders in refinement. Ignoring AI polish.");
+    return mapperReport;
+  }
+
   const merged = JSON.parse(JSON.stringify(mapperReport));
 
   // ── Header + executive summary (robust top-level text fields) ─────────────
