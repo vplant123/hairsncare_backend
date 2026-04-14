@@ -10,8 +10,11 @@ const doctorRoutes = require("./routes/doctor.routes.js");
 const bookapointment = require("./routes/payment.routes.js");
 const cartRoutes = require("./routes/cart.routes.js");
 const utilityRoutes = require("./routes/utility.routes.js");
+const reportRoutes = require("./routes/report.routes.js");
+const sessionRoutes = require("./routes/session.routes.js");
 
 const bodyParser = require("body-parser");
+const path = require("path");
 const morgan = require("morgan");
 
 // require("./lokiLogger.js");
@@ -72,6 +75,13 @@ app.use("/api/v1/doctor", doctorRoutes);
 app.use("/api/v1/cart", cartRoutes);
 //utility routes
 app.use("/api/v1/utility", utilityRoutes);
+// report / diagnostic pipeline routes (TrichoScan AI)
+app.use("/api/v1/reports", reportRoutes);
+// PRODUCTION TRICHOSCAN PIPELINE (§4)
+app.use("/api/v1/sessions", sessionRoutes);
+app.use("/api/v1/leads", sessionRoutes); // Lead capture handled by session controller for session context (§4.5)
+// S3 Storage is used in production for all uploads and reports.
+// (Local static uploads route removed for cloud parity).
 
 // Health check endpoint
 app.get("/", (req, res) => {
