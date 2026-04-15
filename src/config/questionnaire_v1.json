@@ -181,7 +181,7 @@
           "id": "Q_07",
           "text": "Previous Hair Treatments Tried",
           "desc": "Prior treatment response guides future protocol selection",
-          "type": "MULTI_SELECT",
+          "type": "SINGLE_SELECT",
           "mandatory": true,
           "options": [
             {
@@ -235,7 +235,7 @@
           "id": "Q_S04_005",
           "text": "Recent Illness / Surgery / High Fever?",
           "desc": "Post-illness telogen effluvium causes sudden mass shedding 6–12 weeks later",
-          "type": "MULTI_SELECT",
+          "type": "SINGLE_SELECT",
           "mandatory": true,
           "options": [
             {
